@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>PAM POC</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { maxWidth: { 'content': '1100px' }}}}
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <header class="bg-white border-b border-slate-200">
+    <div class="mx-auto max-w-content px-4 py-4 flex items-center justify-between">
+      <h1 class="text-xl font-semibold">PAM POC</h1>
+      <nav class="flex gap-4 text-sm">
+        <a class="hover:text-blue-600" href="/">Accueil</a>
+        <a class="hover:text-blue-600" href="/patients">Patients</a>
+        <a class="hover:text-blue-600" href="/dossiers">Dossiers</a>
+        <a class="hover:text-blue-600" href="/venues">Venues</a>
+        <a class="hover:text-blue-600" href="/mouvements">Mouvements</a>
+        <a class="hover:text-blue-600" href="/endpoints">Systèmes</a>
+        <a class="hover:text-blue-600" href="/messages">Messages</a>
+        <a class="hover:text-blue-600" href="/admin">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-content px-4 py-6">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="mx-auto max-w-content px-4 py-6 text-xs text-slate-500">
+    FHIR PAM POC • FastAPI + Tailwind
+  </footer>
+</body>
+</html>

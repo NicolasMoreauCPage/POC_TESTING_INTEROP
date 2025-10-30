@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Message #{{ m.id }}</h1>
+
+<!-- En-tête type "fiche" comme sur la page endpoint -->
+<div class="box">
+  <div class="grid" style="grid-template-columns: repeat(2, minmax(280px, 1fr)); gap: 1rem;">
+    <label>Horodatage
+      <input value="{{ m.created_at }}" readonly>
+    </label>
+
+    <label>Endpoint
+      <input value="{{ (endpoint.name if endpoint else m.endpoint_id) }}" readonly>
+    </label>
+
+    <label>Protocole
+      <input value="{{ m.kind }}" readonly>
+    </label>
+
+    <label>Direction
+      <input value="{{ m.direction|upper }}" readonly>
+    </label>
+
+    <label>Statut
+      <div>
+        {% if m.status in ['ack_error','error'] %}
+          <span class="badge danger">{{ m.status }}</span>
+        {% elif m.status in ['ack_ok','sent','received'] %}
+          <span class="badge success">{{ m.status }}</span>
+        {% else %}
+          <span class="badge">{{ m.status }}</span>
+        {% endif %}
+      </div>
+    </label>
+
+    <label>Correlation ID
+      <input value="{{ m.correlation_id or '' }}" readonly>
+    </label>
+  </div>
+
+  <div style="margin-top:1rem; display:flex; gap:.5rem;">
+    <a href="/messages" class="btn">Retour</a>
+  </div>
+</div>
+
+<!-- Payload / ACK en boxes séparées (cohérent avec ton style) -->
+<div class="box">
+  <h3>Payload</h3>
+  <pre style="white-space: pre-wrap; margin:0;">{{ m.payload }}</pre>
+</div>
+
+{% if m.ack_payload %}
+<div class="box">
+  <h3>ACK</h3>
+  <pre style="white-space: pre-wrap; margin:0;">{{ m.ack_payload }}</pre>
+</div>
+{% endif %}
+{% endblock %}

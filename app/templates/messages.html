@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Supervision des messages</h1>
+
+<!-- Filtres (même esprit que le form des systèmes) -->
+<form method="get" action="/messages" class="box">
+  <div class="grid" style="grid-template-columns: repeat(2, minmax(280px, 1fr)); gap: 1rem;">
+    <label>Endpoint
+      <select name="endpoint_id">
+        <option value="">Tous</option>
+        {% for e in endpoints %}
+          <option value="{{ e.id }}" {% if filters.endpoint_id|string == e.id|string %}selected{% endif %}>{{ e.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>Protocole
+      <select name="kind">
+        <option value="">Tous</option>
+        <option value="MLLP" {% if filters.kind == 'MLLP' %}selected{% endif %}>HL7v2 (MLLP)</option>
+        <option value="FHIR" {% if filters.kind == 'FHIR' %}selected{% endif %}>FHIR</option>
+      </select>
+    </label>
+
+    <label>Début
+      <input type="datetime-local" name="date_start" value="{{ filters.date_start }}">
+    </label>
+
+    <label>Fin
+      <input type="datetime-local" name="date_end" value="{{ filters.date_end }}">
+    </label>
+
+    <label>Limite
+      <input type="number" name="limit" min="1" max="5000" value="{{ filters.limit }}">
+    </label>
+
+    <label style="align-self:center; margin-top:.4rem">
+      <input type="checkbox" name="neg_ack_only" value="on" {% if filters.neg_ack_only %}checked{% endif %}>
+      ACK négatifs uniquement
+    </label>
+  </div>
+
+  <div style="margin-top:1rem; display:flex; gap:.5rem;">
+    <button type="submit">Filtrer</button>
+    <a href="/messages" class="btn">Réinitialiser</a>
+  </div>
+</form>
+
+<!-- Tableau des messages dans une box comme sur la page systèmes -->
+<div class="box" style="padding:0;">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Horodatage</th>
+        <th>Endpoint</th>
+        <th>Protocole</th>
+        <th>Direction</th>
+        <th>Statut</th>
+        <th>Correlation ID</th>
+        <th style="width:6rem">Détails</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if messages|length == 0 %}
+      <tr>
+        <td colspan="7" style="text-align:center; padding:1rem;">Aucun message pour ces filtres.</td>
+      </tr>
+      {% else %}
+      {% for m in messages %}
+      <tr>
+        <td>{{ m.created_at }}</td>
+        <td>{{ ep_name.get(m.endpoint_id, m.endpoint_id) }}</td>
+        <td>
+          {% if m.kind == 'FHIR' %}
+            <span class="badge">FHIR</span>
+          {% else %}
+            <span class="badge">HL7v2</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if m.direction == 'in' %}
+            <span class="badge">IN</span>
+          {% else %}
+            <span class="badge">OUT</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if m.status in ['ack_error','error'] %}
+            <span class="badge danger">{{ m.status }}</span>
+          {% elif m.status in ['ack_ok','sent','received'] %}
+            <span class="badge success">{{ m.status }}</span>
+          {% else %}
+            <span class="badge">{{ m.status }}</span>
+          {% endif %}
+        </td>
+        <td>{{ m.correlation_id or '—' }}</td>
+        <td><a href="/messages/{{ m.id }}" class="btn">Voir</a></td>
+      </tr>
+      {% endfor %}
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

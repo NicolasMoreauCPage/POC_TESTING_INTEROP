@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="text-lg font-semibold mb-4">Tableau de bord</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+  <div class="bg-white rounded-2xl border border-slate-200 p-5">
+    <div class="text-sm text-slate-500">Patients</div>
+    <div class="text-3xl font-semibold">{{ stats.patients }}</div>
+  </div>
+  <div class="bg-white rounded-2xl border border-slate-200 p-5">
+    <div class="text-sm text-slate-500">Dossiers</div>
+    <div class="text-3xl font-semibold">{{ stats.dossiers }}</div>
+  </div>
+  <div class="bg-white rounded-2xl border border-slate-200 p-5">
+    <div class="text-sm text-slate-500">Venues</div>
+    <div class="text-3xl font-semibold">{{ stats.venues }}</div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <a href="/dossiers" class="block bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md transition">
+    <div class="text-lg font-medium mb-1">📁 Dossiers</div>
+    <p class="text-sm text-slate-600">Créer un dossier (seq, UF de responsabilité, admission), visualiser les venues et mouvements associés.</p>
+  </a>
+  <a href="/venues" class="block bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md transition">
+    <div class="text-lg font-medium mb-1">🏥 Venues</div>
+    <p class="text-sm text-slate-600">Créer une venue (seq, UF de responsabilité, date de début), ajouter des mouvements.</p>
+  </a>
+  <a href="/mouvements" class="block bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md transition">
+    <div class="text-lg font-medium mb-1">🔄 Mouvements</div>
+    <p class="text-sm text-slate-600">Enregistrer les évènements ADT (type, date/heure, localisation) rattachés à une venue.</p>
+  </a>
+  <a href="/patients" class="block bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md transition">
+    <div class="text-lg font-medium mb-1">👤 Patients</div>
+    <p class="text-sm text-slate-600">Gérer l’identité patient et lier aux dossiers.</p>
+  </a>
+</div>
+{% endblock %}

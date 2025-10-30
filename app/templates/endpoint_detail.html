@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Endpoint #{{ e.id }} — {{ e.name }}</h1>
+
+<form method="post" action="/endpoints/{{ e.id }}/update" class="box">
+  <div class="grid" style="grid-template-columns: repeat(2, minmax(280px, 1fr)); gap: 1rem;">
+    <label>Nom <input name="name" value="{{ e.name }}" required></label>
+    <label>Type (MLLP|FHIR) <input name="kind" value="{{ e.kind }}" required></label>
+    <label>Rôle (sender|receiver|both) <input name="role" value="{{ e.role }}" required></label>
+    <label>Actif (true/false) <input name="is_enabled" value="{{ 'true' if e.is_enabled else 'false' }}"></label>
+
+    <label>Host (MLLP) <input name="host" value="{{ e.host or '' }}"></label>
+    <label>Port (MLLP) <input type="number" name="port" value="{{ e.port or '' }}"></label>
+
+    <label>Sending App (MSH-3) <input name="sending_app" value="{{ e.sending_app or '' }}"></label>
+    <label>Sending Facility (MSH-4) <input name="sending_facility" value="{{ e.sending_facility or '' }}"></label>
+    <label>Receiving App (MSH-5) <input name="receiving_app" value="{{ e.receiving_app or '' }}"></label>
+    <label>Receiving Facility (MSH-6) <input name="receiving_facility" value="{{ e.receiving_facility or '' }}"></label>
+
+    <label>FHIR base URL <input name="base_url" value="{{ e.base_url or '' }}"></label>
+    <label>Auth kind (none|bearer) <input name="auth_kind" value="{{ e.auth_kind or '' }}"></label>
+    <label>Auth token <input name="auth_token" value="{{ e.auth_token or '' }}"></label>
+  </div>
+
+  <div style="margin-top:1rem; display:flex; gap:.5rem;">
+    <button type="submit">Enregistrer</button>
+    <a href="/endpoints" class="btn">Retour</a>
+  </div>
+</form>
+
+<div class="box" style="display:flex; gap:.5rem; align-items:center;">
+  <div>Runtime:&nbsp;
+    {% if is_running %}<span class="badge success">RUNNING</span>
+    {% else %}<span class="badge">STOPPED</span>{% endif %}
+  </div>
+  <form method="post" action="/endpoints/{{ e.id }}/start"><button type="submit" {% if is_running %}disabled{% endif %}>Start</button></form>
+  <form method="post" action="/endpoints/{{ e.id }}/stop"><button type="submit" {% if not is_running %}disabled{% endif %}>Stop</button></form>
+  <form method="post" action="/endpoints/{{ e.id }}/restart"><button type="submit">Restart</button></form>
+  <form method="post" action="/endpoints/{{ e.id }}/delete" onsubmit="return confirm('Supprimer cet endpoint ?');"><button type="submit" class="danger">Supprimer</button></form>
+</div>
+{% endblock %}

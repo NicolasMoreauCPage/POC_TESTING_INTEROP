@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="text-lg font-semibold mb-4">Dossier #{{ dossier.dossier_seq }} (ID {{ dossier.id }})</h2>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2 space-y-6">
+    <div class="bg-white rounded-2xl border border-slate-200 p-6">
+      <div class="text-sm text-slate-500 mb-2">Patient</div>
+      <div class="text-base">{{ dossier.patient.family }} {{ dossier.patient.given }}</div>
+      <div class="text-sm text-slate-600 mt-2">UF responsabilité (dossier): <b>{{ dossier.uf_responsabilite }}</b></div>
+      <div class="text-sm text-slate-600">Admission: <b>{{ dossier.admit_time }}</b></div>
+      <div class="text-sm text-slate-600">Sortie: <b>{{ dossier.discharge_time }}</b></div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-200 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div class="text-sm text-slate-500">Venues du dossier</div>
+        <a class="text-blue-600 hover:underline text-sm" href="/venues?dossier_id={{ dossier.id }}">Voir toutes</a>
+      </div>
+      <ul class="space-y-4">
+        {% for v in dossier.venues %}
+          <li class="rounded-xl border border-slate-200 p-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="font-medium">Venue #{{ v.venue_seq }} — Début: {{ v.start_time }}</div>
+                <div class="text-sm text-slate-600">UF resp.: {{ v.uf_responsabilite }} {% if v.code or v.label %}— ({{ v.code }} {{ v.label }}){% endif %}</div>
+              </div>
+              <a class="text-blue-600 hover:underline text-sm" href="/mouvements?venue_id={{ v.id }}">Mouvements</a>
+            </div>
+            {% if v.mouvements %}
+            <ul class="mt-3 text-sm text-slate-700 space-y-1">
+              {% for m in v.mouvements %}
+                <li>• Mvmt #{{ m.mouvement_seq }} — {{ m.when }} — {{ m.type }} @ {{ m.location }}</li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="space-y-4">
+    <div class="bg-white rounded-2xl border border-slate-200 p-6">
+      <div class="text-sm text-slate-500 mb-3">Actions</div>
+      <form action="/generate/pam/{{ dossier.id }}" method="post" class="mb-2">
+        <button type="submit" class="w-full rounded-xl bg-slate-800 text-white px-4 py-2 text-sm hover:bg-black">Télécharger IHE PAM</button>
+      </form>
+      <form action="/generate/fhir/{{ dossier.id }}" method="post">
+        <button type="submit" class="w-full rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700">Télécharger FHIR (JSON)</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

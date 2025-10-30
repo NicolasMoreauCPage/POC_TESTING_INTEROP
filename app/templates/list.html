@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex items-center justify-between mb-4">
+  <h2 class="text-lg font-semibold">{{ title }}</h2>
+  <a href="{{ new_url }}" class="inline-flex items-center rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700">Nouveau</a>
+</div>
+
+<div class="overflow-x-auto bg-white rounded-2xl border border-slate-200">
+  <table class="min-w-full text-sm">
+    <thead class="bg-slate-50">
+      <tr>
+        {% for h in headers %}<th class="text-left font-medium text-slate-600 px-4 py-3">{{ h }}</th>{% endfor %}
+        <th class="text-left font-medium text-slate-600 px-4 py-3">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr class="border-t border-slate-100 hover:bg-slate-50">
+        {% for cell in row.cells %}<td class="px-4 py-3">{{ cell }}</td>{% endfor %}
+        <td class="px-4 py-3">
+          {% if row.detail_url %}
+            <a href="{{ row.detail_url }}" class="text-blue-600 hover:underline">Détail</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
