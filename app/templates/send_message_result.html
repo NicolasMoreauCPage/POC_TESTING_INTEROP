@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="bg-white p-6 rounded shadow">
+  <h2 class="text-lg font-semibold mb-4">Résultat d'injection</h2>
+
+  <div class="mb-4">
+    <strong>Type:</strong> {{ kind }}
+  </div>
+
+  <div class="bg-slate-50 border border-slate-100 p-3 rounded mb-4">
+    <pre class="whitespace-pre-wrap text-sm">{{ ack }}</pre>
+  </div>
+
+  <div class="flex gap-3">
+    <a href="/messages/send" class="bg-white border px-3 py-2 rounded">Envoyer un autre</a>
+    <a href="/messages" class="text-sm text-slate-600">Retour aux messages</a>
+  </div>
+</div>
+{% endblock %}

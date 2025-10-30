@@ -1,0 +1,14 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run FastAPI server (uvicorn)",
+			"type": "shell",
+			"command": "C:/Travail/Fhir_Tester/POC_TESTING_INTEROP/.venv/Scripts/python.exe -m uvicorn app.app:app --reload",
+			"args": [],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

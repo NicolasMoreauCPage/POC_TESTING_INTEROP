@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="bg-white p-6 rounded shadow">
+  <h2 class="text-lg font-semibold mb-4">Injecter un message (HL7 / FHIR)</h2>
+
+  {% if error %}
+  <div class="bg-red-50 border border-red-200 text-red-800 p-3 rounded mb-4">{{ error }}</div>
+  {% endif %}
+
+  <form method="post">
+    <div class="grid grid-cols-3 gap-4 items-end">
+      <div>
+        <label class="block text-sm text-slate-600">Type</label>
+        <select name="kind" class="mt-1 block w-full rounded border px-2 py-1">
+          <option value="MLLP">MLLP (HL7 v2)</option>
+          <option value="FHIR">FHIR (JSON)</option>
+        </select>
+      </div>
+
+      <div class="col-span-2">
+        <label class="block text-sm text-slate-600">Endpoint cible (optionnel)</label>
+        <select name="endpoint_id" class="mt-1 block w-full rounded border px-2 py-1">
+          <option value="">-- aucun --</option>
+          {% for e in endpoints %}
+            <option value="{{ e.id }}">{{ e.name }} ({{ e.kind }})</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <label class="block text-sm text-slate-600">Payload</label>
+      <textarea name="payload" rows="12" class="mt-1 block w-full rounded border px-3 py-2 monospace">MSH|^~\\&|...</textarea>
+    </div>
+
+    <div class="mt-4 flex gap-3">
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Envoyer</button>
+      <a href="/messages" class="text-sm text-slate-600">Retour</a>
+    </div>
+  </form>
+
+  <div class="mt-6 text-sm text-slate-500">
+    Astuce: pour simuler un MLLP entrant, choisissez un endpoint de type MLLP. Le message sera traité par le pipeline d'entrée (PID/PV1/Z99...).
+  </div>
+</div>
+{% endblock %}

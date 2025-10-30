@@ -14,8 +14,23 @@ class Patient(SQLModel, table=True):
     external_id: str                                   # si tu veux, tu peux le garder pour l'ID source
     family: str
     given: str
+    middle: Optional[str] = None
+    prefix: Optional[str] = None
+    suffix: Optional[str] = None
     birth_date: Optional[str] = None
     gender: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    postal_code: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    ssn: Optional[str] = None
+    marital_status: Optional[str] = None
+    mothers_maiden_name: Optional[str] = None
+    race: Optional[str] = None
+    religion: Optional[str] = None
+    primary_care_provider: Optional[str] = None
 
     dossiers: List["Dossier"] = Relationship(back_populates="patient")
 

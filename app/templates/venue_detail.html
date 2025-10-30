@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="text-lg font-semibold mb-4">Venue #{{ venue.venue_seq }} (ID {{ venue.id }})</h2>
+<div class="bg-white rounded-xl border border-slate-200 p-6 max-w-2xl">
+  <dl class="grid grid-cols-2 gap-x-4 gap-y-2">
+    <dt class="text-slate-500">Dossier ID</dt><dd>{{ venue.dossier_id }}</dd>
+    <dt class="text-slate-500">UF responsabilité</dt><dd>{{ venue.uf_responsabilite }}</dd>
+    <dt class="text-slate-500">Début</dt><dd>{{ venue.start_time }}</dd>
+    <dt class="text-slate-500">Code</dt><dd>{{ venue.code }}</dd>
+    <dt class="text-slate-500">Libellé</dt><dd>{{ venue.label }}</dd>
+  </dl>
+  <div class="mt-6 flex gap-3">
+    <a href="/venues/{{ venue.id }}/edit" class="bg-blue-600 text-white px-4 py-2 rounded">Modifier</a>
+    <form method="post" action="/venues/{{ venue.id }}/delete" onsubmit="return confirm('Supprimer cette venue ?');" style="display:inline;">
+      <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded">Supprimer</button>
+    </form>
+    <a href="/venues" class="text-slate-600 px-4 py-2">Retour</a>
+  </div>
+</div>
+{% endblock %}

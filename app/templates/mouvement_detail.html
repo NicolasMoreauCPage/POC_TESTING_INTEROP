@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="text-lg font-semibold mb-4">Mouvement #{{ mouvement.mouvement_seq }} (ID {{ mouvement.id }})</h2>
+<div class="bg-white rounded-xl border border-slate-200 p-6 max-w-2xl">
+  <dl class="grid grid-cols-2 gap-x-4 gap-y-2">
+    <dt class="text-slate-500">Venue ID</dt><dd>{{ mouvement.venue_id }}</dd>
+    <dt class="text-slate-500">Type</dt><dd>{{ mouvement.type }}</dd>
+    <dt class="text-slate-500">Quand</dt><dd>{{ mouvement.when }}</dd>
+    <dt class="text-slate-500">Localisation</dt><dd>{{ mouvement.location }}</dd>
+  </dl>
+  <div class="mt-6 flex gap-3">
+    <a href="/mouvements/{{ mouvement.id }}/edit" class="bg-blue-600 text-white px-4 py-2 rounded">Modifier</a>
+    <form method="post" action="/mouvements/{{ mouvement.id }}/delete" onsubmit="return confirm('Supprimer ce mouvement ?');" style="display:inline;">
+      <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded">Supprimer</button>
+    </form>
+    <a href="/mouvements" class="text-slate-600 px-4 py-2">Retour</a>
+  </div>
+</div>
+{% endblock %}

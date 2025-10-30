@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h2 class="text-lg font-semibold mb-4">{{ title }}</h2>
-<form method="post" class="bg-white rounded-2xl border border-slate-200 p-6 max-w-2xl">
+<form method="post" class="bg-white rounded-2xl border border-slate-200 p-6 max-w-2xl" {% if action_url %}action="{{ action_url }}"{% endif %}>
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     {% for field in fields %}
       <label class="block">

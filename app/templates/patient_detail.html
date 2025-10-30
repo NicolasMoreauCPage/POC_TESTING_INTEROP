@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="text-lg font-semibold mb-4">Patient #{{ patient.id }}</h2>
+<div class="bg-white rounded-xl border border-slate-200 p-6 max-w-2xl">
+  <dl class="grid grid-cols-2 gap-x-4 gap-y-2">
+    <dt class="text-slate-500">Numéro séquence</dt><dd>{{ patient.patient_seq }}</dd>
+    <dt class="text-slate-500">External ID</dt><dd>{{ patient.external_id }}</dd>
+    <dt class="text-slate-500">Nom</dt><dd>{{ patient.family }}</dd>
+    <dt class="text-slate-500">Prénom</dt><dd>{{ patient.given }}</dd>
+    <dt class="text-slate-500">Deuxième prénom</dt><dd>{{ patient.middle or "" }}</dd>
+    <dt class="text-slate-500">Préfixe</dt><dd>{{ patient.prefix or "" }}</dd>
+    <dt class="text-slate-500">Date de naissance</dt><dd>{{ patient.birth_date }}</dd>
+    <dt class="text-slate-500">Sexe</dt><dd>{{ patient.gender }}</dd>
+    <dt class="text-slate-500">Adresse</dt><dd>{{ patient.address or "" }}</dd>
+    <dt class="text-slate-500">Ville</dt><dd>{{ patient.city or "" }}</dd>
+    <dt class="text-slate-500">État</dt><dd>{{ patient.state or "" }}</dd>
+    <dt class="text-slate-500">Code postal</dt><dd>{{ patient.postal_code or "" }}</dd>
+    <dt class="text-slate-500">Téléphone</dt><dd>{{ patient.phone or "" }}</dd>
+    <dt class="text-slate-500">Email</dt><dd>{{ patient.email or "" }}</dd>
+    <dt class="text-slate-500">N° sécurité sociale</dt><dd>{{ patient.ssn or "" }}</dd>
+    <dt class="text-slate-500">Statut marital</dt><dd>{{ patient.marital_status or "" }}</dd>
+    <dt class="text-slate-500">Nom de jeune fille de la mère</dt><dd>{{ patient.mothers_maiden_name or "" }}</dd>
+    <dt class="text-slate-500">Race</dt><dd>{{ patient.race or "" }}</dd>
+    <dt class="text-slate-500">Religion</dt><dd>{{ patient.religion or "" }}</dd>
+    <dt class="text-slate-500">Médecin traitant</dt><dd>{{ patient.primary_care_provider or "" }}</dd>
+  </dl>
+  <div class="mt-6 flex gap-3">
+    <a href="/patients/{{ patient.id }}/edit" class="bg-blue-600 text-white px-4 py-2 rounded">Modifier</a>
+    <form method="post" action="/patients/{{ patient.id }}/delete" onsubmit="return confirm('Supprimer ce patient ?');" style="display:inline;">
+      <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded">Supprimer</button>
+    </form>
+    <a href="/patients" class="text-slate-600 px-4 py-2">Retour</a>
+  </div>
+</div>
+{% endblock %}

@@ -1,12 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Supervision des messages</h1>
+<div class="flex items-center justify-between mb-4">
+  <h2 class="text-lg font-semibold">Supervision des messages</h2>
+  <a href="/messages" class="inline-flex items-center rounded-xl bg-gray-100 text-slate-700 px-3 py-1 text-sm">Rafraîchir</a>
+</div>
 
-<!-- Filtres (même esprit que le form des systèmes) -->
-<form method="get" action="/messages" class="box">
-  <div class="grid" style="grid-template-columns: repeat(2, minmax(280px, 1fr)); gap: 1rem;">
-    <label>Endpoint
-      <select name="endpoint_id">
+<!-- Filtres -->
+<form method="get" action="/messages" class="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <label class="block">
+      <span class="text-sm text-slate-600">Endpoint</span>
+      <select name="endpoint_id" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
         <option value="">Tous</option>
         {% for e in endpoints %}
           <option value="{{ e.id }}" {% if filters.endpoint_id|string == e.id|string %}selected{% endif %}>{{ e.name }}</option>
@@ -14,87 +18,91 @@
       </select>
     </label>
 
-    <label>Protocole
-      <select name="kind">
+    <label class="block">
+      <span class="text-sm text-slate-600">Protocole</span>
+      <select name="kind" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
         <option value="">Tous</option>
         <option value="MLLP" {% if filters.kind == 'MLLP' %}selected{% endif %}>HL7v2 (MLLP)</option>
         <option value="FHIR" {% if filters.kind == 'FHIR' %}selected{% endif %}>FHIR</option>
       </select>
     </label>
 
-    <label>Début
-      <input type="datetime-local" name="date_start" value="{{ filters.date_start }}">
+    <label class="block">
+      <span class="text-sm text-slate-600">Début</span>
+      <input type="datetime-local" name="date_start" value="{{ filters.date_start }}" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" />
     </label>
 
-    <label>Fin
-      <input type="datetime-local" name="date_end" value="{{ filters.date_end }}">
+    <label class="block">
+      <span class="text-sm text-slate-600">Fin</span>
+      <input type="datetime-local" name="date_end" value="{{ filters.date_end }}" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" />
     </label>
 
-    <label>Limite
-      <input type="number" name="limit" min="1" max="5000" value="{{ filters.limit }}">
+    <label class="block">
+      <span class="text-sm text-slate-600">Limite</span>
+      <input type="number" name="limit" min="1" max="5000" value="{{ filters.limit }}" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" />
     </label>
 
-    <label style="align-self:center; margin-top:.4rem">
-      <input type="checkbox" name="neg_ack_only" value="on" {% if filters.neg_ack_only %}checked{% endif %}>
-      ACK négatifs uniquement
+    <label class="flex items-center gap-2 mt-2">
+      <input type="checkbox" name="neg_ack_only" value="on" {% if filters.neg_ack_only %}checked{% endif %} class="rounded" />
+      <span class="text-sm text-slate-600">ACK négatifs uniquement</span>
     </label>
   </div>
 
-  <div style="margin-top:1rem; display:flex; gap:.5rem;">
-    <button type="submit">Filtrer</button>
-    <a href="/messages" class="btn">Réinitialiser</a>
+  <div class="mt-4 flex gap-2">
+    <button type="submit" class="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700">Filtrer</button>
+    <a href="/messages" class="rounded-xl border border-slate-200 px-4 py-2 text-sm">Réinitialiser</a>
   </div>
 </form>
 
-<!-- Tableau des messages dans une box comme sur la page systèmes -->
-<div class="box" style="padding:0;">
-  <table class="table">
-    <thead>
+<!-- Tableau des messages -->
+<div class="overflow-x-auto bg-white rounded-2xl border border-slate-200">
+  <table class="min-w-full text-sm">
+    <thead class="bg-slate-50">
       <tr>
-        <th>Horodatage</th>
-        <th>Endpoint</th>
-        <th>Protocole</th>
-        <th>Direction</th>
-        <th>Statut</th>
-        <th>Correlation ID</th>
-        <th style="width:6rem">Détails</th>
+        <th class="text-left font-medium text-slate-600 px-4 py-3">Horodatage</th>
+        <th class="text-left font-medium text-slate-600 px-4 py-3">Endpoint</th>
+        <th class="text-left font-medium text-slate-600 px-4 py-3">Protocole</th>
+        <th class="text-left font-medium text-slate-600 px-4 py-3">Direction</th>
+        <th class="text-left font-medium text-slate-600 px-4 py-3">Statut</th>
+        <th class="text-left font-medium text-slate-600 px-4 py-3">Correlation ID</th>
+        <th class="text-left font-medium text-slate-600 px-4 py-3">Détails</th>
       </tr>
     </thead>
     <tbody>
       {% if messages|length == 0 %}
       <tr>
-        <td colspan="7" style="text-align:center; padding:1rem;">Aucun message pour ces filtres.</td>
+        <td colspan="7" class="px-4 py-6 text-center text-slate-500">Aucun message pour ces filtres.</td>
       </tr>
       {% else %}
       {% for m in messages %}
-      <tr>
-        <td>{{ m.created_at }}</td>
-        <td>{{ ep_name.get(m.endpoint_id, m.endpoint_id) }}</td>
-        <td>
+      <tr class="border-t border-slate-100 hover:bg-slate-50">
+        <td class="px-4 py-3">{{ m.created_at }}</td>
+        <td class="px-4 py-3">{{ ep_name.get(m.endpoint_id, m.endpoint_id) }}</td>
+        <td class="px-4 py-3">
           {% if m.kind == 'FHIR' %}
-            <span class="badge">FHIR</span>
+            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs">FHIR</span>
           {% else %}
-            <span class="badge">HL7v2</span>
+            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs">HL7v2</span>
           {% endif %}
         </td>
-        <td>
+        <td class="px-4 py-3">
           {% if m.direction == 'in' %}
-            <span class="badge">IN</span>
+            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs">IN</span>
           {% else %}
-            <span class="badge">OUT</span>
+            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs">OUT</span>
           {% endif %}
         </td>
-        <td>
+        <td class="px-4 py-3">
           {% if m.status in ['ack_error','error'] %}
-            <span class="badge danger">{{ m.status }}</span>
+            <span class="inline-flex items-center rounded-full bg-red-50 text-red-700 px-2 py-1 text-xs">{{ m.status }}</span>
           {% elif m.status in ['ack_ok','sent','received'] %}
-            <span class="badge success">{{ m.status }}</span>
+            <span class="inline-flex items-center rounded-full bg-green-50 text-green-700 px-2 py-1 text-xs">{{ m.status }}</span>
           {% else %}
-            <span class="badge">{{ m.status }}</span>
+            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs">{{ m.status }}</span>
           {% endif %}
         </td>
-        <td>{{ m.correlation_id or '—' }}</td>
-        <td><a href="/messages/{{ m.id }}" class="btn">Voir</a></td>
+        <td class="px-4 py-3">{{ m.correlation_id or '—' }}</td>
+        <td class="px-4 py-3"><a href="/messages/{{ m.id }}" class="text-blue-600 hover:underline">Voir</a></td>
       </tr>
       {% endfor %}
       {% endif %}

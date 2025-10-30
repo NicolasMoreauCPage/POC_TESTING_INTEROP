@@ -16,7 +16,14 @@ def _get_seq(session: Session, name: str) -> Sequence:
     seq: Optional[Sequence] = session.get(Sequence, name)
     if not seq:
         seq = Sequence(name=name, value=0)
-        session.add(seq); session.commit(); session.refresh(seq)
+        session.add(seq)
+        # If we're already inside a transaction (e.g. session.begin()), don't commit here.
+        # Commit only when called from outside a transactional context; otherwise flush so the object gets an identity.
+        if session.in_transaction():
+            session.flush()
+        else:
+            session.commit()
+        session.refresh(seq)
     return seq
 
 def peek_next_sequence(session: Session, name: str) -> int:
@@ -27,5 +34,9 @@ def get_next_sequence(session: Session, name: str) -> int:
     """Incrémente et retourne la nouvelle valeur."""
     seq = _get_seq(session, name)
     seq.value += 1
-    session.add(seq); session.commit()
+    session.add(seq)
+    if session.in_transaction():
+        session.flush()
+    else:
+        session.commit()
     return seq.value

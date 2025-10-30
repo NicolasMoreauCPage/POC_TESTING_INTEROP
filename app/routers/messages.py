@@ -4,12 +4,18 @@ from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select, col
 from datetime import datetime
 from typing import Optional
+import logging
 
 from app.db import get_session
 from app.models_endpoints import MessageLog, SystemEndpoint
+from app.db_session_factory import session_factory
+from app.services.transport_inbound import on_message_inbound
+from app.services.fhir_transport import send_fhir
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(prefix="/messages", tags=["messages"])
+
+logger = logging.getLogger("routers.messages")
 
 NEG_STATUSES = {"ack_error", "error"}  # ajuste selon ton usage
 
@@ -72,6 +78,57 @@ def list_messages(
         },
     )
 
+
+# --- Place /send routes BEFORE /{message_id} to avoid path conflict ---
+@router.get("/send", response_class=HTMLResponse)
+def send_message_form(request: Request, session: Session = Depends(get_session)):
+    endpoints = session.exec(select(SystemEndpoint).order_by(SystemEndpoint.name)).all()
+    return templates.TemplateResponse("send_message.html", {"request": request, "endpoints": endpoints})
+
+@router.post("/send")
+async def send_message(request: Request):
+    form = await request.form()
+    kind = form.get("kind")
+    endpoint_id = form.get("endpoint_id")
+    payload = form.get("payload")
+
+    # normalize common line endings so transport_inbound sees \r-separated segments
+    if isinstance(payload, str):
+        # convert CRLF and LF to HL7 segment separator CR
+        payload = payload.replace('\r\n', '\r').replace('\n', '\r')
+        payload = payload.strip()
+    logger.info(f"/messages/send kind={kind} endpoint_id={endpoint_id} payload_len={len(payload) if payload else 0}")
+
+    # HL7 via on_message_inbound
+    if kind == "MLLP":
+        with session_factory() as s:
+            ep = s.get(SystemEndpoint, int(endpoint_id)) if endpoint_id else None
+            if ep and ep.kind != "MLLP":
+                endpoints = s.exec(select(SystemEndpoint).order_by(SystemEndpoint.name)).all()
+                return templates.TemplateResponse("send_message.html", {"request": request, "error": "Endpoint invalide", "endpoints": endpoints})
+            # allow processing even if no endpoint selected (simulate inbound)
+            ack = await on_message_inbound(payload, s, ep)
+        endpoints = s.exec(select(SystemEndpoint).order_by(SystemEndpoint.name)).all()
+        return templates.TemplateResponse("send_message_result.html", {"request": request, "kind": kind, "ack": ack, "endpoints": endpoints})
+
+    # FHIR inbound simulation: just log and return a simple response
+    if kind == "FHIR":
+        # try to parse payload as JSON
+        import json
+        try:
+            obj = json.loads(payload)
+        except Exception:
+            obj = None
+        # find endpoint
+        with session_factory() as s:
+            ep = s.get(SystemEndpoint, int(endpoint_id)) if endpoint_id else None
+            log = MessageLog(direction="in", kind="FHIR", endpoint_id=(ep.id if ep else None), payload=payload, ack_payload="", status="received", created_at=datetime.utcnow())
+            s.add(log); s.commit(); s.refresh(log)
+        return templates.TemplateResponse("send_message_result.html", {"request": request, "kind": kind, "ack": f"Logged message id={log.id}"})
+
+    return templates.TemplateResponse("send_message.html", {"request": request, "error": "Kind non supporté", "endpoints": []})
+
+
 @router.get("/{message_id}", response_class=HTMLResponse)
 def message_detail(message_id: int, request: Request, session: Session = Depends(get_session)):
     m = session.get(MessageLog, message_id)
@@ -82,3 +139,4 @@ def message_detail(message_id: int, request: Request, session: Session = Depends
         "message_detail.html",
         {"request": request, "m": m, "endpoint": ep},
     )
+
