@@ -43,6 +43,13 @@ class Dossier(SQLModel, table=True):
     uf_responsabilite: str
     admit_time: datetime
     discharge_time: Optional[datetime] = None
+    # Extensions / IHE PAM additions (optional)
+    admission_type: Optional[str] = None
+    admit_source: Optional[str] = None
+    attending_provider: Optional[str] = None
+    primary_diagnosis: Optional[str] = None
+    discharge_disposition: Optional[str] = None
+    encounter_class: Optional[str] = None
     patient: Patient = Relationship(back_populates="dossiers")
     venues: List["Venue"] = Relationship(back_populates="dossier")
 
@@ -55,6 +62,13 @@ class Venue(SQLModel, table=True):
     start_time: datetime
     code: Optional[str] = None
     label: Optional[str] = None
+    # Extensions
+    assigned_location: Optional[str] = None
+    attending_provider: Optional[str] = None
+    hospital_service: Optional[str] = None
+    bed: Optional[str] = None
+    room: Optional[str] = None
+    discharge_disposition: Optional[str] = None
     dossier: Dossier = Relationship(back_populates="venues")
     mouvements: List["Mouvement"] = Relationship(back_populates="venue")
 
@@ -66,4 +80,11 @@ class Mouvement(SQLModel, table=True):
     type: str
     when: datetime
     location: Optional[str] = None
+    # Extensions
+    from_location: Optional[str] = None
+    to_location: Optional[str] = None
+    reason: Optional[str] = None
+    performer: Optional[str] = None
+    status: Optional[str] = None
+    note: Optional[str] = None
     venue: Venue = Relationship(back_populates="mouvements")

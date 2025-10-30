@@ -6,7 +6,13 @@
     <dt class="text-slate-500">Venue ID</dt><dd>{{ mouvement.venue_id }}</dd>
     <dt class="text-slate-500">Type</dt><dd>{{ mouvement.type }}</dd>
     <dt class="text-slate-500">Quand</dt><dd>{{ mouvement.when }}</dd>
+    <dt class="text-slate-500">Statut</dt><dd>{{ mouvement.status }}</dd>
     <dt class="text-slate-500">Localisation</dt><dd>{{ mouvement.location }}</dd>
+    <dt class="text-slate-500">Depuis</dt><dd>{{ mouvement.from_location }}</dd>
+    <dt class="text-slate-500">Vers</dt><dd>{{ mouvement.to_location }}</dd>
+    <dt class="text-slate-500">Raison</dt><dd>{{ mouvement.reason }}</dd>
+    <dt class="text-slate-500">Intervenant</dt><dd>{{ mouvement.performer }}</dd>
+    <dt class="text-slate-500">Note</dt><dd>{{ mouvement.note }}</dd>
   </dl>
   <div class="mt-6 flex gap-3">
     <a href="/mouvements/{{ mouvement.id }}/edit" class="bg-blue-600 text-white px-4 py-2 rounded">Modifier</a>

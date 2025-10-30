@@ -16,7 +16,11 @@ def list_mouvements(request: Request, venue_id: int | None = Query(None), sessio
     if venue_id:
         stmt = stmt.where(Mouvement.venue_id == venue_id)
     mouvements = session.exec(stmt).all()
-    rows = [{"cells": [m.mouvement_seq, m.id, m.venue_id, m.type, m.when, m.location], "detail_url": f"/mouvements/{m.id}"} for m in mouvements]
+    rows = [{"cells": [m.mouvement_seq, m.id, m.venue_id, m.type, getattr(m,'status',None), m.when, m.location], "detail_url": f"/mouvements/{m.id}"} for m in mouvements]
+    ctx = {"request": request, "title": "Mouvements",
+           "headers": ["Seq", "ID", "Venue", "Type", "Status", "Date/Heure", "Localisation"],
+           "rows": rows, "new_url": "/mouvements/new"}
+    return templates.TemplateResponse("list.html", ctx)
 
 @router.get("/{mouvement_id}", response_class=HTMLResponse)
 def mouvement_detail(mouvement_id: int, request: Request, session=Depends(get_session)):
@@ -36,6 +40,12 @@ def edit_mouvement(mouvement_id: int, request: Request, session=Depends(get_sess
         {"label": "Type (ex: ADT^A01)", "name": "type", "type": "text", "value": m.type},
         {"label": "Quand", "name": "when", "type": "datetime-local", "value": m.when.strftime('%Y-%m-%dT%H:%M') if m.when else ''},
         {"label": "Localisation", "name": "location", "type": "text", "value": m.location},
+        {"label": "Depuis (from_location)", "name": "from_location", "type": "text", "value": getattr(m,'from_location',None)},
+        {"label": "Vers (to_location)", "name": "to_location", "type": "text", "value": getattr(m,'to_location',None)},
+        {"label": "Raison", "name": "reason", "type": "text", "value": getattr(m,'reason',None)},
+        {"label": "Intervenant", "name": "performer", "type": "text", "value": getattr(m,'performer',None)},
+        {"label": "Statut", "name": "status", "type": "text", "value": getattr(m,'status',None)},
+        {"label": "Note", "name": "note", "type": "text", "value": getattr(m,'note',None)},
         {"label": "Numéro de séquence", "name": "mouvement_seq", "type": "number", "value": m.mouvement_seq},
     ]
     return templates.TemplateResponse("form.html", {"request": request, "title": "Modifier mouvement", "fields": fields, "action_url": f"/mouvements/{mouvement_id}/edit"})
@@ -48,6 +58,12 @@ def update_mouvement(
     type: str = Form(...),
     when: str = Form(...),
     location: str = Form(None),
+    from_location: str = Form(None),
+    to_location: str = Form(None),
+    reason: str = Form(None),
+    performer: str = Form(None),
+    status: str = Form(None),
+    note: str = Form(None),
     mouvement_seq: int = Form(...),
     session=Depends(get_session),
 ):
@@ -58,6 +74,12 @@ def update_mouvement(
     m.type = type
     m.when = datetime.fromisoformat(when)
     m.location = location
+    m.from_location = from_location
+    m.to_location = to_location
+    m.reason = reason
+    m.performer = performer
+    m.status = status
+    m.note = note
     m.mouvement_seq = mouvement_seq
     session.add(m); session.commit()
     emit_to_senders(m, "mouvement", session)
@@ -86,6 +108,12 @@ def new_mouvement(request: Request, session=Depends(get_session)):
         {"label": "Type (ex: ADT^A01)", "name": "type", "type": "text"},
         {"label": "Quand", "name": "when", "type": "datetime-local", "value": now_str},
         {"label": "Localisation", "name": "location", "type": "text"},
+        {"label": "Depuis (from_location)", "name": "from_location", "type": "text"},
+        {"label": "Vers (to_location)", "name": "to_location", "type": "text"},
+        {"label": "Raison", "name": "reason", "type": "text"},
+        {"label": "Intervenant", "name": "performer", "type": "text"},
+        {"label": "Statut", "name": "status", "type": "text"},
+        {"label": "Note", "name": "note", "type": "text"},
         {"label": "Numéro de séquence", "name": "mouvement_seq", "type": "number", "value": next_seq},
     ]
     return templates.TemplateResponse("form.html", {"request": request, "title": "Nouveau mouvement", "fields": fields})
@@ -96,6 +124,12 @@ def create_mouvement(
     type: str = Form(...),
     when: str = Form(...),
     location: str = Form(None),
+    from_location: str = Form(None),
+    to_location: str = Form(None),
+    reason: str = Form(None),
+    performer: str = Form(None),
+    status: str = Form(None),
+    note: str = Form(None),
     mouvement_seq: int | None = Form(None),
     session=Depends(get_session),
 ):
@@ -106,6 +140,12 @@ def create_mouvement(
         type=type,
         when=when_dt,
         location=location,
+        from_location=from_location,
+        to_location=to_location,
+        reason=reason,
+        performer=performer,
+        status=status,
+        note=note,
         mouvement_seq=seq,
     )
     session.add(m); session.commit()

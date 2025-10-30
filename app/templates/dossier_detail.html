@@ -8,8 +8,12 @@
       <div class="text-sm text-slate-500 mb-2">Patient</div>
       <div class="text-base">{{ dossier.patient.family }} {{ dossier.patient.given }}</div>
       <div class="text-sm text-slate-600 mt-2">UF responsabilité (dossier): <b>{{ dossier.uf_responsabilite }}</b></div>
-      <div class="text-sm text-slate-600">Admission: <b>{{ dossier.admit_time }}</b></div>
-      <div class="text-sm text-slate-600">Sortie: <b>{{ dossier.discharge_time }}</b></div>
+  <div class="text-sm text-slate-600">Type d'admission: <b>{{ dossier.admission_type }}</b></div>
+  <div class="text-sm text-slate-600">Source: <b>{{ dossier.admit_source }}</b></div>
+  <div class="text-sm text-slate-600">Médecin responsable: <b>{{ dossier.attending_provider }}</b></div>
+  <div class="text-sm text-slate-600">Admission: <b>{{ dossier.admit_time }}</b></div>
+  <div class="text-sm text-slate-600">Diagnostic principal: <b>{{ dossier.primary_diagnosis }}</b></div>
+  <div class="text-sm text-slate-600">Disposition à la sortie: <b>{{ dossier.discharge_disposition }}</b></div>
     </div>
 
     <div class="bg-white rounded-2xl border border-slate-200 p-6">

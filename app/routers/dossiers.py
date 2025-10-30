@@ -17,12 +17,12 @@ def list_dossiers(request: Request, patient_id: int | None = Query(None), sessio
         stmt = stmt.where(Dossier.patient_id == patient_id)
     dossiers = session.exec(stmt).all()
     rows = [
-        {"cells": [d.dossier_seq, d.id, d.patient_id, d.uf_responsabilite, d.admit_time, d.discharge_time],
+        {"cells": [d.dossier_seq, d.id, d.patient_id, d.uf_responsabilite, getattr(d,'admission_type',None), d.admit_time, d.discharge_time],
          "detail_url": f"/dossiers/{d.id}"}
         for d in dossiers
     ]
     ctx = {"request": request, "title": "Dossiers",
-           "headers": ["Seq", "ID", "Patient", "UF resp.", "Admission", "Sortie"],
+           "headers": ["Seq", "ID", "Patient", "UF resp.", "Adm.type", "Admission", "Sortie"],
            "rows": rows, "new_url": "/dossiers/new"}
     return templates.TemplateResponse("list.html", ctx)
 
@@ -33,6 +33,9 @@ def new_dossier(request: Request, session=Depends(get_session)):
     fields = [
         {"label": "Patient ID", "name": "patient_id", "type": "number"},
         {"label": "UF de responsabilité", "name": "uf_responsabilite", "type": "text"},
+        {"label": "Type d'admission", "name": "admission_type", "type": "text"},
+        {"label": "Source admission", "name": "admit_source", "type": "text"},
+        {"label": "Médecin responsable (attending)", "name": "attending_provider", "type": "text"},
         {"label": "Date d’admission", "name": "admit_time", "type": "datetime-local", "value": now_str},
         {"label": "Numéro de séquence", "name": "dossier_seq", "type": "number", "value": next_seq},
     ]
@@ -42,6 +45,9 @@ def new_dossier(request: Request, session=Depends(get_session)):
 def create_dossier(
     patient_id: int = Form(...),
     uf_responsabilite: str = Form(...),
+    admission_type: str = Form(None),
+    admit_source: str = Form(None),
+    attending_provider: str = Form(None),
     admit_time: str = Form(...),
     dossier_seq: int | None = Form(None),
     session=Depends(get_session),
@@ -51,6 +57,9 @@ def create_dossier(
     d = Dossier(
         patient_id=patient_id,
         uf_responsabilite=uf_responsabilite,
+        admission_type=admission_type,
+        admit_source=admit_source,
+        attending_provider=attending_provider,
         admit_time=admit_dt,
         dossier_seq=seq,
     )
@@ -78,6 +87,9 @@ def edit_dossier(dossier_id: int, request: Request, session=Depends(get_session)
     fields = [
         {"label": "Patient ID", "name": "patient_id", "type": "number", "value": d.patient_id},
         {"label": "UF de responsabilité", "name": "uf_responsabilite", "type": "text", "value": d.uf_responsabilite},
+        {"label": "Type d'admission", "name": "admission_type", "type": "text", "value": getattr(d,'admission_type',None)},
+        {"label": "Source admission", "name": "admit_source", "type": "text", "value": getattr(d,'admit_source',None)},
+        {"label": "Médecin responsable (attending)", "name": "attending_provider", "type": "text", "value": getattr(d,'attending_provider',None)},
         {"label": "Date d’admission", "name": "admit_time", "type": "datetime-local", "value": d.admit_time.strftime('%Y-%m-%dT%H:%M') if d.admit_time else ''},
         {"label": "Numéro de séquence", "name": "dossier_seq", "type": "number", "value": d.dossier_seq},
     ]
@@ -89,6 +101,9 @@ def update_dossier(
     dossier_id: int,
     patient_id: int = Form(...),
     uf_responsabilite: str = Form(...),
+    admission_type: str = Form(None),
+    admit_source: str = Form(None),
+    attending_provider: str = Form(None),
     admit_time: str = Form(...),
     dossier_seq: int = Form(...),
     session=Depends(get_session),
@@ -98,6 +113,9 @@ def update_dossier(
         return templates.TemplateResponse("not_found.html", {"request": {}, "title": "Dossier introuvable"}, status_code=404)
     d.patient_id = patient_id
     d.uf_responsabilite = uf_responsabilite
+    d.admission_type = admission_type
+    d.admit_source = admit_source
+    d.attending_provider = attending_provider
     d.admit_time = datetime.fromisoformat(admit_time)
     d.dossier_seq = dossier_seq
     session.add(d); session.commit()
