@@ -11,7 +11,7 @@ class Sequence(SQLModel, table=True):
 class Patient(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     patient_seq: int = Field(index=True, unique=True)  # <-- identifiant métier séquentiel (unique)
-    external_id: str                                   # si tu veux, tu peux le garder pour l'ID source
+    external_id: Optional[str] = None  # si tu veux, tu peux le garder pour l'ID source
     family: str
     given: str
     middle: Optional[str] = None
@@ -31,6 +31,10 @@ class Patient(SQLModel, table=True):
     race: Optional[str] = None
     religion: Optional[str] = None
     primary_care_provider: Optional[str] = None
+    nir: Optional[str] = None  # Numéro d'inscription au répertoire (NIR)
+    nationality: Optional[str] = None  # Nationalité
+    place_of_birth: Optional[str] = None  # Lieu de naissance
+    administrative_gender: Optional[str] = None  # Genre administratif
 
     dossiers: List["Dossier"] = Relationship(back_populates="patient")
 
@@ -50,6 +54,12 @@ class Dossier(SQLModel, table=True):
     primary_diagnosis: Optional[str] = None
     discharge_disposition: Optional[str] = None
     encounter_class: Optional[str] = None
+    encounter_type: Optional[str] = None  # Type de rencontre
+    priority: Optional[str] = None  # Priorité de la rencontre
+    reason: Optional[str] = None  # Raison de la rencontre
+    admission_source: Optional[str] = None  # Source d'admission
+    discharge_disposition: Optional[str] = None  # Disposition de sortie
+    current_state: Optional[str] = None  # État actuel du dossier
     patient: Patient = Relationship(back_populates="dossiers")
     venues: List["Venue"] = Relationship(back_populates="dossier")
 
@@ -69,6 +79,9 @@ class Venue(SQLModel, table=True):
     bed: Optional[str] = None
     room: Optional[str] = None
     discharge_disposition: Optional[str] = None
+    managing_department: Optional[str] = None  # Département gestionnaire
+    physical_type: Optional[str] = None  # Type physique de l'emplacement
+    operational_status: Optional[str] = None  # Statut opérationnel
     dossier: Dossier = Relationship(back_populates="venues")
     mouvements: List["Mouvement"] = Relationship(back_populates="venue")
 
@@ -87,4 +100,7 @@ class Mouvement(SQLModel, table=True):
     performer: Optional[str] = None
     status: Optional[str] = None
     note: Optional[str] = None
+    movement_type: Optional[str] = None  # Type de mouvement
+    movement_reason: Optional[str] = None  # Raison du mouvement
+    performer_role: Optional[str] = None  # Rôle de l'intervenant
     venue: Venue = Relationship(back_populates="mouvements")

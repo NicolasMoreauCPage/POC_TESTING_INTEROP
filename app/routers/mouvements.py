@@ -37,16 +37,19 @@ def edit_mouvement(mouvement_id: int, request: Request, session=Depends(get_sess
         return templates.TemplateResponse("not_found.html", {"request": request, "title": "Mouvement introuvable"}, status_code=404)
     fields = [
         {"label": "Venue ID", "name": "venue_id", "type": "number", "value": m.venue_id},
-        {"label": "Type (ex: ADT^A01)", "name": "type", "type": "text", "value": m.type},
+        {"label": "Type (ex: ADT^A01)", "name": "type", "type": "select", "options": ["ADT^A01", "ADT^A02", "ADT^A03", "ADT^A04"], "value": m.type},
         {"label": "Quand", "name": "when", "type": "datetime-local", "value": m.when.strftime('%Y-%m-%dT%H:%M') if m.when else ''},
         {"label": "Localisation", "name": "location", "type": "text", "value": m.location},
         {"label": "Depuis (from_location)", "name": "from_location", "type": "text", "value": getattr(m,'from_location',None)},
         {"label": "Vers (to_location)", "name": "to_location", "type": "text", "value": getattr(m,'to_location',None)},
         {"label": "Raison", "name": "reason", "type": "text", "value": getattr(m,'reason',None)},
         {"label": "Intervenant", "name": "performer", "type": "text", "value": getattr(m,'performer',None)},
-        {"label": "Statut", "name": "status", "type": "text", "value": getattr(m,'status',None)},
+        {"label": "Statut", "name": "status", "type": "select", "options": ["active", "completed", "cancelled", "pending"], "value": getattr(m,'status',None)},
         {"label": "Note", "name": "note", "type": "text", "value": getattr(m,'note',None)},
         {"label": "Numéro de séquence", "name": "mouvement_seq", "type": "number", "value": m.mouvement_seq},
+        {"label": "Type de mouvement", "name": "movement_type", "type": "text", "value": getattr(m, "movement_type", None)},
+        {"label": "Raison du mouvement", "name": "movement_reason", "type": "text", "value": getattr(m, "movement_reason", None)},
+        {"label": "Rôle de l'intervenant", "name": "performer_role", "type": "text", "value": getattr(m, "performer_role", None)},
     ]
     return templates.TemplateResponse("form.html", {"request": request, "title": "Modifier mouvement", "fields": fields, "action_url": f"/mouvements/{mouvement_id}/edit"})
 
@@ -65,6 +68,9 @@ def update_mouvement(
     status: str = Form(None),
     note: str = Form(None),
     mouvement_seq: int = Form(...),
+    movement_type: str = Form(None),
+    movement_reason: str = Form(None),
+    performer_role: str = Form(None),
     session=Depends(get_session),
 ):
     m = session.get(Mouvement, mouvement_id)
@@ -81,6 +87,9 @@ def update_mouvement(
     m.status = status
     m.note = note
     m.mouvement_seq = mouvement_seq
+    m.movement_type = movement_type
+    m.movement_reason = movement_reason
+    m.performer_role = performer_role
     session.add(m); session.commit()
     emit_to_senders(m, "mouvement", session)
     return RedirectResponse(url="/mouvements", status_code=303)
@@ -115,6 +124,9 @@ def new_mouvement(request: Request, session=Depends(get_session)):
         {"label": "Statut", "name": "status", "type": "text"},
         {"label": "Note", "name": "note", "type": "text"},
         {"label": "Numéro de séquence", "name": "mouvement_seq", "type": "number", "value": next_seq},
+        {"label": "Type de mouvement", "name": "movement_type", "type": "text"},
+        {"label": "Raison du mouvement", "name": "movement_reason", "type": "text"},
+        {"label": "Rôle de l'intervenant", "name": "performer_role", "type": "text"},
     ]
     return templates.TemplateResponse("form.html", {"request": request, "title": "Nouveau mouvement", "fields": fields})
 
@@ -131,6 +143,9 @@ def create_mouvement(
     status: str = Form(None),
     note: str = Form(None),
     mouvement_seq: int | None = Form(None),
+    movement_type: str = Form(None),
+    movement_reason: str = Form(None),
+    performer_role: str = Form(None),
     session=Depends(get_session),
 ):
     when_dt = datetime.fromisoformat(when)
@@ -147,6 +162,9 @@ def create_mouvement(
         status=status,
         note=note,
         mouvement_seq=seq,
+        movement_type=movement_type,
+        movement_reason=movement_reason,
+        performer_role=performer_role,
     )
     session.add(m); session.commit()
     emit_to_senders(m, "mouvement", session)

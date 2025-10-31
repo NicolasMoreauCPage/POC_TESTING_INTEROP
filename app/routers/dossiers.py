@@ -87,11 +87,16 @@ def edit_dossier(dossier_id: int, request: Request, session=Depends(get_session)
     fields = [
         {"label": "Patient ID", "name": "patient_id", "type": "number", "value": d.patient_id},
         {"label": "UF de responsabilité", "name": "uf_responsabilite", "type": "text", "value": d.uf_responsabilite},
-        {"label": "Type d'admission", "name": "admission_type", "type": "text", "value": getattr(d,'admission_type',None)},
+        {"label": "Type d'admission", "name": "admission_type", "type": "select", "options": ["emergency", "elective", "newborn", "urgent", "other"], "value": getattr(d,'admission_type',None)},
         {"label": "Source admission", "name": "admit_source", "type": "text", "value": getattr(d,'admit_source',None)},
         {"label": "Médecin responsable (attending)", "name": "attending_provider", "type": "text", "value": getattr(d,'attending_provider',None)},
         {"label": "Date d’admission", "name": "admit_time", "type": "datetime-local", "value": d.admit_time.strftime('%Y-%m-%dT%H:%M') if d.admit_time else ''},
         {"label": "Numéro de séquence", "name": "dossier_seq", "type": "number", "value": d.dossier_seq},
+        {"label": "Type de rencontre", "name": "encounter_type", "type": "text", "value": getattr(d, "encounter_type", None)},
+        {"label": "Priorité", "name": "priority", "type": "text", "value": getattr(d, "priority", None)},
+        {"label": "Raison", "name": "reason", "type": "text", "value": getattr(d, "reason", None)},
+        {"label": "Source d'admission", "name": "admission_source", "type": "text", "value": getattr(d, "admission_source", None)},
+        {"label": "Disposition de sortie", "name": "discharge_disposition", "type": "text", "value": getattr(d, "discharge_disposition", None)},
     ]
     return templates.TemplateResponse("form.html", {"request": request, "title": "Modifier dossier", "fields": fields, "action_url": f"/dossiers/{dossier_id}/edit"})
 

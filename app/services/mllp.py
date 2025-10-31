@@ -151,6 +151,7 @@ async def send_mllp(host: str, port: int, message: str, timeout: float = 10.0) -
     await writer.drain()
     data = await asyncio.wait_for(reader.read(65536), timeout=timeout)
     writer.close()
+    await writer.wait_closed()
 
 
 async def stop_mllp_server(server: asyncio.base_events.Server) -> None:

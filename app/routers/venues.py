@@ -39,7 +39,7 @@ def edit_venue(venue_id: int, request: Request, session=Depends(get_session)):
         {"label": "Dossier ID", "name": "dossier_id", "type": "number", "value": v.dossier_id},
         {"label": "UF de responsabilité", "name": "uf_responsabilite", "type": "text", "value": v.uf_responsabilite},
         {"label": "Début de venue", "name": "start_time", "type": "datetime-local", "value": v.start_time.strftime('%Y-%m-%dT%H:%M') if v.start_time else ''},
-        {"label": "Service hospitalier (hospital_service)", "name": "hospital_service", "type": "text", "value": getattr(v,'hospital_service',None)},
+        {"label": "Service hospitalier (hospital_service)", "name": "hospital_service", "type": "select", "options": ["cardiology", "neurology", "oncology", "pediatrics", "other"], "value": getattr(v,'hospital_service',None)},
         {"label": "Local assigné (assigned_location)", "name": "assigned_location", "type": "text", "value": getattr(v,'assigned_location',None)},
         {"label": "Médecin responsable (attending)", "name": "attending_provider", "type": "text", "value": getattr(v,'attending_provider',None)},
         {"label": "Lit (bed)", "name": "bed", "type": "text", "value": getattr(v,'bed',None)},
@@ -47,6 +47,9 @@ def edit_venue(venue_id: int, request: Request, session=Depends(get_session)):
         {"label": "Code (facultatif)", "name": "code", "type": "text", "value": v.code},
         {"label": "Libellé (facultatif)", "name": "label", "type": "text", "value": v.label},
         {"label": "Numéro de séquence", "name": "venue_seq", "type": "number", "value": v.venue_seq},
+        {"label": "Département gestionnaire", "name": "managing_department", "type": "text", "value": getattr(v, "managing_department", None)},
+        {"label": "Type physique", "name": "physical_type", "type": "text", "value": getattr(v, "physical_type", None)},
+        {"label": "Statut opérationnel", "name": "operational_status", "type": "text", "value": getattr(v, "operational_status", None)},
     ]
     return templates.TemplateResponse("form.html", {"request": request, "title": "Modifier venue", "fields": fields, "action_url": f"/venues/{venue_id}/edit"})
 
@@ -65,6 +68,9 @@ def update_venue(
     code: str = Form(None),
     label: str = Form(None),
     venue_seq: int = Form(...),
+    managing_department: str = Form(None),
+    physical_type: str = Form(None),
+    operational_status: str = Form(None),
     session=Depends(get_session)
 ):
     v = session.get(Venue, venue_id)
@@ -81,6 +87,9 @@ def update_venue(
     v.code = code
     v.label = label
     v.venue_seq = venue_seq
+    v.managing_department = managing_department
+    v.physical_type = physical_type
+    v.operational_status = operational_status
     session.add(v); session.commit()
     emit_to_senders(v, "venue", session)
     return RedirectResponse(url="/venues", status_code=303)
@@ -115,6 +124,9 @@ def new_venue(request: Request, session=Depends(get_session)):
         {"label": "Code (facultatif)", "name": "code", "type": "text"},
         {"label": "Libellé (facultatif)", "name": "label", "type": "text"},
         {"label": "Numéro de séquence", "name": "venue_seq", "type": "number", "value": next_seq},
+        {"label": "Département gestionnaire", "name": "managing_department", "type": "text"},
+        {"label": "Type physique", "name": "physical_type", "type": "text"},
+        {"label": "Statut opérationnel", "name": "operational_status", "type": "text"},
     ]
     return templates.TemplateResponse("form.html", {"request": request, "title": "Nouvelle venue", "fields": fields})
 
@@ -131,6 +143,9 @@ def create_venue(
     code: str = Form(None),
     label: str = Form(None),
     venue_seq: int | None = Form(None),
+    managing_department: str = Form(None),
+    physical_type: str = Form(None),
+    operational_status: str = Form(None),
     session=Depends(get_session)
 ):
     start_dt = datetime.fromisoformat(start_time)
@@ -147,6 +162,9 @@ def create_venue(
         code=code,
         label=label,
         venue_seq=seq,
+        managing_department=managing_department,
+        physical_type=physical_type,
+        operational_status=operational_status,
     )
     session.add(v); session.commit()
     emit_to_senders(v, "venue", session)

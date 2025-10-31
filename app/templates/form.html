@@ -5,14 +5,27 @@
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     {% for field in fields %}
       <label class="block">
-        <span class="text-sm text-slate-600">{{ field.label }}</span>
-        <input
-          class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          name="{{ field.name }}"
-          type="{{ field.type }}"
-          value="{{ field.value or '' }}"
-          placeholder="{{ field.placeholder or '' }}"
-        />
+        <span class="text-sm text-slate-600">
+          {{ field.label }}{% if field.required %}<span class="text-red-500">*</span>{% endif %}
+        </span>
+        {% if field.type == "select" %}
+          <select
+            class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            name="{{ field.name }}"
+          >
+            {% for option in field.options %}
+              <option value="{{ option }}" {% if field.value == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        {% else %}
+          <input
+            class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            name="{{ field.name }}"
+            type="{{ field.type }}"
+            value="{{ field.value or '' }}"
+            placeholder="{{ field.placeholder or '' }}"
+          />
+        {% endif %}
       </label>
     {% endfor %}
   </div>
@@ -20,4 +33,28 @@
     <button type="submit" class="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700">Enregistrer</button>
   </div>
 </form>
+<script>
+  document.querySelector('form').addEventListener('submit', function(event) {
+    const currentState = document.querySelector('[name="current_state"]').value;
+    const eventCode = document.querySelector('[name="event_code"]').value;
+
+    // Appeler la fonction de validation côté client
+    if (!validateTransition(currentState, eventCode)) {
+      event.preventDefault();
+      alert('Transition invalide entre les états.');
+    }
+  });
+
+  function validateTransition(currentState, eventCode) {
+    const validTransitions = {
+      "Pas de venue courante": ["A05", "A38"],
+      "Pré-admis consult.ext.": ["A04", "A11"],
+      "Pré-admis hospit.": ["A01", "A11"],
+      "Hospitalisé": ["A03", "A13", "A21", "A52", "A53"],
+      "Absence temporaire": ["A22", "A52"],
+      "Consultant externe": ["A06", "A07"],
+    };
+    return validTransitions[currentState]?.includes(eventCode);
+  }
+</script>
 {% endblock %}

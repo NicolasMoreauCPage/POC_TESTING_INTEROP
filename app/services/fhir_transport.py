@@ -1,5 +1,6 @@
 import httpx
 from typing import Tuple
+from app.state_transitions import is_valid_transition
 
 async def send_fhir(base_url: str, resource_json: dict, auth_kind: str = "none", auth_token: str | None = None) -> Tuple[int, dict]:
     headers = {"Content-Type": "application/fhir+json"}
@@ -14,3 +15,9 @@ async def send_fhir(base_url: str, resource_json: dict, auth_kind: str = "none",
         except Exception:
             pass
         return r.status_code, out_json
+
+def validate_fhir_transition(current_state: str, event_code: str) -> bool:
+    """
+    Valide les transitions d'état pour les mouvements FHIR.
+    """
+    return is_valid_transition(current_state, event_code)

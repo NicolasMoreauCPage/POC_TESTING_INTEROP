@@ -30,7 +30,7 @@ def list_patients(request: Request, session=Depends(get_session)):
     return templates.TemplateResponse("list.html", ctx)
 
 
-@router.get("/{patient_id}", response_class=HTMLResponse)
+@router.get("/{patient_id:int}", response_class=HTMLResponse)
 def patient_detail(patient_id: int, request: Request, session=Depends(get_session)):
     p = session.get(Patient, patient_id)
     if not p:
@@ -38,7 +38,7 @@ def patient_detail(patient_id: int, request: Request, session=Depends(get_sessio
     return templates.TemplateResponse("patient_detail.html", {"request": request, "patient": p})
 
 
-@router.get("/{patient_id}/edit", response_class=HTMLResponse)
+@router.get("/{patient_id:int}/edit", response_class=HTMLResponse)
 def edit_patient(patient_id: int, request: Request, session=Depends(get_session)):
     p = session.get(Patient, patient_id)
     if not p:
@@ -49,7 +49,7 @@ def edit_patient(patient_id: int, request: Request, session=Depends(get_session)
         {"label": "Nom", "name": "family", "type": "text", "value": p.family},
         {"label": "Prénom", "name": "given", "type": "text", "value": p.given},
         {"label": "Date de naissance", "name": "birth_date", "type": "date", "value": p.birth_date},
-        {"label": "Sexe (male|female|other|unknown)", "name": "gender", "type": "text", "value": p.gender},
+        {"label": "Sexe (male|female|other|unknown)", "name": "gender", "type": "select", "options": ["male", "female", "other", "unknown"], "value": p.gender},
         {"label": "Deuxième prénom / middle", "name": "middle", "type": "text", "value": getattr(p, "middle", None)},
         {"label": "Préfixe (M./Mme)", "name": "prefix", "type": "text", "value": getattr(p, "prefix", None)},
         {"label": "Suffixe", "name": "suffix", "type": "text", "value": getattr(p, "suffix", None)},
@@ -65,11 +65,15 @@ def edit_patient(patient_id: int, request: Request, session=Depends(get_session)
         {"label": "Race", "name": "race", "type": "text", "value": getattr(p, "race", None)},
         {"label": "Religion", "name": "religion", "type": "text", "value": getattr(p, "religion", None)},
         {"label": "Médecin traitant / PCP", "name": "primary_care_provider", "type": "text", "value": getattr(p, "primary_care_provider", None)},
+        {"label": "NIR (Numéro d'inscription au répertoire)", "name": "nir", "type": "text", "value": getattr(p, "nir", None)},
+        {"label": "Nationalité", "name": "nationality", "type": "text", "value": getattr(p, "nationality", None)},
+        {"label": "Lieu de naissance", "name": "place_of_birth", "type": "text", "value": getattr(p, "place_of_birth", None)},
+        {"label": "Genre administratif", "name": "administrative_gender", "type": "select", "options": ["male", "female", "other", "unknown"], "value": getattr(p, "administrative_gender", None)},
     ]
     return templates.TemplateResponse("form.html", {"request": request, "title": "Modifier patient", "fields": fields, "action_url": f"/patients/{patient_id}/edit"})
 
 
-@router.post("/{patient_id}/edit")
+@router.post("/{patient_id:int}/edit")
 def update_patient(
     patient_id: int,
     patient_seq: int = Form(...),
@@ -93,6 +97,10 @@ def update_patient(
     race: str = Form(None),
     religion: str = Form(None),
     primary_care_provider: str = Form(None),
+    nir: str = Form(None),
+    nationality: str = Form(None),
+    place_of_birth: str = Form(None),
+    administrative_gender: str = Form(None),
     session=Depends(get_session),
 ):
     p = session.get(Patient, patient_id)
@@ -119,12 +127,16 @@ def update_patient(
     p.race = race
     p.religion = religion
     p.primary_care_provider = primary_care_provider
+    p.nir = nir
+    p.nationality = nationality
+    p.place_of_birth = place_of_birth
+    p.administrative_gender = administrative_gender
     session.add(p); session.commit()
     emit_to_senders(p, "patient", session)
     return RedirectResponse(url="/patients", status_code=303)
 
 
-@router.post("/{patient_id}/delete")
+@router.post("/{patient_id:int}/delete")
 def delete_patient(patient_id: int, session=Depends(get_session)):
     p = session.get(Patient, patient_id)
     if not p:
@@ -142,7 +154,7 @@ def new_patient(request: Request, session=Depends(get_session)):
         {"label": "Nom", "name": "family", "type": "text"},
         {"label": "Prénom", "name": "given", "type": "text"},
         {"label": "Date de naissance", "name": "birth_date", "type": "date"},
-        {"label": "Sexe (male|female|other|unknown)", "name": "gender", "type": "text"},
+        {"label": "Sexe (male|female|other|unknown)", "name": "gender", "type": "select", "options": ["male", "female", "other", "unknown"]},
         {"label": "Deuxième prénom / middle", "name": "middle", "type": "text"},
         {"label": "Préfixe (M./Mme)", "name": "prefix", "type": "text"},
         {"label": "Suffixe", "name": "suffix", "type": "text"},
@@ -158,6 +170,10 @@ def new_patient(request: Request, session=Depends(get_session)):
         {"label": "Race", "name": "race", "type": "text"},
         {"label": "Religion", "name": "religion", "type": "text"},
         {"label": "Médecin traitant / PCP", "name": "primary_care_provider", "type": "text"},
+        {"label": "NIR (Numéro d'inscription au répertoire)", "name": "nir", "type": "text"},
+        {"label": "Nationalité", "name": "nationality", "type": "text"},
+        {"label": "Lieu de naissance", "name": "place_of_birth", "type": "text"},
+        {"label": "Genre administratif", "name": "administrative_gender", "type": "select", "options": ["male", "female", "other", "unknown"]},
     ]
     return templates.TemplateResponse("form.html", {"request": request, "title": "Nouveau patient", "fields": fields})
 
@@ -184,6 +200,10 @@ def create_patient(
     race: str = Form(None),
     religion: str = Form(None),
     primary_care_provider: str = Form(None),
+    nir: str = Form(None),
+    nationality: str = Form(None),
+    place_of_birth: str = Form(None),
+    administrative_gender: str = Form(None),
     session=Depends(get_session),
 ):
     seq = patient_seq or get_next_sequence(session, "patient")
@@ -209,6 +229,10 @@ def create_patient(
         race=race,
         religion=religion,
         primary_care_provider=primary_care_provider,
+        nir=nir,
+        nationality=nationality,
+        place_of_birth=place_of_birth,
+        administrative_gender=administrative_gender,
     )
     session.add(p)
     session.commit()

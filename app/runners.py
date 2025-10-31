@@ -1,5 +1,10 @@
 # app/runners.py
 from datetime import datetime, timezone
+from app.services.mllp_manager import MLLPManager
+from app.db_session_factory import session_factory
+from app.services.transport_inbound import on_message_inbound
+
+manager = MLLPManager(session_factory, on_message_inbound)
 
 class RunnerRegistry:
     def __init__(self):
@@ -12,7 +17,8 @@ class RunnerRegistry:
         return endpoint_id in self._runners
 
     def start(self, endpoint, session):
-        # TODO: instancier ton vrai listener/sender (MLLP) ou client FHIR
+        if endpoint.kind == "MLLP" and endpoint.role in ("receiver","both"):
+            asyncio.create_task(manager.start_endpoint(endpoint))
         self._runners[endpoint.id] = object()
         endpoint.updated_at = datetime.now(timezone.utc)
         session.add(endpoint)

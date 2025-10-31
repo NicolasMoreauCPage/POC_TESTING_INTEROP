@@ -10,6 +10,7 @@ from app.services.mllp import parse_msh_fields, build_ack
 from app.models import Patient, Dossier, Venue, Mouvement
 from app.db import get_next_sequence
 from app.services.emit_on_create import emit_to_senders
+from app.state_transitions import is_valid_transition
 
 logger = logging.getLogger("transport_inbound")
 
@@ -436,6 +437,16 @@ async def on_message_inbound(msg: str, session, endpoint) -> str:
                     logger.exception("Failed to write error MessageLog after rollback")
                 # change ack info
                 ack_code, text = "AE", f"Persistence error: {str(e)[:80]}"
+
+        # Validation des transitions d'état pour les dossiers
+        if msg_family == "ADT" and dossier_obj:
+            current_state = dossier_obj.current_state or "Pas de venue courante"
+            if not is_valid_transition(current_state, trigger):
+                logger.warning(f"Transition invalide: état actuel={current_state}, trigger={trigger}")
+                ack_code, text = "AE", f"Transition invalide: état actuel={current_state}, trigger={trigger}"
+            else:
+                dossier_obj.current_state = trigger
+                session.add(dossier_obj)
 
         ack = build_ack(msg, ack_code=ack_code, text=text)
 
