@@ -9,6 +9,22 @@
 			"isBackground": true,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "Run FastAPI server (uvicorn) [Linux]",
+			"type": "shell",
+			"command": ".venv/bin/python3 -m uvicorn app.app:app --reload",
+			"args": [],
+			"isBackground": true,
+			"group": "build"
+		},
+		{
+			"label": "Run FastAPI server (uvicorn) [Linux]",
+			"type": "shell",
+			"command": ".venv/bin/python3 -m uvicorn app.app:app --reload",
+			"args": [],
+			"isBackground": true,
+			"group": "build"
 		}
 	]
 }

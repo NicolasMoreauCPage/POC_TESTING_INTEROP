@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% import "components.html" as components %}
+
+{% block content %}
+<div class="container">
+    <h2 class="text-2xl font-semibold mb-6">
+        {% if config %}Modifier{% else %}Nouveau{% endif %} point MLLP pour {{ endpoint.name }}
+    </h2>
+
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <form method="POST" action="{% if config %}/endpoints/{{ endpoint.id }}/mllp/{{ config.id }}/edit{% else %}/endpoints/{{ endpoint.id }}/mllp/new{% endif %}">
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Nom du point MLLP</label>
+                    <input type="text" name="name" value="{{ config.name if config else '' }}" required
+                           class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <p class="mt-1 text-sm text-slate-500">Ex: ADT, SIU, ORM...</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Port</label>
+                    <input type="number" name="port" value="{{ config.port if config else '' }}" required
+                           class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+
+                <div class="grid gap-6 md:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Application émettrice (MSH-3)</label>
+                        <input type="text" name="sending_app" value="{{ config.sending_app if config else '' }}" required
+                               class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Facility émettrice (MSH-4)</label>
+                        <input type="text" name="sending_facility" value="{{ config.sending_facility if config else '' }}" required
+                               class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Application destinataire (MSH-5)</label>
+                        <input type="text" name="receiving_app" value="{{ config.receiving_app if config else '' }}"
+                               class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Facility destinataire (MSH-6)</label>
+                        <input type="text" name="receiving_facility" value="{{ config.receiving_facility if config else '' }}"
+                               class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">État</label>
+                    <select name="is_enabled" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="true" {% if not config or config.is_enabled %}selected{% endif %}>Actif</option>
+                        <option value="false" {% if config and not config.is_enabled %}selected{% endif %}>Inactif</option>
+                    </select>
+                </div>
+
+                <div class="flex justify-end gap-4">
+                    <a href="/endpoints/{{ endpoint.id }}/transport" 
+                       class="px-4 py-2 text-slate-600 hover:text-slate-800">
+                        Annuler
+                    </a>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        {% if config %}Mettre à jour{% else %}Créer{% endif %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

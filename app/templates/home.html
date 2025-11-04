@@ -1,37 +1,132 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="text-lg font-semibold mb-4">Tableau de bord</h2>
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-  <div class="bg-white rounded-2xl border border-slate-200 p-5">
-    <div class="text-sm text-slate-500">Patients</div>
-    <div class="text-3xl font-semibold">{{ stats.patients }}</div>
+<section class="space-y-6">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <h2 class="text-xl font-semibold text-slate-800">Tableau de bord opérateur</h2>
+    <div class="flex flex-wrap gap-3 text-xs">
+      <a href="/messages" class="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1.5 text-red-600 hover:bg-red-100">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Surveiller les ACK
+      </a>
+      <a href="/messages/send" class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-blue-700 hover:bg-blue-100">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v16l7-3 9 5V6l-9-5-7 3z"/></svg>
+        Injecter un message
+      </a>
+      <a href="/structure/import/hl7" class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-slate-600 hover:bg-slate-200">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v16H4z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h8m-4-4v8"/></svg>
+        Importer structure
+      </a>
+    </div>
   </div>
-  <div class="bg-white rounded-2xl border border-slate-200 p-5">
-    <div class="text-sm text-slate-500">Dossiers</div>
-    <div class="text-3xl font-semibold">{{ stats.dossiers }}</div>
-  </div>
-  <div class="bg-white rounded-2xl border border-slate-200 p-5">
-    <div class="text-sm text-slate-500">Venues</div>
-    <div class="text-3xl font-semibold">{{ stats.venues }}</div>
-  </div>
-</div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-  <a href="/dossiers" class="block bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md transition">
-    <div class="text-lg font-medium mb-1">📁 Dossiers</div>
-    <p class="text-sm text-slate-600">Créer un dossier (seq, UF de responsabilité, admission), visualiser les venues et mouvements associés.</p>
-  </a>
-  <a href="/venues" class="block bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md transition">
-    <div class="text-lg font-medium mb-1">🏥 Venues</div>
-    <p class="text-sm text-slate-600">Créer une venue (seq, UF de responsabilité, date de début), ajouter des mouvements.</p>
-  </a>
-  <a href="/mouvements" class="block bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md transition">
-    <div class="text-lg font-medium mb-1">🔄 Mouvements</div>
-    <p class="text-sm text-slate-600">Enregistrer les évènements ADT (type, date/heure, localisation) rattachés à une venue.</p>
-  </a>
-  <a href="/patients" class="block bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md transition">
-    <div class="text-lg font-medium mb-1">👤 Patients</div>
-    <p class="text-sm text-slate-600">Gérer l’identité patient et lier aux dossiers.</p>
-  </a>
-</div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between text-sm text-slate-500">
+        <span>Patients</span>
+        <a href="/patients" class="text-blue-600 hover:underline">Voir</a>
+      </div>
+      <div class="mt-3 text-4xl font-semibold text-slate-800">{{ stats.patients }}</div>
+      <p class="mt-2 text-xs text-slate-500">Identités synchronisées depuis vos messages ADT.</p>
+    </div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between text-sm text-slate-500">
+        <span>Dossiers actifs</span>
+        <a href="/dossiers" class="text-blue-600 hover:underline">Gérer</a>
+      </div>
+      <div class="mt-3 text-4xl font-semibold text-slate-800">{{ stats.dossiers }}</div>
+      <p class="mt-2 text-xs text-slate-500">Admissions en cours et venues associées.</p>
+    </div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between text-sm text-slate-500">
+        <span>Venues</span>
+        <a href="/venues" class="text-blue-600 hover:underline">Historique</a>
+      </div>
+      <div class="mt-3 text-4xl font-semibold text-slate-800">{{ stats.venues }}</div>
+      <p class="mt-2 text-xs text-slate-500">Suivi des mouvements patients dans vos structures.</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-4">
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-400">Supervision quotidienne</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <a href="/messages" class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-lg font-medium text-slate-800">Journal des messages</span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">Interop</span>
+          </div>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Contrôlez les échanges HL7 et FHIR, filtrez les ACK négatifs et accédez aux payloads décodés.</p>
+          <div class="mt-4 flex items-center gap-2 text-sm text-blue-600">
+            <span>Consulter</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </a>
+        <a href="/endpoints" class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-lg font-medium text-slate-800">Systèmes & MLLP</span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">Infrastructure</span>
+          </div>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Surveillez la configuration des ports MLLP, des endpoints FHIR et redémarrez vos listeners en un clic.</p>
+          <div class="mt-4 flex items-center gap-2 text-sm text-blue-600">
+            <span>Configurer</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </a>
+        <a href="/structure" class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-lg font-medium text-slate-800">Structure hospitalière</span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700">Gestion</span>
+          </div>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Visualisez la hiérarchie EG → Pôle → Service → UF → UH → Lit et importez vos référentiels MFN/FHIR.</p>
+          <div class="mt-4 flex items-center gap-2 text-sm text-blue-600">
+            <span>Explorer</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </a>
+        <a href="/patients" class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-lg font-medium text-slate-800">Identités & admissions</span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">Workflow</span>
+          </div>
+          <p class="mt-3 text-sm text-slate-600 leading-relaxed">Créez ou mettez à jour les patients, rattachez-les à un dossier et suivez les mouvements ADT correspondants.</p>
+          <div class="mt-4 flex items-center gap-2 text-sm text-blue-600">
+            <span>Travailler</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </a>
+      </div>
+    </div>
+    <aside class="space-y-4">
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-400">À retenir</h3>
+      <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+        <div>
+          <p class="text-sm font-medium text-slate-800">GHT actif</p>
+          <p class="text-xs text-slate-500 mt-1">
+            {% if request and request.state and request.state.ght_context %}
+              {{ request.state.ght_context.name }} • {{ request.state.ght_context.code }}
+            {% else %}
+              Aucun contexte sélectionné. <a href="/admin/ght" class="text-blue-600 hover:underline">Choisir un GHT</a>.
+            {% endif %}
+          </p>
+        </div>
+        <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+          <p class="text-sm font-medium text-slate-700">Besoin d'un import structure ?</p>
+          <p class="text-xs text-slate-500 mt-1">Utilisez vos fichiers MFN M05 ou les endpoints FHIR pour synchroniser la hiérarchie établissements.</p>
+          <div class="mt-3 flex flex-wrap gap-2 text-xs">
+            <a href="/structure/import/hl7" class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-white hover:bg-blue-700">Import HL7 MFN</a>
+            <a href="/fhir/Location" class="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-1.5 text-blue-600 hover:bg-blue-50">API FHIR</a>
+          </div>
+        </div>
+        <div class="rounded-xl bg-slate-900 text-slate-100 p-4">
+          <p class="text-sm font-semibold">Documentation & outils</p>
+          <ul class="mt-2 space-y-1 text-xs text-slate-300">
+            <li><a href="/api-docs" class="hover:text-white">→ Documentation interactive OpenAPI</a></li>
+            <li><a href="/messages/send" class="hover:text-white">→ Générateur de messages de test</a></li>
+            <li><a href="/vocabularies" class="hover:text-white">→ Référentiels métiers (FHIR & HL7)</a></li>
+          </ul>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
 {% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-4">
+  <h2 class="text-xl font-semibold text-slate-800">{{ title }}</h2>
+  
+  <form method="post" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 max-w-2xl">
+    <div class="space-y-6">
+      <!-- Code et libellé -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-slate-700">
+            Code <span class="text-red-500">*</span>
+          </label>
+          <input type="text" name="code" required
+                 class="w-full rounded-xl border border-slate-300 px-3 py-2"
+                 placeholder="Ex: URG"
+                 value="{{ value.code if value else '' }}" />
+          <p class="text-xs text-slate-500">
+            Code technique unique dans ce système
+          </p>
+        </div>
+        
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-slate-700">
+            Libellé <span class="text-red-500">*</span>
+          </label>
+          <input type="text" name="display" required
+                 class="w-full rounded-xl border border-slate-300 px-3 py-2"
+                 placeholder="Ex: Urgence"
+                 value="{{ value.display if value else '' }}" />
+        </div>
+      </div>
+      
+      <!-- Description -->
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-slate-700">Description</label>
+        <textarea name="definition" rows="3"
+                  class="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  placeholder="Description détaillée de cette valeur">{{ value.definition if value else '' }}</textarea>
+      </div>
+      
+      <!-- Ordre et statut -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-slate-700">
+            Ordre <span class="text-red-500">*</span>
+          </label>
+          <input type="number" name="order" required
+                 class="w-full rounded-xl border border-slate-300 px-3 py-2"
+                 value="{{ value.order if value else next_order }}" />
+          <p class="text-xs text-slate-500">Position dans la liste</p>
+        </div>
+        
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-slate-700">
+            Statut
+          </label>
+          <div class="flex items-center gap-2">
+            <input type="checkbox" name="is_active"
+                   class="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                   {% if not value or value.is_active %}checked{% endif %} />
+            <span class="text-sm text-slate-700">Valeur active</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="mt-8 flex justify-end gap-4">
+      <a href="/vocabularies/{{ system.id }}"
+         class="px-4 py-2 text-slate-700 hover:text-slate-900">
+        Annuler
+      </a>
+      <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+        {{ "Enregistrer" if value else "Ajouter" }}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

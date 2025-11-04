@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% import "components.html" as components %}
+
+{% block content %}
+<div class="container">
+    {% set form = form_data if form_data is defined and form_data else geo %}
+    {% set raw_active = form.is_active if form is not none and form.is_active is not none else True %}
+    {% set is_active_value = raw_active in [True, 'true', '1', 'yes', 'on'] %}
+    {% set status_value = form.status if form and form.status else 'active' %}
+    {% set mode_value = form.mode if form and form.mode else 'instance' %}
+    {% set physical_value = form.physical_type if form and form.physical_type else 'si' %}
+    <div class="my-8">
+        <h1 class="text-3xl font-bold mb-6">
+            {% if geo %}Modifier{% else %}Nouvelle{% endif %} entité géographique
+        </h1>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <form method="POST"
+                  action="{% if geo %}/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/edit{% else %}/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/new{% endif %}">
+                <div class="space-y-8">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {{ components.form_field('Identifiant global', 'identifier', value=(form.identifier if form else ''), required=True, help='Identifiant unique (ID_GLBL) de l\'entité') }}
+                        {{ components.form_field('FINESS', 'finess', value=(form.finess if form else ''), required=True, help='Identifiant FINESS de l\'établissement géographique') }}
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {{ components.form_field('Nom', 'name', value=(form.name if form else ''), required=True) }}
+                        {{ components.form_field('Nom court', 'short_name', value=(form.short_name if form else '')) }}
+                    </div>
+
+                    {{ components.form_field('Description', 'description', type='textarea', value=(form.description if form else ''), rows=3) }}
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {{ components.form_field('Statut', 'status', type='select', value=status_value, options=[{'value':'active','label':'Actif'},{'value':'suspended','label':'Suspendu'},{'value':'inactive','label':'Inactif'}]) }}
+                        {{ components.form_field("Mode d'organisation", 'mode', type='select', value=mode_value, options=[{'value':'instance','label':'Instance (localisation physique)'},{'value':'kind','label':'Kind (gabarit/type)'}]) }}
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Type physique</label>
+                            <div class="mt-1 block w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                                {% if physical_value == 'si' %}Site (si){% elif physical_value == 'bu' %}Bâtiment (bu){% elif physical_value == 'wi' %}Aile (wi){% elif physical_value == 'fl' %}Étage (fl){% elif physical_value == 'ro' %}Chambre (ro){% elif physical_value == 'bd' %}Lit (bd){% elif physical_value == 'area' %}Zone (area){% else %}{{ physical_value }}{% endif %}
+                            </div>
+                            <input type="hidden" name="physical_type" value="{{ physical_value }}">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">SIREN</label>
+                            <input type="text" name="siren" value="{{ form.siren if form else '' }}"
+                                   class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">SIRET</label>
+                            <input type="text" name="siret" value="{{ form.siret if form else '' }}"
+                                   class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">État d'activité</label>
+                            <select name="is_active"
+                                    class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="true" {% if is_active_value %}selected{% endif %}>Actif</option>
+                                <option value="false" {% if not is_active_value %}selected{% endif %}>Inactif</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h2 class="text-lg font-semibold text-slate-800">Adresse</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Ligne d'adresse</label>
+                                <input type="text" name="address_line1" value="{{ form.address_line1 if form else '' }}"
+                                       class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Complément</label>
+                                <input type="text" name="address_line2" value="{{ form.address_line2 if form else '' }}"
+                                       class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Complément additionnel</label>
+                            <input type="text" name="address_line3" value="{{ form.address_line3 if form else '' }}"
+                                   class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Code postal</label>
+                                <input type="text" name="address_postalcode" value="{{ form.address_postalcode if form else '' }}"
+                                       class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Ville</label>
+                                <input type="text" name="address_city" value="{{ form.address_city if form else '' }}"
+                                       class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Pays</label>
+                                <input type="text" name="address_country" value="{{ form.address_country if form and form.address_country else 'FR' }}"
+                                       class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Latitude</label>
+                                <input type="text" name="latitude" value="{{ form.latitude if form else '' }}"
+                                       class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Longitude</label>
+                                <input type="text" name="longitude" value="{{ form.longitude if form else '' }}"
+                                       class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-4 pt-6 border-t border-slate-200">
+                        <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}"
+                           class="px-4 py-2 text-slate-600 hover:text-slate-800">
+                            Annuler
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if geo %}Mettre à jour{% else %}Créer{% endif %}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

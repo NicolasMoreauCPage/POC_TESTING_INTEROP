@@ -2,72 +2,304 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>PAM POC</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title|default('MedData Bridge') }}</title>
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="{{ url_for('static', path='css/forms.css') }}">
   <script>
-    tailwind.config = { theme: { extend: { maxWidth: { 'content': '1100px' }}}}
+    tailwind.config = {
+      theme: {
+        extend: {
+          maxWidth: { 'content': '1100px' },
+          animation: {
+            'fadeIn': 'fadeIn 200ms ease-in',
+            'slideIn': 'slideIn 200ms ease-out',
+          }
+        }
+      },
+      darkMode: 'media'
+    }
   </script>
+  
+  <!-- Meta tags -->
+  <meta name="description" content="Interface de gestion des données médicales et interopérabilité FHIR/HL7">
+  <meta name="theme-color" content="#2563eb">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏥</text></svg>">
+  
+  <!-- Polices -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body class="bg-slate-50 text-slate-800">
+  <!-- Skip link for keyboard users -->
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-white focus:px-3 focus:py-2 focus:rounded-md">Aller au contenu</a>
   <header class="bg-white border-b border-slate-200">
-    <div class="mx-auto max-w-content px-4 py-4 flex items-center justify-between">
-  <h1 class="text-xl font-semibold">MedData Bridge</h1>
-      <!-- Responsive nav: desktop dropdowns, mobile hamburger -->
-      <nav class="hidden md:flex gap-6 text-sm items-center">
-        <a href="/" class="px-2 py-1 rounded hover:bg-slate-100 font-medium text-slate-700">Accueil</a>
-        <!-- Données dropdown -->
-        <div class="relative group">
-          <button class="flex items-center gap-1 px-2 py-1 rounded hover:bg-slate-100 focus:outline-none">
-            <span class="text-slate-700 font-medium">Données</span>
-            <svg class="w-3 h-3 text-slate-500 group-hover:text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-          </button>
-          <div class="absolute left-0 mt-2 w-40 bg-white border border-slate-200 rounded shadow-lg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto transition-opacity z-20">
-            <a href="/patients" class="block px-4 py-2 hover:bg-blue-50">Patients</a>
-            <a href="/dossiers" class="block px-4 py-2 hover:bg-blue-50">Dossiers</a>
-            <a href="/venues" class="block px-4 py-2 hover:bg-blue-50">Venues</a>
-            <a href="/mouvements" class="block px-4 py-2 hover:bg-blue-50">Mouvements</a>
+    <div class="mx-auto max-w-content px-4 py-3 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-4">
+        <a href="/" class="flex items-center gap-3 text-lg font-semibold text-slate-800">
+          <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">MD</span>
+          <span>MedData Bridge</span>
+        </a>
+        {% if request and request.state and request.state.ght_context %}
+          <div class="hidden md:flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-sm text-blue-700" title="Contexte GHT actif">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>{{ request.state.ght_context.name }}</span>
+            <span class="text-xs text-blue-500">• {{ request.state.ght_context.code }}</span>
           </div>
-        </div>
-
-        <!-- Opérations dropdown -->
-        <div class="relative group">
-          <button class="flex items-center gap-1 px-2 py-1 rounded hover:bg-slate-100 focus:outline-none">
-            <span class="text-slate-700 font-medium">Opérations</span>
-            <svg class="w-3 h-3 text-slate-500 group-hover:text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-          </button>
-          <div class="absolute left-0 mt-2 w-52 bg-white border border-slate-200 rounded shadow-lg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto transition-opacity z-20">
-            <a href="/endpoints" class="block px-4 py-2 hover:bg-blue-50">Systèmes</a>
-            <a href="/messages" class="block px-4 py-2 hover:bg-blue-50">Messages</a>
-            <a href="/messages/send" class="block px-4 py-2 hover:bg-blue-50">Injecter HL7/FHIR</a>
-            <a href="/admin" class="block px-4 py-2 hover:bg-blue-50">Admin</a>
+        {% endif %}
+        {% if request and request.state and request.state.patient_context %}
+          <div class="hidden md:flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700" title="Contexte Patient actif">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 0 0118 0z"/></svg>
+            <span>
+              {{ request.state.patient_context.family }} {{ request.state.patient_context.given }}
+            </span>
+            <span class="text-xs text-emerald-500">#{{ request.state.patient_context.id }}</span>
+            <a href="/context/clear?kind=patient" class="ml-1 inline-flex items-center justify-center h-5 w-5 rounded-full hover:bg-emerald-100 text-emerald-700" title="Effacer le contexte patient">&times;</a>
           </div>
+        {% endif %}
+        {% if request and request.state and request.state.dossier_context %}
+          <div class="hidden md:flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700" title="Contexte Dossier actif">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7h4l2-2h6l2 2h4v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+            <span>
+              Dossier #{{ request.state.dossier_context.dossier_seq or request.state.dossier_context.id }}
+            </span>
+            <a href="/context/clear?kind=dossier" class="ml-1 inline-flex items-center justify-center h-5 w-5 rounded-full hover:bg-indigo-100 text-indigo-700" title="Effacer le contexte dossier">&times;</a>
+          </div>
+        {% endif %}
+      </div>
+      <div class="hidden md:flex items-center gap-4 text-xs text-slate-500">
+        <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100">
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 1.567-3 3.5S10.343 15 12 15s3-1.567 3-3.5S13.657 8 12 8z"/><path stroke-linecap="round" stroke-linejoin="round" d="M5 20.5a7 7 0 0114 0"/></svg>
+          <span>{{ title|default('Interface opérateur') }}</span>
         </div>
-      </nav>
-      <!-- Hamburger for mobile -->
+        <a href="/messages" class="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-red-600 hover:bg-red-100">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span>ACK en erreur</span>
+        </a>
+      </div>
       <div class="md:hidden">
-        <button id="menu-btn" class="p-2 rounded hover:bg-slate-100 focus:outline-none" aria-label="Menu">
+        <button id="menu-btn" class="p-2 rounded hover:bg-slate-100 focus:outline-none" aria-label="Menu principal">
           <svg class="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
       </div>
     </div>
-    <!-- Mobile menu, hidden by default -->
-    <div id="mobile-menu" class="md:hidden hidden px-4 pb-4">
-      <div class="bg-white border border-slate-200 rounded shadow-lg py-2 mt-2">
-        <a href="/" class="block px-4 py-2 hover:bg-blue-50 font-medium text-slate-700">Accueil</a>
-        <div class="px-3 py-2 text-xs text-slate-500 uppercase tracking-wide mt-2">Données</div>
-        <a href="/patients" class="block px-4 py-2 hover:bg-blue-50">Patients</a>
-        <a href="/dossiers" class="block px-4 py-2 hover:bg-blue-50">Dossiers</a>
-        <a href="/venues" class="block px-4 py-2 hover:bg-blue-50">Venues</a>
-        <a href="/mouvements" class="block px-4 py-2 hover:bg-blue-50">Mouvements</a>
-        <div class="px-3 py-2 text-xs text-slate-500 uppercase tracking-wide mt-2">Opérations</div>
-  <a href="/endpoints" class="block px-4 py-2 hover:bg-blue-50">Systèmes</a>
-  <a href="/messages" class="block px-4 py-2 hover:bg-blue-50">Messages</a>
-  <a href="/messages/send" class="block px-4 py-2 hover:bg-blue-50">Injecter HL7/FHIR</a>
-  <a href="/admin" class="block px-4 py-2 hover:bg-blue-50">Admin</a>
+    {% if not request.state.ght_context %}
+    <div class="bg-yellow-50 border-b border-yellow-100">
+      <div class="mx-auto max-w-content px-4 py-3 flex items-center gap-3 text-sm text-yellow-800">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span>
+          Sélectionnez un contexte GHT pour accéder aux fonctionnalités complètes.
+          <a href="/admin/ght" class="font-medium underline hover:text-yellow-900">Choisir un GHT</a>
+        </span>
       </div>
     </div>
+    {% endif %}
+  <nav class="hidden md:block border-t border-slate-200 bg-white" aria-label="Navigation principale">
+      <ul class="mx-auto max-w-content px-4 py-2 flex items-center gap-6 text-sm text-slate-600">
+        <li><a href="/" class="px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition">Tableau de bord</a></li>
+        {% if request.state.ght_context %}
+        <li class="relative group">
+          <button class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 focus:outline-none transition">
+            <div class="flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+              Activités
+            </div>
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div class="absolute left-0 top-full pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition">
+            <div class="w-[420px] grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+              <div>
+                <p class="px-3 py-2 text-xs uppercase tracking-wide text-slate-400">Suivi des prises en charge</p>
+                <a href="/patients" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Patients</a>
+                <a href="/dossiers" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Dossiers</a>
+                {% if request.state and request.state.dossier_context %}
+                  <a href="/venues?dossier_id={{ request.state.dossier_context.id }}" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Venues</a>
+                {% else %}
+                  <span class="block rounded-xl px-3 py-2 text-slate-400 cursor-not-allowed" title="Sélectionnez un dossier pour voir les venues">Venues</span>
+                {% endif %}
+                {% if request.state and request.state.dossier_context %}
+                  <a href="/mouvements?dossier_id={{ request.state.dossier_context.id }}" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Mouvements</a>
+                {% else %}
+                  <span class="block rounded-xl px-3 py-2 text-slate-400 cursor-not-allowed" title="Sélectionnez un dossier pour voir les mouvements">Mouvements</span>
+                {% endif %}
+              </div>
+              <div>
+                <p class="px-3 py-2 text-xs uppercase tracking-wide text-slate-400">Formulaires & validations</p>
+                <a href="/forms" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Formulaires</a>
+                <a href="/vocabularies" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Listes de valeurs</a>
+              </div>
+            </div>
+          </div>
+        </li>
+        {% endif %}
+        {% if request.state.ght_context %}
+        <li class="relative group">
+          <button class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 focus:outline-none transition">
+            <div class="flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+              Structure
+            </div>
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div class="absolute left-0 top-full pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition">
+            <div class="w-[520px] grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+              <div>
+                <p class="px-3 py-2 text-xs uppercase tracking-wide text-slate-400">Vue d'ensemble</p>
+                <a href="/structure" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Tableau structurel</a>
+                <a href="/admin/ght" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Contexts GHT</a>
+                <a href="/structure/search" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Recherche avancée</a>
+              </div>
+              <div>
+                <p class="px-3 py-2 text-xs uppercase tracking-wide text-slate-400">Gestion par niveau</p>
+                <div class="grid grid-cols-2 gap-1 text-sm">
+                  <a href="/structure/eg" class="rounded-xl px-3 py-2 hover:bg-blue-50">Entités géographiques</a>
+                  <a href="/structure/poles" class="rounded-xl px-3 py-2 hover:bg-blue-50">Pôles</a>
+                  <a href="/structure/services" class="rounded-xl px-3 py-2 hover:bg-blue-50">Services</a>
+                  <a href="/structure/ufs" class="rounded-xl px-3 py-2 hover:bg-blue-50">UF</a>
+                  <a href="/structure/uh" class="rounded-xl px-3 py-2 hover:bg-blue-50">UH</a>
+                  <a href="/structure/chambres" class="rounded-xl px-3 py-2 hover:bg-blue-50">Chambres</a>
+                  <a href="/structure/lits" class="rounded-xl px-3 py-2 hover:bg-blue-50">Lits</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+        {% endif %}
+        {% if request.state.ght_context %}
+        <li class="relative group">
+          <button class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 focus:outline-none transition">
+            <div class="flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+              Interopérabilité
+            </div>
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div class="absolute left-0 top-full pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition">
+            <div class="w-64 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+              <a href="/messages" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Messages</a>
+              <a href="/messages/send" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Injecter HL7/FHIR</a>
+              <a href="/endpoints" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Points d'accès</a>
+              <a href="/scenarios" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Scénarios IHE</a>
+              <a href="/standards" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Standards</a>
+            </div>
+          </div>
+        </li>
+        <li class="relative group">
+          <button class="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-700 focus:outline-none transition">
+            Ressources
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div class="absolute left-0 top-full pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition">
+            <div class="w-56 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+              <a href="/guide" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Guide utilisateur</a>
+              <a href="/standards-docs" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Documentation IHE</a>
+              <a href="/api-docs" class="block rounded-xl px-3 py-2 hover:bg-blue-50">API Reference</a>
+            </div>
+          </div>
+        </li>
+        <li>
+          <a href="/admin" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 hover:text-blue-700 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c1.657 0 3-1.343 3-3S13.657 2 12 2s-3 1.343-3 3 1.343 3 3 3zm0 2c-2.761 0-5 2.239-5 5v7h10v-7c0-2.761-2.239-5-5-5z" />
+            </svg>
+            Administration
+          </a>
+        </li>
+      </ul>
+    </nav>
+    {% endif %}
+    <!-- Toast container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2">
+      <!-- Les toasts seront insérés ici dynamiquement -->
+    </div>
+
+    <!-- Mobile menu -->
+  <div id="mobile-menu" class="md:hidden hidden border-t border-slate-200 bg-white" role="navigation" aria-label="Menu mobile">
+      <div class="px-4 py-4 space-y-4 text-sm text-slate-700">
+        <div>
+          <p class="text-xs uppercase tracking-wide text-slate-400 mb-1">Navigation rapide</p>
+          <a href="/" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Tableau de bord</a>
+          {% if request.state.ght_context %}
+          <a href="/messages" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Messages</a>
+          {% endif %}
+        </div>
+        {% if request.state.ght_context %}
+        <div>
+          <p class="text-xs uppercase tracking-wide text-slate-400 mb-1 flex items-center gap-2">
+            <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            </svg>
+            Activités
+          </p>
+          <a href="/patients" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Patients</a>
+          <a href="/dossiers" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Dossiers</a>
+          {% if request.state and request.state.dossier_context %}
+            <a href="/venues?dossier_id={{ request.state.dossier_context.id }}" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Venues</a>
+          {% else %}
+            <span class="block rounded-xl px-3 py-2 text-slate-400" title="Sélectionnez un dossier">Venues</span>
+          {% endif %}
+          {% if request.state and request.state.dossier_context %}
+            <a href="/mouvements?dossier_id={{ request.state.dossier_context.id }}" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Mouvements</a>
+          {% else %}
+            <span class="block rounded-xl px-3 py-2 text-slate-400" title="Sélectionnez un dossier">Mouvements</span>
+          {% endif %}
+          <a href="/forms" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Formulaires</a>
+          <a href="/vocabularies" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Listes de valeurs</a>
+        </div>
+        <div>
+          <p class="text-xs uppercase tracking-wide text-slate-400 mb-1 flex items-center gap-2">
+            <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            </svg>
+            Structure
+          </p>
+          <a href="/structure" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Tableau structurel</a>
+          <a href="/admin/ght" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Contexts GHT</a>
+          <a href="/structure/search" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Recherche structure</a>
+          <div class="pl-2 space-y-1">
+            <a href="/structure/eg" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Entités géographiques</a>
+            <a href="/structure/poles" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Pôles</a>
+            <a href="/structure/services" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Services</a>
+            <a href="/structure/ufs" class="block rounded-xl px-3 py-2 hover:bg-blue-50">UF</a>
+            <a href="/structure/uh" class="block rounded-xl px-3 py-2 hover:bg-blue-50">UH</a>
+            <a href="/structure/chambres" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Chambres</a>
+            <a href="/structure/lits" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Lits</a>
+          </div>
+        </div>
+        {% endif %}
+        <div>
+          <p class="text-xs uppercase tracking-wide text-slate-400 mb-1">Interopérabilité</p>
+          <a href="/messages" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Messages</a>
+          <a href="/messages/send" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Injecter HL7/FHIR</a>
+          <a href="/endpoints" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Points d'accès</a>
+          <a href="/scenarios" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Scénarios IHE</a>
+          <a href="/standards" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Standards</a>
+        </div>
+        <div>
+          <p class="text-xs uppercase tracking-wide text-slate-400 mb-1">Ressources</p>
+          <a href="/guide" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Guide utilisateur</a>
+          <a href="/standards-docs" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Documentation IHE</a>
+          <a href="/api-docs" class="block rounded-xl px-3 py-2 hover:bg-blue-50">API Reference</a>
+        </div>
+        <a href="/admin" class="block rounded-xl px-3 py-2 bg-slate-900 text-white text-center">Administration</a>
+      </div>
+    </div>
+
     <script>
-      // Simple mobile menu toggle
       const btn = document.getElementById('menu-btn');
       const menu = document.getElementById('mobile-menu');
       if (btn && menu) {
@@ -78,12 +310,116 @@
     </script>
   </header>
 
-  <main class="mx-auto max-w-content px-4 py-6">
-    {% block content %}{% endblock %}
-  </main>
+  <div class="min-h-screen flex flex-col">
+    <main id="main-content" role="main" class="flex-1 mx-auto max-w-content px-4 py-6">
+      {% if request.state and request.state.flash_messages %}
+        <div class="space-y-2 mb-6" aria-live="polite">
+          {% for flash in request.state.flash_messages %}
+            {% if flash.level == 'success' %}
+              {% set bg = 'bg-emerald-50 border-emerald-200 text-emerald-700' %}
+              {% set icon = 'M5 13l4 4L19 7' %}
+            {% elif flash.level == 'error' %}
+              {% set bg = 'bg-red-50 border-red-200 text-red-700' %}
+              {% set icon = 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' %}
+            {% elif flash.level == 'warning' %}
+              {% set bg = 'bg-amber-50 border-amber-200 text-amber-700' %}
+              {% set icon = 'M12 9v4m0 4h.01M10.29 3.86L1.82 18a1 1 0 00.86 1.5h18.64a1 1 0 00.86-1.5L13.71 3.86a1 1 0 00-1.72 0z' %}
+            {% else %}
+              {% set bg = 'bg-blue-50 border-blue-200 text-blue-700' %}
+              {% set icon = 'M13 16h-1v-4h-1m1-4h.01M21 12A9 9 0 113 12a9 9 0 0118 0z' %}
+            {% endif %}
+            <div class="flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-sm {{ bg }}" data-flash>
+              <svg class="mt-0.5 h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ icon }}"/></svg>
+              <div class="flex-1 text-sm leading-6">
+                {{ flash.message }}
+              </div>
+              <button type="button" class="text-xs text-current/70 hover:text-current focus:outline-none" data-flash-close>&times;</button>
+            </div>
+          {% endfor %}
+        </div>
+        <script>
+          document.querySelectorAll('[data-flash]').forEach((el) => {
+            const hide = () => el.remove();
+            setTimeout(hide, 6500);
+            const btn = el.querySelector('[data-flash-close]');
+            if (btn) {
+              btn.addEventListener('click', hide);
+            }
+          });
+        </script>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
 
-  <footer class="mx-auto max-w-content px-4 py-6 text-xs text-slate-500">
-    MedData Bridge • FastAPI + Tailwind
-  </footer>
+    <footer class="border-t bg-white mt-auto">
+      <div class="mx-auto max-w-content px-4 py-4 text-xs text-slate-500">
+        <div class="flex flex-col gap-2">
+          <div>MedData Bridge • FastAPI + Tailwind</div>
+          <div class="flex gap-4">
+            <a href="/api-docs" class="hover:text-slate-700">Documentation API</a>
+            <a href="/admin" class="hover:text-slate-700">Administration</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Scripts -->
+  <script src="{{ url_for('static', path='js/forms.js') }}"></script>
+  
+  <!-- Hotkeys -->
+  <script>
+    document.addEventListener('keydown', (e) => {
+      // Alt+A -> Admin
+      if (e.altKey && e.key === 'a') {
+        window.location.href = '/admin';
+      }
+      // Alt+D -> Documentation
+      if (e.altKey && e.key === 'd') {
+        window.location.href = '/api-docs';
+      }
+      // Alt+H -> Home
+      if (e.altKey && e.key === 'h') {
+        window.location.href = '/';
+      }
+    });
+  </script>
+  
+  <!-- Current page indicator -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const path = window.location.pathname;
+      document.querySelectorAll('nav a').forEach(link => {
+        if (link.getAttribute('href') === path) {
+          link.classList.add('bg-blue-50', 'text-blue-700');
+        }
+      });
+    });
+  </script>
+
+  <!-- Defensive: hide any small left-floating accidental nav pill that overlaps content
+       This runs only when a stray element contains 'Tableau de bord' and appears
+       positioned near the left edge with a narrow width (heuristic). It avoids
+       touching legitimate nav links. -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      try {
+        const candidates = Array.from(document.body.querySelectorAll('*'));
+        candidates.forEach(el => {
+          if (!el || !el.innerText) return;
+          const txt = el.innerText.trim();
+          if (!/Tableau\s+de\s+bord/i.test(txt)) return;
+          const rect = el.getBoundingClientRect();
+          // Heuristic: small width and positioned near left edge of viewport
+          if (rect.width < 160 && rect.left < 120 && rect.height > 16) {
+            el.style.display = 'none';
+            console.debug('Hidden stray left pill element containing "Tableau de bord"', el);
+          }
+        });
+      } catch (e) {
+        console.error('Defensive UI cleanup script failed', e);
+      }
+    });
+  </script>
 </body>
 </html>

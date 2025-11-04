@@ -1,5 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
+{% if patient or dossier %}
+<div class="mb-4 flex flex-wrap gap-2">
+  {% if patient %}
+    <span class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700 border border-emerald-100">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Patient : <span class="font-semibold">{{ patient.family }} {{ patient.given }}</span> <span class="text-xs text-emerald-500">#{{ patient.id }}</span>
+    </span>
+  {% endif %}
+  {% if dossier %}
+    <span class="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700 border border-indigo-100">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7h4l2-2h6l2 2h4v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      Dossier : <span class="font-semibold">#{{ dossier.dossier_seq or dossier.id }}</span>
+    </span>
+  {% endif %}
+</div>
+{% endif %}
 <h2 class="text-lg font-semibold mb-4">Venue #{{ venue.venue_seq }} (ID {{ venue.id }})</h2>
 <div class="bg-white rounded-xl border border-slate-200 p-6 max-w-2xl">
   <dl class="grid grid-cols-2 gap-x-4 gap-y-2">
@@ -16,10 +32,13 @@
   </dl>
   <div class="mt-6 flex gap-3">
     <a href="/venues/{{ venue.id }}/edit" class="bg-blue-600 text-white px-4 py-2 rounded">Modifier</a>
+    <a href="/workflow/venue/{{ venue.id }}/view" class="bg-emerald-600 text-white px-4 py-2 rounded">Workflow IHE PAM</a>
+    <a href="/mouvements/new?venue_id={{ venue.id }}" class="bg-blue-600 text-white px-4 py-2 rounded">Ajouter un mouvement</a>
+    <a href="/mouvements?venue_id={{ venue.id }}" class="bg-slate-600 text-white px-4 py-2 rounded">Liste des mouvements</a>
     <form method="post" action="/venues/{{ venue.id }}/delete" onsubmit="return confirm('Supprimer cette venue ?');" style="display:inline;">
       <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded">Supprimer</button>
     </form>
-    <a href="/venues" class="text-slate-600 px-4 py-2">Retour</a>
+    <a href="/venues?dossier_id={{ venue.dossier_id }}" class="text-slate-600 px-4 py-2">Retour</a>
   </div>
 </div>
 {% endblock %}

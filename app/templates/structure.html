@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8">Structure de l'établissement</h1>
+    
+    <!-- Filtres -->
+    {% if filtered_ej_id %}
+    <div class="mb-4 flex items-center gap-2 text-sm">
+        <span class="text-slate-600">Vue filtrée pour l'établissement:</span>
+        <input type="hidden" id="filtered_ej_id" value="{{ filtered_ej_id }}">
+        <input type="hidden" id="filtered_egs" value="{{ filtered_egs|tojson }}">
+        <a href="/structure" class="text-blue-600 hover:text-blue-800">
+            Voir toute la structure &rarr;
+        </a>
+    </div>
+    {% endif %}
+    
+    <!-- Vue arborescente interactive -->
+    <div class="grid grid-cols-7 gap-4 mb-8">
+        <!-- Navigation hiérarchique -->
+        <div class="col-span-2 bg-white rounded-lg shadow p-4">
+            <div class="mb-4">
+                <h2 class="text-lg font-semibold mb-2">Navigation</h2>
+                <div id="treeView" class="text-sm">
+                    <!-- Rempli dynamiquement par JavaScript -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Détails et actions -->
+        <div class="col-span-5 bg-white rounded-lg shadow p-4">
+            <div id="detailView">
+                <!-- Vue détaillée de l'élément sélectionné -->
+                <div class="text-center text-gray-500 py-8">
+                    Sélectionnez un élément dans l'arborescence
+                </div>
+            </div>
+            
+            <!-- Formulaire d'ajout/édition -->
+            <div id="editForm" class="hidden mt-4 border-t pt-4">
+                <h3 class="text-lg font-semibold mb-4">Édition</h3>
+                <form id="structureForm" class="space-y-4">
+                    <input type="hidden" id="editType" name="type">
+                    <input type="hidden" id="editId" name="id">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Identifiant</label>
+                        <input type="text" name="identifier" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Nom</label>
+                        <input type="text" name="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Description</label>
+                        <textarea name="description" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                    </div>
+                    
+                    <div id="additionalFields">
+                        <!-- Champs spécifiques au type ajoutés dynamiquement -->
+                    </div>
+                    
+                    <div class="flex justify-end space-x-4">
+                        <button type="button" onclick="cancelEdit()" class="px-4 py-2 border rounded-md text-gray-700 hover:bg-gray-50">
+                            Annuler
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                            Enregistrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Visualisation des lits -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <h2 class="text-xl font-semibold mb-4">État des lits</h2>
+        <div class="grid grid-cols-2 gap-4">
+            <!-- Filtres -->
+            <div class="p-4 border rounded-lg">
+                <h3 class="text-lg font-medium mb-4">Filtres</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Service</label>
+                        <select id="serviceFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            <option value="">Tous les services</option>
+                            {% for type in service_types %}
+                            <option value="{{ type }}">{{ type }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Unité Fonctionnelle</label>
+                        <select id="ufFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            <option value="">Toutes les UF</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Statut</label>
+                        <select id="statusFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            <option value="">Tous les statuts</option>
+                            <option value="libre">Libre</option>
+                            <option value="occupe">Occupé</option>
+                            <option value="maintenance">En maintenance</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tableau des lits -->
+            <div class="p-4 border rounded-lg">
+                <div id="bedGrid" class="grid grid-cols-4 gap-4">
+                    <!-- Rempli dynamiquement avec les lits -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// État global
+let currentStructure = null;
+let selectedNode = null;
+
+// Initialisation
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadStructureTree();
+    setupFilters();
+    updateBedGrid();
+});
+
+// Chargement de l'arbre
+async function loadStructureTree() {
+    // Vérifier si nous avons un filtre d'établissement
+    const filteredEgsInput = document.getElementById('filtered_egs');
+    let url = '/api/structure/tree';
+    
+    if (filteredEgsInput) {
+        const filteredEgs = JSON.parse(filteredEgsInput.value);
+        if (filteredEgs && filteredEgs.length > 0) {
+            url += '?eg_ids=' + filteredEgs.join(',');
+        }
+    }
+    
+    const response = await fetch(url);
+    currentStructure = await response.json();
+    renderTree();
+}
+
+// Rendu de l'arbre
+function renderTree() {
+    const treeView = document.getElementById('treeView');
+    treeView.innerHTML = renderNode(currentStructure);
+}
+
+function renderNode(node, level = 0) {
+    const padding = level * 16;
+    let html = `
+        <div class="cursor-pointer hover:bg-gray-100 p-2" style="padding-left: ${padding}px"
+             onclick="selectNode('${node.type}', ${node.id})">
+            ${node.name}
+        </div>
+    `;
+    
+    // Rendu récursif des enfants
+    if (node.poles) {
+        node.poles.forEach(pole => {
+            html += renderNode(pole, level + 1);
+        });
+    }
+    if (node.services) {
+        node.services.forEach(service => {
+            html += renderNode(service, level + 1);
+        });
+    }
+    // etc. pour chaque niveau
+    
+    return html;
+}
+
+// Sélection d'un nœud
+async function selectNode(type, id) {
+    selectedNode = { type, id };
+    
+    // Charger les détails
+    const response = await fetch(`/api/structure/${type}/${id}`);
+    const details = await response.json();
+    
+    // Afficher les détails
+    renderDetails(details);
+}
+
+// Rendu des détails
+function renderDetails(details) {
+    const detailView = document.getElementById('detailView');
+    
+    let html = `
+        <div class="space-y-4">
+            <h2 class="text-xl font-semibold">${details.name}</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-500">Identifiant</p>
+                    <p>${details.identifier}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Type</p>
+                    <p>${details.type}</p>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <p class="text-sm text-gray-500">Description</p>
+                <p>${details.description || 'Aucune description'}</p>
+            </div>
+            
+            <!-- Actions -->
+            <div class="flex justify-end space-x-4 mt-4">
+                <button onclick="startEdit()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Modifier
+                </button>
+                <button onclick="confirmDelete()" class="px-4 py-2 border border-red-600 text-red-600 rounded-md hover:bg-red-50">
+                    Supprimer
+                </button>
+            </div>
+        </div>
+    `;
+    
+    detailView.innerHTML = html;
+}
+
+// Edition
+function startEdit() {
+    const form = document.getElementById('editForm');
+    form.classList.remove('hidden');
+    
+    // Charger les champs spécifiques au type
+    loadTypeSpecificFields(selectedNode.type);
+}
+
+function loadTypeSpecificFields(type) {
+    const additionalFields = document.getElementById('additionalFields');
+    let html = '';
+    
+    switch(type) {
+        case 'service':
+            html = `
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Type de service</label>
+                    <select name="service_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="mco">MCO</option>
+                        <option value="ssr">SSR</option>
+                        <option value="psy">PSY</option>
+                        <option value="had">HAD</option>
+                        <option value="ehpad">EHPAD</option>
+                        <option value="usld">USLD</option>
+                    </select>
+                </div>
+            `;
+            break;
+        case 'chambre':
+            html = `
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Type de chambre</label>
+                    <select name="type_chambre" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="simple">Simple</option>
+                        <option value="double">Double</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Usage</label>
+                    <select name="gender_usage" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="mixed">Mixte</option>
+                        <option value="male">Homme</option>
+                        <option value="female">Femme</option>
+                    </select>
+                </div>
+            `;
+            break;
+        case 'lit':
+            html = `
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Statut opérationnel</label>
+                    <select name="operationalStatus" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="libre">Libre</option>
+                        <option value="occupe">Occupé</option>
+                        <option value="maintenance">En maintenance</option>
+                    </select>
+                </div>
+            `;
+            break;
+    }
+    
+    additionalFields.innerHTML = html;
+}
+
+function cancelEdit() {
+    const form = document.getElementById('editForm');
+    form.classList.add('hidden');
+}
+
+// Gestion des lits
+async function updateBedGrid() {
+    const bedGrid = document.getElementById('bedGrid');
+    const service = document.getElementById('serviceFilter').value;
+    const uf = document.getElementById('ufFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    
+    const response = await fetch(`/api/structure/search/lits-disponibles?${new URLSearchParams({
+        service_type: service,
+        uf_id: uf,
+        status: status
+    })}`);
+    
+    const lits = await response.json();
+    
+    bedGrid.innerHTML = lits.map(lit => `
+        <div class="p-4 border rounded-lg ${getStatusClass(lit.operationalStatus)}">
+            <p class="font-medium">${lit.name}</p>
+            <p class="text-sm text-gray-600">${lit.chambre.name}</p>
+            <p class="text-sm">${lit.operationalStatus}</p>
+        </div>
+    `).join('');
+}
+
+function getStatusClass(status) {
+    switch(status) {
+        case 'libre': return 'bg-green-50';
+        case 'occupe': return 'bg-red-50';
+        case 'maintenance': return 'bg-yellow-50';
+        default: return '';
+    }
+}
+
+// Configuration des filtres
+function setupFilters() {
+    document.getElementById('serviceFilter').addEventListener('change', updateBedGrid);
+    document.getElementById('ufFilter').addEventListener('change', updateBedGrid);
+    document.getElementById('statusFilter').addEventListener('change', updateBedGrid);
+}
+</script>
+{% endblock %}

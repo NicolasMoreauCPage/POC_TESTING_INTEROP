@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-4">
+  <h2 class="text-xl font-semibold text-slate-800">{{ title }}</h2>
+  
+  {% if description %}
+  <div class="p-4 bg-sky-50 border border-sky-200 rounded-xl">
+    <p class="text-sky-800">{{ description }}</p>
+  </div>
+  {% endif %}
+
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="bg-slate-50 border-b border-slate-200">
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Concept IHE</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Type de référence</th>
+            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Valeurs IHE</th>
+            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Mappings FHIR</th>
+            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Mappings HL7</th>
+            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          {% for system in systems %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-6 py-4">
+              <div class="text-sm font-medium text-slate-900">{{ system.label }}</div>
+              <div class="text-xs text-slate-500">{{ system.name }}</div>
+              {% if system.description %}
+              <div class="text-xs text-slate-400 mt-1">{{ system.description }}</div>
+              {% endif %}
+            </td>
+            <td class="px-6 py-4">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                {% if system.system_type == 'FHIR' %}
+                  bg-emerald-100 text-emerald-800
+                {% elif system.system_type == 'HL7V2' %}
+                  bg-blue-100 text-blue-800
+                {% else %}
+                  bg-slate-100 text-slate-800
+                {% endif %}">
+                {{ system.system_type }}
+              </span>
+              {% if system.uri or system.oid %}
+              <div class="mt-1 space-y-0.5">
+                {% if system.uri %}
+                <div class="text-[11px] font-mono text-slate-500 break-all">{{ system.uri }}</div>
+                {% endif %}
+                {% if system.oid %}
+                <div class="text-[11px] font-mono text-slate-500 break-all">{{ system.oid }}</div>
+                {% endif %}
+              </div>
+              {% endif %}
+            </td>
+            <td class="px-6 py-4 text-right text-sm text-slate-600">{{ system.value_count }}</td>
+            <td class="px-6 py-4 text-right text-sm text-slate-600">{{ system.fhir_count }}</td>
+            <td class="px-6 py-4 text-right text-sm text-slate-600">{{ system.hl7_count }}</td>
+            <td class="px-6 py-4 text-center">
+              <div class="inline-flex items-center gap-2">
+                <a href="/vocabularies/{{ system.id }}" class="text-sm text-blue-600 hover:text-blue-700">
+                  Détail
+                </a>
+                {% if system.is_user_defined %}
+                <a href="/vocabularies/{{ system.id }}/edit" class="text-sm text-slate-600 hover:text-slate-700">
+                  Modifier
+                </a>
+                <form method="POST" action="/vocabularies/{{ system.id }}/delete" class="inline"
+                      onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce système ?')">
+                  <button type="submit" class="text-sm text-red-600 hover:text-red-700">
+                    Supprimer
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if can_create %}
+  <div class="flex justify-end gap-4">
+    <a href="/vocabularies/new" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      Nouveau système
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

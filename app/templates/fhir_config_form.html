@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% import "components.html" as components %}
+
+{% block content %}
+<div class="container">
+    <h2 class="text-2xl font-semibold mb-6">
+        {% if config %}Modifier{% else %}Nouveau{% endif %} point FHIR pour {{ endpoint.name }}
+    </h2>
+
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <form method="POST" action="{% if config %}/endpoints/{{ endpoint.id }}/fhir/{{ config.id }}/edit{% else %}/endpoints/{{ endpoint.id }}/fhir/new{% endif %}">
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Nom du point FHIR</label>
+                    <input type="text" name="name" value="{{ config.name if config else '' }}" required
+                           class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <p class="mt-1 text-sm text-slate-500">Ex: Patients, Encounters, etc.</p>
+                </div>
+
+                <div class="grid gap-6 md:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">URL de base</label>
+                        <input type="text" name="base_url" value="{{ config.base_url if config else '' }}" required
+                               class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <p class="mt-1 text-sm text-slate-500">Ex: http://fhir.example.com/fhir</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Préfixe de chemin</label>
+                        <input type="text" name="path_prefix" value="{{ config.path_prefix if config else '' }}"
+                               class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <p class="mt-1 text-sm text-slate-500">Ex: /adt (optionnel)</p>
+                    </div>
+                </div>
+
+                <div class="grid gap-6 md:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Type d'authentification</label>
+                        <select name="auth_kind" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="none" {% if not config or config.auth_kind == 'none' %}selected{% endif %}>Aucune</option>
+                            <option value="bearer" {% if config and config.auth_kind == 'bearer' %}selected{% endif %}>Bearer Token</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Token</label>
+                        <input type="text" name="auth_token" value="{{ config.auth_token if config else '' }}"
+                               class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <p class="mt-1 text-sm text-slate-500">Requis si Bearer Token</p>
+                    </div>
+                </div>
+
+                <div class="grid gap-6 md:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Ressources supportées</label>
+                        <input type="text" name="supported_resources" value="{{ config.supported_resources if config else '*' }}" required
+                               class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <p class="mt-1 text-sm text-slate-500">* pour toutes, ou liste séparée par virgules</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Version FHIR</label>
+                        <select name="version" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="R4" {% if not config or config.version == 'R4' %}selected{% endif %}>R4</option>
+                            <option value="R5" {% if config and config.version == 'R5' %}selected{% endif %}>R5</option>
+                            <option value="STU3" {% if config and config.version == 'STU3' %}selected{% endif %}>STU3</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">État</label>
+                    <select name="is_enabled" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="true" {% if not config or config.is_enabled %}selected{% endif %}>Actif</option>
+                        <option value="false" {% if config and not config.is_enabled %}selected{% endif %}>Inactif</option>
+                    </select>
+                </div>
+
+                <div class="flex justify-end gap-4">
+                    <a href="/endpoints/{{ endpoint.id }}/transport" 
+                       class="px-4 py-2 text-slate-600 hover:text-slate-800">
+                        Annuler
+                    </a>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        {% if config %}Mettre à jour{% else %}Créer{% endif %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

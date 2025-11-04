@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="space-y-8">
+  <header class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+    <h1 class="text-3xl font-semibold text-slate-900">Documentation API – MedData Bridge</h1>
+    <p class="mt-3 text-sm text-slate-600 max-w-3xl">
+      Ce document décrit les interfaces exposées par la plateforme : listeners HL7 MLLP, services REST de gestion
+      d’infrastructure et APIs d’outillage (FHIR, structure hospitalière, transport). Les exemples sont fournis pour un
+      déploiement par défaut <code>http://127.0.0.1:8000</code>.
+    </p>
+  </header>
+
+  <section class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+    <h2 class="text-xl font-semibold text-slate-900 mb-3">1. Vue d’ensemble</h2>
+    <table class="w-full text-sm text-left text-slate-700 border border-slate-200 rounded-xl overflow-hidden">
+      <thead class="bg-slate-100 text-slate-900">
+        <tr>
+          <th class="px-4 py-2">Canal</th>
+          <th class="px-4 py-2">Description</th>
+          <th class="px-4 py-2">Support</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="border-t border-slate-200">
+          <td class="px-4 py-3 font-medium text-slate-900">HL7 v2 MLLP</td>
+          <td class="px-4 py-3">Listeners dynamiques par endpoint <em>receiver/both</em>, ACK AA/AE, support PAM France 2.8 + Z99.</td>
+          <td class="px-4 py-3">Segments ADT^A0x/A1x/A5x, Z99, limitation Zxx≠Z99 supprimés en sortie.</td>
+        </tr>
+        <tr class="border-t border-slate-200">
+          <td class="px-4 py-3 font-medium text-slate-900">HTTP REST</td>
+          <td class="px-4 py-3">Gestion structure (MFN/FHIR), transport PAM, supervision, configuration.</td>
+          <td class="px-4 py-3">JSON / text/plain, authentification à mettre en place via reverse-proxy.</td>
+        </tr>
+        <tr class="border-t border-slate-200">
+          <td class="px-4 py-3 font-medium text-slate-900">FHIR R4 (client)</td>
+          <td class="px-4 py-3">Emission de bundles Encounter/Patient/Location vers des systèmes tiers.</td>
+          <td class="px-4 py-3">POST transaction Bundle, authentification Basic ou Bearer.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="mt-4 text-xs text-slate-500">
+      Par défaut, aucune authentification n’est appliquée côté FastAPI. Intégrer impérativement l’application derrière un
+      reverse-proxy (Keycloak, Traefik, NGINX Ingress…) pour sécuriser l’accès HTTP.
+    </p>
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+    <h2 id="hl7" class="text-xl font-semibold text-slate-900">2. Interface HL7 MLLP</h2>
+    <h3 class="text-sm font-semibold text-slate-800 uppercase tracking-wide">2.1 Activation</h3>
+    <ol class="list-decimal pl-5 space-y-2 text-sm text-slate-700">
+      <li>Créer un endpoint via l’IHM (<strong>Interopération → Systèmes</strong>) avec le rôle <em>receiver</em> ou <em>both</em>.</li>
+      <li>Renseigner l’adresse d’écoute (host) et le port MLLP. Le manager démarre automatiquement le listener au lancement de l’application.</li>
+      <li>Le listener applique la fonction <code>on_message_inbound</code> pour chaque message et retourne un ACK MLLP format HL7.</li>
+    </ol>
+    <h3 class="text-sm font-semibold text-slate-800 uppercase tracking-wide">2.2 Messages supportés</h3>
+    <ul class="list-disc pl-5 space-y-1 text-sm text-slate-700">
+      <li>ADT^A01, A02, A03, A04, A05, A06, A07, A11, A12, A13, A21, A22, A31, A38, A54, A55.</li>
+      <li>Z99 (mise à jour partielle). Les autres segments Zxx sont ignorés en sortie conformément à la spécification PAM ≥ 2.8.</li>
+      <li>Validation PID : un identifiant minimum est requis (PID-3). Les erreurs lèvent un ACK AE détaillé.</li>
+    </ul>
+    <div class="border border-slate-200 bg-slate-50 rounded-xl p-4 text-xs text-slate-700">
+      <p class="font-semibold text-slate-900 mb-2">Exemple de dialogue</p>
+      <pre class="bg-slate-900 text-slate-100 rounded-lg p-3 overflow-auto">Client → Serveur :
+  &lt;VT&gt;
+  MSH|^~\&amp;|SRC|SRC|MDATA|MDATA|202406141030||ADT^A01|123456|P|2.5
+  PID|1||000012345^^^GHT^PI||DUPONT^JEAN||19801201|M
+  PV1|1|I|UH/CARDIO|||…
+  &lt;FS&gt;&lt;CR&gt;
+
+Serveur → Client :
+  &lt;VT&gt;
+  MSH|^~\&amp;|MDATA|MDATA|SRC|SRC|202406141030||ACK^A01|123456|P|2.5
+  MSA|AA|123456|Message A01 traité avec succès
+  &lt;FS&gt;&lt;CR&gt;</pre>
+      <p class="mt-2">En cas d’erreur applicative (transition interdite, identifiant manquant), l’ACK porte <code>MSA|AE</code> avec le détail en MSA-3.</p>
+    </div>
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
+    <h2 id="rest" class="text-xl font-semibold text-slate-900">3. APIs REST principales</h2>
+
+    <article class="space-y-3 text-sm text-slate-700">
+      <h3 class="font-semibold text-slate-800">3.1 Supervision et configuration</h3>
+      <table class="w-full text-sm text-left text-slate-700 border border-slate-200 rounded-xl overflow-hidden">
+        <thead class="bg-slate-100 text-slate-900">
+          <tr>
+            <th class="px-4 py-2">Méthode &amp; chemin</th>
+            <th class="px-4 py-2">Description</th>
+            <th class="px-4 py-2">Retour</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-t border-slate-200">
+            <td class="px-4 py-3 font-mono text-xs">GET /transport/endpoints</td>
+            <td class="px-4 py-3">Liste les endpoints actifs avec leurs configurations MLLP/FHIR.</td>
+            <td class="px-4 py-3">JSON : <code>[{"id": 1, "name": "TEST-MLLP", "mllp_configs": [...]}]</code></td>
+          </tr>
+          <tr class="border-t border-slate-200">
+            <td class="px-4 py-3 font-mono text-xs">GET /health/live</td>
+            <td class="px-4 py-3">Sonde de vivacité.</td>
+            <td class="px-4 py-3"><code>{"status": "live"}</code></td>
+          </tr>
+          <tr class="border-t border-slate-200">
+            <td class="px-4 py-3 font-mono text-xs">GET /health/ready</td>
+            <td class="px-4 py-3">Sonde de disponibilité (vérifie la base et les listeners MLLP).</td>
+            <td class="px-4 py-3"><code>{"status": "ready"}</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </article>
+
+    <article class="space-y-3 text-sm text-slate-700">
+      <h3 class="font-semibold text-slate-800">3.2 Transport PAM</h3>
+      <table class="w-full text-sm text-left text-slate-700 border border-slate-200 rounded-xl overflow-hidden">
+        <thead class="bg-slate-100 text-slate-900">
+          <tr>
+            <th class="px-4 py-2">Méthode &amp; chemin</th>
+            <th class="px-4 py-2">Corps</th>
+            <th class="px-4 py-2">Retour</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-t border-slate-200">
+            <td class="px-4 py-3 font-mono text-xs">POST /transport/send/pam/{dossier_id}/mllp/{config_id}</td>
+            <td class="px-4 py-3">—</td>
+            <td class="px-4 py-3">Envoie l’intégralité des mouvements PAM du dossier via la configuration MLLP spécifiée. <br>JSON : <code>{"results": [{"message_id": 42, "status": "ack_ok"}]}</code></td>
+          </tr>
+          <tr class="border-t border-slate-200">
+            <td class="px-4 py-3 font-mono text-xs">POST /transport/send/fhir/{config_id}</td>
+            <td class="px-4 py-3"><code>{ "resourceType": "Bundle", ... }</code></td>
+            <td class="px-4 py-3">Transmet le bundle à l’endpoint FHIR sélectionné. <br>JSON : <code>{"status": 200, "response": {...}, "log_id": 51}</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-slate-500">Ces endpoints s’appuient sur la configuration (authentification, path prefix, timeout) définie pour chaque <code>SystemEndpoint</code>.</p>
+    </article>
+
+    <article class="space-y-3 text-sm text-slate-700">
+      <h3 class="font-semibold text-slate-800">3.3 Structure hospitalière</h3>
+      <table class="w-full text-sm text-left text-slate-700 border border-slate-200 rounded-xl overflow-hidden">
+        <thead class="bg-slate-100 text-slate-900">
+          <tr>
+            <th class="px-4 py-2">Méthode &amp; chemin</th>
+            <th class="px-4 py-2">Description</th>
+            <th class="px-4 py-2">Payload</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-t border-slate-200">
+            <td class="px-4 py-3 font-mono text-xs">POST /structure/import/hl7</td>
+            <td class="px-4 py-3">Importe un message MFN^M05 (texte brut <code>text/plain</code>).</td>
+            <td class="px-4 py-3">Body : message HL7. Retour JSON avec le détail des entités créées.</td>
+          </tr>
+          <tr class="border-t border-slate-200">
+            <td class="px-4 py-3 font-mono text-xs">GET /structure/export/hl7</td>
+            <td class="px-4 py-3">Export de la structure en MFN^M05.</td>
+            <td class="px-4 py-3">Text/plain.</td>
+          </tr>
+          <tr class="border-t border-slate-200">
+            <td class="px-4 py-3 font-mono text-xs">POST /fhir/Location</td>
+            <td class="px-4 py-3">Import FHIR Location (profil français).</td>
+            <td class="px-4 py-3">JSON FHIR, retourne la Location persistée (<code>201 Created</code>).</td>
+          </tr>
+        </tbody>
+      </table>
+    </article>
+
+    <article class="space-y-3 text-sm text-slate-700">
+      <h3 class="font-semibold text-slate-800">3.4 APIs d’intégration IHE</h3>
+      <table class="w-full text-sm text-left text-slate-700 border border-slate-200 rounded-xl overflow-hidden">
+        <thead class="bg-slate-100 text-slate-900">
+          <tr>
+            <th class="px-4 py-2">Méthode &amp; chemin</th>
+            <th class="px-4 py-2">Usage</th>
+            <th class="px-4 py-2">Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-t border-slate-200">
+            <td class="px-4 py-3 font-mono text-xs">POST /ihe/pix/query</td>
+            <td class="px-4 py-3">Simulation PIX (identifier cross-referencing).</td>
+            <td class="px-4 py-3">Body JSON, renvoie les identités connues.</td>
+          </tr>
+          <tr class="border-t border-slate-200">
+            <td class="px-4 py-3 font-mono text-xs">POST /ihe/pdq/query</td>
+            <td class="px-4 py-3">Simulation PDQ (demographic query).</td>
+            <td class="px-4 py-3">Filtrage sur nom, identifiant, dates.</td>
+          </tr>
+          <tr class="border-t border-slate-200">
+            <td class="px-4 py-3 font-mono text-xs">POST /ihe/pixm/$ihe-pix</td>
+            <td class="px-4 py-3">Endpoint PIXm compatible FHIR pour tests de convergence.</td>
+            <td class="px-4 py-3">Retour FHIR Bundle.</td>
+          </tr>
+        </tbody>
+      </table>
+    </article>
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+    <h2 class="text-xl font-semibold text-slate-900">4. Journalisation &amp; traçabilité</h2>
+    <ul class="list-disc pl-5 space-y-1 text-sm text-slate-700">
+      <li>Tous les flux (in/out) sont enregistrés dans <code>MessageLog</code> avec <em>payload</em>, <em>ack</em>, <em>endpoint</em>, <em>status</em>.</li>
+      <li>Un ACK négatif (<code>status = "error"</code> ou <code>"ack_error"</code>) est récupérable via <code>/messages/{id}</code> (UI) ou requête SQL.</li>
+      <li>Activer <code>MLLP_TRACE=1</code> pour loguer les trames hexadécimales côté client MLLP.</li>
+    </ul>
+  </section>
+</div>
+{% endblock %}

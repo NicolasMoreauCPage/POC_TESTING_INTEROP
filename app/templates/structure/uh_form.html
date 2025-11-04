@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}{{ "Nouvelle" if not uh else "Modifier" }} Unité d'Hébergement{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+  <div class="md:grid md:grid-cols-3 md:gap-6">
+    <div class="md:col-span-1">
+      <div class="px-4 sm:px-0">
+        <h3 class="text-lg font-medium leading-6 text-gray-900">{{ "Nouvelle" if not uh else "Modifier" }} Unité d'Hébergement</h3>
+        <p class="mt-1 text-sm text-gray-600">Créer ou modifier une unité d'hébergement dans la structure.</p>
+      </div>
+    </div>
+
+    <div class="mt-5 md:col-span-2 md:mt-0">
+      <form action="{{ '/structure/uh' if not uh else '/structure/uh/' ~ uh.id }}" method="POST">
+        <div class="shadow sm:overflow-hidden sm:rounded-md">
+          <div class="space-y-6 bg-white px-4 py-5 sm:p-6">
+            <div class="grid grid-cols-6 gap-6">
+              <div class="col-span-6 sm:col-span-4">
+                <label for="name" class="block text-sm font-medium text-gray-700">Nom</label>
+                <input type="text" name="name" id="name" value="{{ uh.name if uh else '' }}" required
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+              </div>
+
+              <div class="col-span-6 sm:col-span-4">
+                <label for="identifier" class="block text-sm font-medium text-gray-700">Identifiant</label>
+                <input type="text" name="identifier" id="identifier" value="{{ uh.identifier if uh else '' }}" required
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500">Code unique de l'unité (ex : CHU-DEMO-UH-001).</p>
+              </div>
+
+              <div class="col-span-6 sm:col-span-4">
+                <label for="unite_fonctionnelle_id" class="block text-sm font-medium text-gray-700">Unité Fonctionnelle</label>
+                <select id="unite_fonctionnelle_id" name="unite_fonctionnelle_id" required
+                  class="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+                  <option value="">Sélectionner une UF...</option>
+                  {% for uf in unites_fonctionnelles %}
+                  <option value="{{ uf.id }}" {{ 'selected' if uh and uh.unite_fonctionnelle_id == uf.id else '' }}>
+                    {{ uf.name }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-span-6 sm:col-span-3">
+                <label for="mode" class="block text-sm font-medium text-gray-700">Mode</label>
+                <select id="mode" name="mode" required
+                  class="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+                  {% for mode in modes %}
+                  <option value="{{ mode }}" {{ 'selected' if uh and uh.mode == mode else '' }}>
+                    {{ mode }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-span-6 sm:col-span-3">
+                <label for="status" class="block text-sm font-medium text-gray-700">Statut</label>
+                <select id="status" name="status" required
+                  class="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+                  {% for status in statuses %}
+                  <option value="{{ status }}" {{ 'selected' if uh and uh.status == status else '' }}>
+                    {{ status }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-span-6 sm:col-span-3">
+                <label for="activation_date" class="block text-sm font-medium text-gray-700">Date d'activation</label>
+                <input type="datetime-local" id="activation_date" name="activation_date"
+                  value="{{ activation_date_value or '' }}"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500">L'unité restera inactive jusqu'à cette date.</p>
+              </div>
+
+              <div class="col-span-6 sm:col-span-3">
+                <label for="deactivation_date" class="block text-sm font-medium text-gray-700">Date de désactivation</label>
+                <input type="datetime-local" id="deactivation_date" name="deactivation_date"
+                  value="{{ deactivation_date_value or '' }}"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                <p class="mt-1 text-xs text-gray-500">Après cette date, l'unité passera en statut inactif.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-gray-50 px-4 py-3 text-right sm:px-6">
+            <a href="/structure/uh" class="inline-flex justify-center rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 mr-3">
+              Annuler
+            </a>
+            <button type="submit"
+              class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+              Enregistrer
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

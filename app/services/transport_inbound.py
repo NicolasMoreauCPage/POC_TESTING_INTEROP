@@ -1,27 +1,75 @@
+"""Pipeline de traitement des messages HL7v2 entrants (IHE PAM).
+
+Fonctions principales
+- Validation et parsing des segments MSH/PID/PD1/PV1
+- Application d'updates Z99 tolérantes (POC) sur des entités manquantes
+- Routage métier via `IHEMessageRouter`
+- Journalisation dans `MessageLog` et génération des ACK HL7 (AA/AE/AR)
+
+Transactions & sessions
+- Utilise la session SQLModel fournie (voir `session_factory` côté MLLP)
+    et enchaîne les opérations dans un contexte transactionnel `session.begin()`
+    lorsque nécessaire.
+"""
+
 # app/services/transport_inbound.py
 from datetime import datetime
-from typing import Optional
+import re
+from typing import Dict, List, Optional, Tuple
 import logging
 
-from sqlmodel import select
+from sqlmodel import Session, select
 
 from app.models_endpoints import MessageLog
 from app.services.mllp import parse_msh_fields, build_ack
 from app.models import Patient, Dossier, Venue, Mouvement
+from app.models_identifiers import Identifier, IdentifierType
 from app.db import get_next_sequence
 from app.services.emit_on_create import emit_to_senders
-from app.state_transitions import is_valid_transition
+from app.services.identifier_manager import (
+    create_identifier_from_hl7,
+    merge_identifiers,
+    get_main_identifier
+)
+from app.services.message_router import IHEMessageRouter
+from app.state_transitions import is_valid_transition, assert_transition
 
 logger = logging.getLogger("transport_inbound")
 
 
+def _parse_patient_identifiers(pid_segment: str) -> List[Tuple[str, str]]:
+    """Parse les identifiants patients du segment PID"""
+    identifiers = []
+    try:
+        parts = pid_segment.split("|")
+        if len(parts) <= 3:
+            return []
+            
+        # PID-3 contient une liste d'identifiants séparés par ~
+        id_list = parts[3].split("~")
+        for cx in id_list:
+            if not cx:
+                continue
+            # Détecter le type d'identifiant
+            id_type = "PI"  # Par défaut Patient Internal
+            if "^" in cx:
+                cx_parts = cx.split("^")
+                if len(cx_parts) > 4:
+                    id_type = cx_parts[4]
+            identifiers.append((cx, id_type))
+            
+    except Exception as e:
+        logger.error(f"Erreur parsing identifiants PID: {str(e)}")
+        
+    return identifiers
+
+
 def _parse_pid(message: str) -> dict:
-    """Parse minimal PID fields from an HL7 message.
-    Returns a dict with keys: external_id, family, given, birth_date, gender.
-    This is intentionally small and tolerant (POC).
-    """
+    """Parse le segment PID avec support complet des identifiants"""
     out = {
-        "external_id": "",
+        "identifiers": [],
+        "external_id": None,
+        "account_number": None,
         "family": "",
         "given": "",
         "middle": None,
@@ -33,55 +81,179 @@ def _parse_pid(message: str) -> dict:
         "city": None,
         "state": None,
         "postal_code": None,
+        "country": None,
         "phone": None,
         "email": None,
         "ssn": None,
         "marital_status": None,
-        "mothers_maiden_name": None,
-        "race": None,
+        # Nouveaux champs multi-valués
+        "names": [],
+        "addresses": [],
+        "phones": [],
+        # Champs adresse de naissance
+        "birth_family": None,
+        "birth_address": None,
+        "birth_city": None,
+        "birth_state": None,
+        "birth_postal_code": None,
+        "birth_country": None,
+        "birth_place": None,
+        # Champs téléphones supplémentaires
+        "mobile": None,
+        "work_phone": None,
+        # PID-32: Identity Reliability Code
+        "identity_reliability_code": None
     }
     try:
-        lines = message.split("\r")
+        lines = re.split(r"\r|\n", message)
         pid = next((l for l in lines if l.startswith("PID")), None)
         if not pid:
             return out
+            
         parts = pid.split("|")
-        # HL7 PID fields: 3=PatientIdentifierList, 5=PatientName, 7=BirthDate, 8=Gender
-        if len(parts) > 3 and parts[3]:
-            # take first identifier component (before ^)
-            out["external_id"] = parts[3].split("~")[0].split("^")[0]
+        
+        # Identifiants (PID-3)
+        out["identifiers"] = _parse_patient_identifiers(pid)
+        
+        # Nom (PID-5) - XPN multi-valué (répétitions ~)
         if len(parts) > 5 and parts[5]:
-            name_comp = parts[5].split("^")
-            out["family"] = name_comp[0] if len(name_comp) > 0 else ""
-            out["given"] = name_comp[1] if len(name_comp) > 1 else ""
-            out["middle"] = name_comp[2] if len(name_comp) > 2 else None
-            out["suffix"] = name_comp[3] if len(name_comp) > 3 else None
-            out["prefix"] = name_comp[4] if len(name_comp) > 4 else None
+            # Parser toutes les répétitions de noms
+            name_repetitions = parts[5].split("~")
+            all_names = []
+            for name_rep in name_repetitions:
+                name_parts = name_rep.split("^")
+                name_data = {
+                    "family": name_parts[0] if len(name_parts) > 0 else "",
+                    "given": name_parts[1] if len(name_parts) > 1 else "",
+                    "middle": name_parts[2] if len(name_parts) > 2 else None,
+                    "suffix": name_parts[3] if len(name_parts) > 3 else None,
+                    "prefix": name_parts[4] if len(name_parts) > 4 else None,
+                    # XPN : family^given^middle^suffix^prefix^degree^type
+                    "type": name_parts[6] if len(name_parts) > 6 else None  # D=usuel, L=naissance
+                }
+                all_names.append(name_data)
+            
+            # Stocker toutes les répétitions
+            out["names"] = all_names
+            
+            # Pour compatibilité, garder le premier nom dans les champs simples
+            if all_names:
+                out["family"] = all_names[0]["family"]
+                out["given"] = all_names[0]["given"]
+                out["middle"] = all_names[0]["middle"]
+                out["prefix"] = all_names[0]["prefix"]
+                out["suffix"] = all_names[0]["suffix"]
+                
+                # Chercher nom de naissance (type L) si présent
+                birth_name = next((n for n in all_names if n.get("type") == "L"), None)
+                if birth_name:
+                    out["birth_family"] = birth_name["family"]
+                
+        # Date naissance (PID-7)
         if len(parts) > 7 and parts[7]:
+            # Keep the raw HL7 date string for tests and also provide a
+            # parsed datetime as birth_date_dt when possible.
             out["birth_date"] = parts[7]
-        if len(parts) > 8 and parts[8]:
+            try:
+                out["birth_date_dt"] = datetime.strptime(parts[7], "%Y%m%d")
+            except Exception:
+                out["birth_date_dt"] = None
+
+        # External id: first CX in PID-3 (raw value before component separators)
+        if len(parts) > 3 and parts[3]:
+            out["external_id"] = parts[3].split("^")[0]
+
+        # Genre (PID-8)
+        if len(parts) > 8:
             out["gender"] = parts[8]
-        # PID-11 = Patient Address (XAD) -> street^other^city^state^zip^country
+            
+        # Adresse (PID-11) - XAD multi-valué (répétitions ~)
         if len(parts) > 11 and parts[11]:
-            addr = parts[11].split("^")
-            out["address"] = addr[0] if len(addr) > 0 and addr[0] else None
-            out["city"] = addr[2] if len(addr) > 2 and addr[2] else None
-            out["state"] = addr[3] if len(addr) > 3 and addr[3] else None
-            out["postal_code"] = addr[4] if len(addr) > 4 and addr[4] else None
-        # PID-13 = Phone
+            # Parser toutes les répétitions d'adresses
+            addr_repetitions = parts[11].split("~")
+            all_addresses = []
+            for addr_rep in addr_repetitions:
+                addr_parts = addr_rep.split("^")
+                addr_data = {
+                    "street": addr_parts[0] if len(addr_parts) > 0 else None,
+                    "other": addr_parts[1] if len(addr_parts) > 1 else None,
+                    "city": addr_parts[2] if len(addr_parts) > 2 else None,
+                    "state": addr_parts[3] if len(addr_parts) > 3 else None,
+                    "postal_code": addr_parts[4] if len(addr_parts) > 4 else None,
+                    "country": addr_parts[5] if len(addr_parts) > 5 else None,
+                    "type": addr_parts[6] if len(addr_parts) > 6 else None  # H=home, O=office, etc.
+                }
+                all_addresses.append(addr_data)
+            
+            # Stocker toutes les répétitions
+            out["addresses"] = all_addresses
+            
+            # Pour compatibilité, garder la première adresse dans les champs simples
+            if all_addresses:
+                out["address"] = all_addresses[0]["street"]
+                out["city"] = all_addresses[0]["city"]
+                out["state"] = all_addresses[0]["state"]
+                out["postal_code"] = all_addresses[0]["postal_code"]
+                out["country"] = all_addresses[0].get("country")
+                
+                # Si 2e adresse présente, la considérer comme adresse de naissance
+                if len(all_addresses) > 1:
+                    birth_addr = all_addresses[1]
+                    out["birth_address"] = birth_addr["street"]
+                    out["birth_city"] = birth_addr["city"]
+                    out["birth_state"] = birth_addr["state"]
+                    out["birth_postal_code"] = birth_addr["postal_code"]
+                    out["birth_country"] = birth_addr.get("country")
+            
+        # Téléphone (PID-13) - XTN multi-valué (répétitions ~)
         if len(parts) > 13 and parts[13]:
-            out["phone"] = parts[13].split("^")[0]
-        # PID-19 = SSN (or national id) and PID-16 marital status, PID-6 mother's maiden name, PID-10 race
-        if len(parts) > 19 and parts[19]:
-            out["ssn"] = parts[19]
+            # Parser toutes les répétitions de téléphones
+            phone_repetitions = parts[13].split("~")
+            all_phones = []
+            for phone_rep in phone_repetitions:
+                phone_parts = phone_rep.split("^")
+                phone_data = {
+                    "number": phone_parts[0] if len(phone_parts) > 0 else None,
+                    "type": phone_parts[2] if len(phone_parts) > 2 else None,  # PRN=primary, ORN=other, etc.
+                    "use": phone_parts[1] if len(phone_parts) > 1 else None   # HOME, WORK, CELL
+                }
+                all_phones.append(phone_data)
+            
+            # Stocker toutes les répétitions
+            out["phones"] = all_phones
+            
+            # Pour compatibilité, garder le premier téléphone dans le champ simple
+            if all_phones:
+                out["phone"] = all_phones[0]["number"]
+                
+                # Si d'autres téléphones présents, les stocker dans des champs dédiés
+                for i, phone_data in enumerate(all_phones[1:], start=1):
+                    if phone_data.get("use") == "CELL" or phone_data.get("type") == "CP":
+                        out["mobile"] = phone_data["number"]
+                    elif phone_data.get("use") == "WORK" or phone_data.get("type") == "WP":
+                        out["work_phone"] = phone_data["number"]
+            
+        # Champs spécifiques (PID-16 marital_status). PID-19 est interdit dans le profil FR
         if len(parts) > 16 and parts[16]:
             out["marital_status"] = parts[16]
-        if len(parts) > 6 and parts[6]:
-            out["mothers_maiden_name"] = parts[6].split("^")[0]
-        if len(parts) > 10 and parts[10]:
-            out["race"] = parts[10]
-    except Exception:
-        pass
+        # PID-18 = Patient Account Number (often used to reference a dossier)
+        if len(parts) > 18 and parts[18]:
+            out["account_number"] = parts[18]
+        
+        # PID-23: Lieu de naissance (Birth Place)
+        if len(parts) > 23 and parts[23]:
+            out["birth_place"] = parts[23]
+            # Si birth_city n'est pas déjà renseigné par une adresse, utiliser PID-23
+            if not out.get("birth_city"):
+                out["birth_city"] = parts[23]
+        
+        # PID-32: Identity Reliability Code (HL7 Table 0445)
+        if len(parts) > 32 and parts[32]:
+            out["identity_reliability_code"] = parts[32]
+            
+    except Exception as e:
+        logger.error(f"Erreur parsing PID: {str(e)}")
+        
     return out
 
 
@@ -92,7 +264,7 @@ def _parse_pd1(message: str) -> dict:
     """
     out = {"primary_care_provider": None, "religion": None, "language": None}
     try:
-        lines = message.split("\r")
+        lines = re.split(r"\r|\n", message)
         pd1 = next((l for l in lines if l.startswith("PD1")), None)
         if not pd1:
             return out
@@ -118,7 +290,7 @@ def _parse_hl7_datetime(s: Optional[str]) -> Optional[datetime]:
     # common HL7 formats: YYYYMMDDHHMMSS or YYYYMMDD
     for fmt in ("%Y%m%d%H%M%S", "%Y%m%d%H%M", "%Y%m%d"):
         try:
-            return datetime.strptime(s[: len(fmt.replace('%', '')) + 6], fmt)
+            return datetime.strptime(s[: len(fmt.replace("%", ""))], fmt)
         except Exception:
             try:
                 return datetime.strptime(s, fmt)
@@ -133,9 +305,17 @@ def _parse_hl7_datetime(s: Optional[str]) -> Optional[datetime]:
 
 def _parse_pv1(message: str) -> dict:
     """Extract a few PV1 fields we need: location, hospital_service, admit/discharge datetimes, patient_class."""
-    out = {"location": "", "hospital_service": "", "admit_time": None, "discharge_time": None, "patient_class": ""}
+    out = {
+        "location": "",
+        "previous_location": "",
+        "hospital_service": "",
+        "admit_time": None,
+        "discharge_time": None,
+        "patient_class": "",
+        "visit_number": None,
+    }
     try:
-        lines = message.split("\r")
+        lines = re.split(r"\r|\n", message)
         pv1 = next((l for l in lines if l.startswith("PV1")), None)
         if not pv1:
             return out
@@ -145,6 +325,8 @@ def _parse_pv1(message: str) -> dict:
             out["patient_class"] = parts[2]
         if len(parts) > 3 and parts[3]:
             out["location"] = parts[3]
+        if len(parts) > 6 and parts[6]:
+            out["previous_location"] = parts[6]
         if len(parts) > 10 and parts[10]:
             out["hospital_service"] = parts[10]
         # admit/discharge times
@@ -152,330 +334,426 @@ def _parse_pv1(message: str) -> dict:
             out["admit_time"] = _parse_hl7_datetime(parts[44])
         if len(parts) > 45 and parts[45]:
             out["discharge_time"] = _parse_hl7_datetime(parts[45])
+        # PV1-19 = Visit Number / Visit ID (often CX format)
+        if len(parts) > 19 and parts[19]:
+            out["visit_number"] = parts[19]
     except Exception:
         pass
     return out
 
 
-def _handle_z99_updates(message: str, session) -> None:
-    """Look for Z99 segments with simple structured updates.
+def _handle_z99_updates(message: str, session: Session) -> None:
+    """Apply Z99 partial updates received over HL7.
 
-    Supported pattern (POC): Z99|Entity|seq|field|value
-    where Entity in (Dossier, Venue, Mouvement)
+    For the sandbox/test environment we tolerate references to unknown
+    structures (dossiers, venues, mouvements, patients) by creating
+    placeholder records on-the-fly so that subsequent updates succeed.
     """
+
+    def _ensure_patient(seq_hint: int, updates: dict) -> Patient:
+        identifier = updates.get("identifier") or f"Z99-{seq_hint:06d}"
+        patient = session.exec(select(Patient).where(Patient.identifier == identifier)).first()
+        if patient:
+            return patient
+
+        patient = Patient(
+            patient_seq=get_next_sequence(session, "patient"),
+            identifier=identifier,
+            external_id=identifier,
+            family=updates.get("nom") or f"Patient Z99 {seq_hint}",
+            given=updates.get("prenom") or "Auto",
+            gender=updates.get("sexe") or "unknown",
+            birth_date=updates.get("date_naissance"),
+        )
+        session.add(patient)
+        session.flush()
+        logger.info("Created placeholder patient for Z99 update", extra={"identifier": identifier})
+        return patient
+
+    def _ensure_dossier(seq_value: int, updates: dict) -> Dossier:
+        dossier = session.exec(select(Dossier).where(Dossier.dossier_seq == seq_value)).first()
+        if dossier:
+            return dossier
+
+        patient = _ensure_patient(seq_value, updates)
+        dossier = Dossier(
+            dossier_seq=seq_value,
+            patient_id=patient.id,
+            uf_responsabilite=updates.get("uf_responsabilite") or "Z99-UF",
+            admit_time=datetime.utcnow(),
+        )
+        session.add(dossier)
+        session.flush()
+        logger.info("Created placeholder dossier for Z99 update", extra={"dossier_seq": seq_value})
+        return dossier
+
+    def _ensure_venue(seq_value: int, updates: dict) -> Venue:
+        venue = session.exec(select(Venue).where(Venue.venue_seq == seq_value)).first()
+        if venue:
+            return venue
+
+        dossier_seq_hint = updates.get("dossier_seq")
+        try:
+            dossier_seq_value = int(dossier_seq_hint) if dossier_seq_hint else seq_value
+        except Exception:
+            dossier_seq_value = seq_value
+        dossier = _ensure_dossier(dossier_seq_value, updates)
+        venue = Venue(
+            venue_seq=seq_value,
+            dossier_id=dossier.id,
+            uf_responsabilite=updates.get("uf_responsabilite") or dossier.uf_responsabilite,
+            start_time=datetime.utcnow(),
+            code=updates.get("code") or f"VEN-{seq_value}",
+            label=updates.get("label") or f"Venue Z99 {seq_value}",
+        )
+        session.add(venue)
+        session.flush()
+        logger.info("Created placeholder venue for Z99 update", extra={"venue_seq": seq_value})
+        return venue
+
+    def _ensure_mouvement(seq_value: int, updates: dict) -> Mouvement:
+        mouvement = session.exec(select(Mouvement).where(Mouvement.mouvement_seq == seq_value)).first()
+        if mouvement:
+            return mouvement
+
+        venue_seq_hint = updates.get("venue_seq")
+        try:
+            venue_seq_value = int(venue_seq_hint) if venue_seq_hint else seq_value
+        except Exception:
+            venue_seq_value = seq_value
+        venue = _ensure_venue(venue_seq_value, updates)
+        mouvement = Mouvement(
+            mouvement_seq=seq_value,
+            venue_id=venue.id,
+            type=updates.get("type") or "Z99",
+            when=datetime.utcnow(),
+            location=updates.get("location") or getattr(venue, "code", None),
+        )
+        session.add(mouvement)
+        session.flush()
+        logger.info("Created placeholder mouvement for Z99 update", extra={"mouvement_seq": seq_value})
+        return mouvement
+
     try:
-        lines = message.split("\r")
-        for seg in [l for l in lines if l.startswith("Z99")]:
+        lines = re.split(r"\r|\n", message)
+        for seg in (l for l in lines if l.startswith("Z99")):
             parts = seg.split("|")
             if len(parts) < 4:
                 continue
-            entity = parts[1]
-            seq = parts[2] if len(parts) > 2 else None
-            field = parts[3] if len(parts) > 3 else None
-            value = parts[4] if len(parts) > 4 else None
-            if not entity or not seq:
+
+            entity = (parts[1] or "").strip()
+            seq_raw = (parts[2] or "").strip()
+            if not entity or not seq_raw:
                 continue
+
             try:
-                sid = int(seq)
+                seq_value = int(seq_raw)
             except Exception:
+                logger.warning("Invalid sequence identifier in Z99 segment", extra={"segment": seg})
                 continue
-            if entity.lower().startswith("doss"):
-                obj = session.exec(select(Dossier).where(Dossier.dossier_seq == sid)).first()
-            elif entity.lower().startswith("ven"):
-                obj = session.exec(select(Venue).where(Venue.venue_seq == sid)).first()
-            elif entity.lower().startswith("mouv") or entity.lower().startswith("mvt"):
-                obj = session.exec(select(Mouvement).where(Mouvement.mouvement_seq == sid)).first()
+
+            updates: Dict[str, Optional[str]] = {}
+            fields = parts[3:]
+            for idx in range(0, len(fields), 2):
+                field_name = fields[idx].strip() if idx < len(fields) else ""
+                if not field_name:
+                    continue
+                updates[field_name] = fields[idx + 1] if idx + 1 < len(fields) else None
+
+            obj = None
+            entity_lc = entity.lower()
+            if entity_lc.startswith("doss"):
+                obj = _ensure_dossier(seq_value, updates)
+            elif entity_lc.startswith("ven"):
+                obj = _ensure_venue(seq_value, updates)
+            elif entity_lc.startswith("mouv") or entity_lc.startswith("mvt"):
+                obj = _ensure_mouvement(seq_value, updates)
+            elif entity_lc.startswith("pat"):
+                obj = _ensure_patient(seq_value, updates)
             else:
-                obj = None
-            if obj and field and value is not None:
-                # apply if attribute exists
-                if hasattr(obj, field):
-                    setattr(obj, field, value)
-                    session.add(obj)
-                    session.commit()
+                logger.warning("Unsupported Z99 entity encountered", extra={"entity": entity})
+                continue
+
+            if not obj:
+                continue
+
+            for field_name, value in updates.items():
+                if hasattr(obj, field_name) and value is not None:
+                    setattr(obj, field_name, value)
+            session.add(obj)
+
+        session.flush()
     except Exception:
         logger.exception("Error handling Z99 updates")
 
 
-async def on_message_inbound(msg: str, session, endpoint) -> str:
-    """Receive an HL7 v2 message (deframed), optionally persist domain objects, and return an ACK.
-
-    Notes:
-    - `session` is a SQLModel Session provided by `session_factory()` from `app/db_session_factory.py`.
-    - For ADT patient create/update messages (A04/A28/A08), this function will create a `Patient` record
-      when possible. It uses `get_next_sequence(session, "patient")` to populate `patient_seq`.
+def _validate_message_structure(msg: str) -> Tuple[bool, Optional[str], Optional[Dict]]:
+    """Valide la structure d'un message HL7v2 et retourne les champs MSH.
+    
+    Args:
+        msg: Message HL7 déframé
+        
+    Returns:
+        (is_valid, error_text, msh_fields)
     """
     try:
-        f = parse_msh_fields(msg)
-        ctrl_id = f.get("control_id", "")
+        # Vérification basique de la structure
+        if not msg or not msg.startswith("MSH"):
+            return False, "Invalid message structure", None
+            
+        # Parser l'en-tête
+        msh = parse_msh_fields(msg)
+        if not msh:
+            return False, "Failed to parse MSH segment", None
+            
+        # Vérifier les champs obligatoires
+        required_fields = ["sending_app", "sending_facility", "msg_type", "control_id"]
+        missing = [f for f in required_fields if not msh.get(f)]
+        if missing:
+            return False, f"Missing required MSH fields: {', '.join(missing)}", None
+            
+        return True, None, msh
+    except Exception as e:
+        return False, f"Message validation error: {str(e)}", None
 
-        # Basic MSH-9 validation
-        if not f.get("msg_type"):
-            ack_code, text = "AE", "Missing/invalid MSH-9"
-        else:
-            ack_code, text = ("AA", "Message received") if ctrl_id else ("AE", "Missing MSH-10")
+async def on_message_inbound_async(msg: str, session, endpoint) -> str:
+    """
+    Point d'entrée principal pour les messages HL7v2 IHE PAM entrants.
+    Implémente le profil IHE PAM (ITI-30/31) avec support des annulations.
+    
+    Types de messages supportés :
+    1. Gestion des admissions (ADT) :
+       - A01/A11 : Admission/Annulation
+       - A04/A23 : Inscription/Suppression
+       - A05/A38 : Pré-admission/Annulation
+       - A06/A07 : Changement type patient
+       
+    2. Mouvements patients :
+       - A02/A12 : Transfert/Annulation
+       - A21/A52 : Permission/Annulation
+       - A22/A53 : Retour/Annulation
+       
+    3. Sorties :
+       - A03/A13 : Sortie/Annulation
+       
+    4. Autres :
+       - A54/A55 : Changement médecin/Annulation
+       - Z99 : Mises à jour partielles (extension FR)
+       
+    Le traitement est transactionnel et journalisé via MessageLog.
+    Les acquittements sont construits selon les règles HL7v2.5.
+    
+    Args:
+        msg: Message HL7v2 déframé
+        session: Session SQLModel active
+        endpoint: Point de terminaison source (peut être None)
+        
+    Returns:
+        Message ACK formaté HL7v2 (AA=succès, AE=erreur applicative, AR=erreur système)
+    """
+    log = None
+    
+    # 1. Validation structurelle
+    is_valid, error_text, msh = _validate_message_structure(msg)
+    if not is_valid:
+        return build_ack(msg, ack_code="AR", text=error_text)
+        
+    ctrl_id = msh["control_id"]
+    msg_family = msh.get("type", "")
+    trigger = msh.get("trigger", "")
 
-        # If ACK is OK, attempt domain persistence according to ADT triggers in an atomic transaction
-        pid = _parse_pid(msg)
-        pd1 = _parse_pd1(msg)
-        if ack_code == "AA":
-            comp = f.get("msg_type", "").split("^")
-            msg_family = comp[0] if len(comp) > 0 else ""
-            trigger = comp[1] if len(comp) > 1 else ""
-
-            try:
-                # Use a transaction span: domain objects + message log are committed atomically.
-                with session.begin():
-                    # --- Patient creation/update (A04/A08/A28) ---
-                    if msg_family == "ADT" and trigger in ("A04", "A08", "A28"):
-                        existing = None
-                        if pid.get("external_id"):
-                            existing = session.exec(
-                                select(Patient).where(Patient.external_id == pid["external_id"])
-                            ).first()
-                        if existing:
-                            logger.info(f"Patient exists (external_id={pid.get('external_id')}) -> id={existing.id}")
-                        else:
-                            seq = get_next_sequence(session, "patient")
-                            p = Patient(
-                                patient_seq=seq,
-                                external_id=pid.get("external_id") or "",
-                                family=pid.get("family") or "",
-                                given=pid.get("given") or "",
-                                middle=pid.get("middle"),
-                                prefix=pid.get("prefix"),
-                                suffix=pid.get("suffix"),
-                                birth_date=pid.get("birth_date"),
-                                gender=pid.get("gender"),
-                                address=pid.get("address"),
-                                city=pid.get("city"),
-                                state=pid.get("state"),
-                                postal_code=pid.get("postal_code"),
-                                phone=pid.get("phone"),
-                                ssn=pid.get("ssn"),
-                                marital_status=pid.get("marital_status"),
-                                mothers_maiden_name=pid.get("mothers_maiden_name"),
-                                race=pid.get("race"),
-                                religion=pd1.get("religion") if pd1 else None,
-                                primary_care_provider=pd1.get("primary_care_provider") if pd1 else None,
-                            )
-                            session.add(p)
-                            session.flush()
-                            session.refresh(p)
-                            logger.info(f"Created Patient id={p.id} seq={p.patient_seq} external_id={p.external_id}")
-
-                    # parse PV1 for dossier/venue/mouvement mapping
-                    pv1 = _parse_pv1(msg)
-
-                    # --- Dossier & Venue (A01/A04/A05) ---
-                    dossier_obj = None
-                    venue_obj = None
-                    if msg_family == "ADT" and trigger in ("A01", "A04", "A05"):
-                        # find patient
-                        patient_obj = None
-                        if pid.get("external_id"):
-                            patient_obj = session.exec(
-                                select(Patient).where(Patient.external_id == pid["external_id"])
-                            ).first()
-                        if not patient_obj:
-                            logger.warning("No patient found for Dossier creation; skipping Dossier/Venue creation")
-                        else:
-                            if pv1.get("admit_time"):
-                                dossier_obj = session.exec(
-                                    select(Dossier).where(
-                                        Dossier.patient_id == patient_obj.id,
-                                        Dossier.admit_time == pv1.get("admit_time")
-                                    )
-                                ).first()
-                            if not dossier_obj:
-                                dseq = get_next_sequence(session, "dossier")
-                                dossier_obj = Dossier(
-                                    dossier_seq=dseq,
-                                    patient_id=patient_obj.id,
-                                    uf_responsabilite=pv1.get("hospital_service") or pv1.get("location") or "",
-                                    admit_time=pv1.get("admit_time") or datetime.utcnow(),
-                                    discharge_time=pv1.get("discharge_time"),
-                                )
-                                session.add(dossier_obj)
-                                session.flush()
-                                session.refresh(dossier_obj)
-                                logger.info(f"Created Dossier id={dossier_obj.id} seq={dossier_obj.dossier_seq}")
-
-                            # Venue
-                            if dossier_obj:
-                                if pv1.get("admit_time"):
-                                    venue_obj = session.exec(
-                                        select(Venue).where(
-                                            Venue.dossier_id == dossier_obj.id,
-                                            Venue.start_time == pv1.get("admit_time")
-                                        )
-                                    ).first()
-                                if not venue_obj:
-                                    vseq = get_next_sequence(session, "venue")
-                                    venue_obj = Venue(
-                                        venue_seq=vseq,
-                                        dossier_id=dossier_obj.id,
-                                        uf_responsabilite=dossier_obj.uf_responsabilite,
-                                        start_time=pv1.get("admit_time") or dossier_obj.admit_time,
-                                        code=(pv1.get("location") or "")[:64],
-                                        label=(pv1.get("location") or ""),
-                                    )
-                                    session.add(venue_obj)
-                                    session.flush()
-                                    session.refresh(venue_obj)
-                                    logger.info(f"Created Venue id={venue_obj.id} seq={venue_obj.venue_seq}")
-
-                    # --- Movements (A01,A04,A06,A02,A21,A22,A54) ---
-                    movement_triggers = ("A01", "A04", "A06", "A02", "A21", "A22", "A54")
-                    if msg_family == "ADT" and trigger in movement_triggers:
-                        # ensure we have a venue to attach to
-                        if not venue_obj:
-                            # try to find a venue for this patient and admit_time
-                            if pid.get("external_id"):
-                                patient_obj = session.exec(
-                                    select(Patient).where(Patient.external_id == pid["external_id"])
-                                ).first()
-                                if patient_obj and pv1.get("admit_time"):
-                                    d = session.exec(
-                                        select(Dossier).where(Dossier.patient_id == patient_obj.id, Dossier.admit_time == pv1.get("admit_time"))
-                                    ).first()
-                                    if d:
-                                        venue_obj = session.exec(
-                                            select(Venue).where(Venue.dossier_id == d.id, Venue.start_time == pv1.get("admit_time"))
-                                        ).first()
-                        if not venue_obj:
-                            # fallback: create minimal venue linked to dossier if any
-                            dossier_for_venue = None
-                            if pid.get("external_id"):
-                                patient_obj = session.exec(
-                                    select(Patient).where(Patient.external_id == pid["external_id"])
-                                ).first()
-                                if patient_obj:
-                                    dossier_for_venue = session.exec(
-                                        select(Dossier).where(Dossier.patient_id == patient_obj.id).order_by(Dossier.id.desc())
-                                    ).first()
-                            if dossier_for_venue:
-                                vseq = get_next_sequence(session, "venue")
-                                venue_obj = Venue(
-                                    venue_seq=vseq,
-                                    dossier_id=dossier_for_venue.id,
-                                    uf_responsabilite=dossier_for_venue.uf_responsabilite,
-                                    start_time=pv1.get("admit_time") or datetime.utcnow(),
-                                )
-                                session.add(venue_obj)
-                                session.flush()
-                                session.refresh(venue_obj)
-                        if venue_obj:
-                            mseq = get_next_sequence(session, "mouvement")
-                            mv = Mouvement(
-                                mouvement_seq=mseq,
-                                venue_id=venue_obj.id,
-                                type=trigger,
-                                when=pv1.get("admit_time") or datetime.utcnow(),
-                                location=pv1.get("location"),
-                            )
-                            session.add(mv)
-                            session.flush()
-                            session.refresh(mv)
-                            logger.info(f"Created Mouvement id={mv.id} seq={mv.mouvement_seq} on venue={venue_obj.id}")
-
-                    # --- Z99 handling (modifications) ---
-                    _handle_z99_updates(msg, session)
-
-                    # MessageLog is created inside the same transaction so the whole processing is atomic
-                    log = MessageLog(
-                        direction="in",
-                        kind="MLLP",
-                        endpoint_id=(getattr(endpoint, "id", None)),
-                        correlation_id=ctrl_id or "",
-                        status="ack_ok",
-                        payload=msg,
-                        ack_payload="",
-                        created_at=datetime.utcnow(),
-                    )
-                    session.add(log)
-
-                    # commit happens automatically on successful exit of session.begin()
-                # After successful transaction, emit outbound messages for created/updated entities
-                try:
-                    # prefer using in-memory references when available, else re-query
-                    if 'p' in locals() and p:
-                        emit_to_senders(p, "patient", session)
-                    else:
-                        if pid.get("external_id"):
-                            patient_obj = session.exec(select(Patient).where(Patient.external_id == pid["external_id"])) .first()
-                            if patient_obj:
-                                emit_to_senders(patient_obj, "patient", session)
-
-                    if 'dossier_obj' in locals() and dossier_obj:
-                        emit_to_senders(dossier_obj, "dossier", session)
-                    if 'venue_obj' in locals() and venue_obj:
-                        emit_to_senders(venue_obj, "venue", session)
-                    if 'mv' in locals() and mv:
-                        emit_to_senders(mv, "mouvement", session)
-                except Exception:
-                    logger.exception("emit_to_senders failed")
-            except Exception as e:
-                # rollback occurred; log error and return AE
-                logger.exception(f"Persistence error during domain processing: {e}")
-                # best-effort: write a MessageLog entry describing the error (outside transaction)
-                try:
-                    err_ack = build_ack(msg, ack_code="AE", text=str(e)[:80])
-                    log = MessageLog(
-                        direction="in",
-                        kind="MLLP",
-                        endpoint_id=(getattr(endpoint, "id", None)),
-                        correlation_id=ctrl_id or "",
-                        status="ack_error",
-                        payload=msg,
-                        ack_payload=err_ack,
-                        created_at=datetime.utcnow(),
-                    )
-                    session.add(log)
-                    session.commit()
-                except Exception:
-                    logger.exception("Failed to write error MessageLog after rollback")
-                # change ack info
-                ack_code, text = "AE", f"Persistence error: {str(e)[:80]}"
-
-        # Validation des transitions d'état pour les dossiers
-        if msg_family == "ADT" and dossier_obj:
-            current_state = dossier_obj.current_state or "Pas de venue courante"
-            if not is_valid_transition(current_state, trigger):
-                logger.warning(f"Transition invalide: état actuel={current_state}, trigger={trigger}")
-                ack_code, text = "AE", f"Transition invalide: état actuel={current_state}, trigger={trigger}"
-            else:
-                dossier_obj.current_state = trigger
-                session.add(dossier_obj)
-
-        ack = build_ack(msg, ack_code=ack_code, text=text)
-
-        log = MessageLog(
-            direction="in",
-            kind="MLLP",
-            endpoint_id=(getattr(endpoint, "id", None)),
-            correlation_id=ctrl_id or "",
-            status="ack_ok" if ack_code == "AA" else "ack_error",
-            payload=msg,
-            ack_payload=ack,
-            created_at=datetime.utcnow(),
+    # 2. Validation du type de message
+    if msg_family != "ADT":
+        return build_ack(
+            msg, 
+            ack_code="AE",
+            text=f"Unsupported message type: {msg_family} (only ADT supported)"
         )
-        session.add(log)
-        session.commit()
+        
+    # 3. Initialisation du traitement transactionnel
+    try:
+        from contextlib import nullcontext
+        ctx = session.begin() if not session.in_transaction() else nullcontext()
+
+        with ctx:
+            log = MessageLog(
+                direction="in",
+                kind="MLLP",
+                endpoint_id=endpoint.id if endpoint else None,
+                correlation_id=ctrl_id,
+                payload=msg,
+                status="processing",
+                message_type=f"{msg_family}^{trigger}",
+                created_at=datetime.utcnow(),
+            )
+            session.add(log)
+
+            if trigger == "Z99":
+                try:
+                    _handle_z99_updates(msg, session)
+                    log.status = "processed"
+                    ack = build_ack(msg, ack_code="AA", text="Z99 updates applied")
+                except Exception as exc:
+                    logger.exception("Error processing Z99 message")
+                    log.status = "error"
+                    ack = build_ack(msg, ack_code="AE", text=f"Z99 processing failed: {str(exc)[:80]}")
+                log.ack_payload = ack
+                return ack
+
+            pid_data = _parse_pid(msg)
+            pv1_data = _parse_pv1(msg)
+            
+            # Validation des transitions IHE PAM
+            # Récupérer le dernier événement du dossier/venue si applicable
+            previous_event = None
+            if pv1_data.get("visit_number"):
+                # Rechercher la venue existante pour connaître le dernier événement
+                visit_num_str = pv1_data["visit_number"]
+                venue = session.exec(
+                    select(Venue).where(Venue.venue_seq == int(visit_num_str))
+                ).first()
+                if venue:
+                    # Récupérer le dernier mouvement pour connaître le dernier événement
+                    last_mouvement = session.exec(
+                        select(Mouvement)
+                        .where(Mouvement.venue_id == venue.id)
+                        .order_by(Mouvement.mouvement_seq.desc())
+                    ).first()
+                    if last_mouvement and hasattr(last_mouvement, 'trigger_event'):
+                        previous_event = last_mouvement.trigger_event
+            else:
+                # Si pas de visit_number, chercher le dernier événement du patient
+                # pour permettre des enchaînements sans numéro de venue explicite
+                if pid_data.get("identifiers"):
+                    first_ident = pid_data["identifiers"][0][0] if pid_data["identifiers"] else None
+                    if first_ident:
+                        # Extraire l'ID du CX (partie avant ^^^)
+                        patient_id = first_ident.split("^^^")[0] if "^^^" in first_ident else first_ident
+                        # Chercher le patient par identifier
+                        patient = session.exec(
+                            select(Patient).where(Patient.identifier == patient_id)
+                        ).first()
+                        if patient:
+                            # Chercher le dernier mouvement de ce patient
+                            last_mouvement = session.exec(
+                                select(Mouvement)
+                                .join(Venue)
+                                .join(Dossier)
+                                .where(Dossier.patient_id == patient.id)
+                                .order_by(Mouvement.mouvement_seq.desc())
+                            ).first()
+                            if last_mouvement and hasattr(last_mouvement, 'trigger_event'):
+                                previous_event = last_mouvement.trigger_event
+            
+            # Valider la transition (lève ValueError si invalide)
+            try:
+                assert_transition(previous_event, trigger)
+            except ValueError as ve:
+                # Transition invalide : rejeter avec ACK AE
+                log.status = "rejected"
+                error_text = str(ve)
+                ack = build_ack(msg, ack_code="AE", text=error_text)
+                log.ack_payload = ack
+                logger.warning(
+                    "Transition IHE PAM invalide rejetée",
+                    extra={
+                        "trigger": trigger,
+                        "previous_event": previous_event,
+                        "error": error_text
+                    }
+                )
+                return ack
+            
+            logger.info(
+                "Routing ADT message",
+                extra={"trigger": trigger, "patient_identifiers": pid_data.get("identifiers")},
+            )
+            success, err = await IHEMessageRouter.route_message(session, trigger, pid_data, pv1_data, message=msg)
+
+            if success:
+                log.status = "processed"
+                text = f"Message {trigger} traité avec succès"
+                ack = build_ack(msg, ack_code="AA", text=text)
+            else:
+                log.status = "error"
+                text = err or f"Handler returned no result for {trigger}"
+                ack = build_ack(msg, ack_code="AE", text=text)
+
+            log.ack_payload = ack
+            return ack
+
+    except ValueError as ve:
+        logger.exception("Validation error while processing message")
+        error_text = f"Validation error: {str(ve)[:80]}"
+        ack = build_ack(msg, ack_code="AE", text=error_text)
+        if log:
+            log.status = "error"
+            log.ack_payload = ack
         return ack
 
     except Exception as e:
-        # On failure, attempt a generic AE ACK and best-effort log
-        logger.exception(f"Unhandled error in on_message_inbound: {e}")
-        ack = build_ack("MSH|^~\\\&||||||||||P|2.5", ack_code="AE", text=str(e)[:80])
+        logger.exception("Critical error during message processing")
+        error_text = f"System error: {str(e)[:100]}"
+        ack = build_ack(msg, ack_code="AR", text=error_text)
         try:
-            log = MessageLog(
-                direction="in", kind="MLLP", endpoint_id=(getattr(endpoint, "id", None)),
-                correlation_id="", status="ack_error",
-                payload=msg, ack_payload=ack, created_at=datetime.utcnow()
+            error_log = MessageLog(
+                direction="in",
+                kind="MLLP",
+                endpoint_id=endpoint.id if endpoint else None,
+                correlation_id=msh.get("control_id", ""),
+                message_type=f"{msg_family}^{trigger}",
+                status="error",
+                payload=msg,
+                ack_payload=ack,
+                created_at=datetime.utcnow(),
             )
-            session.add(log)
+            session.add(error_log)
             session.commit()
         except Exception:
-            pass
+            logger.exception("Failed to write error MessageLog")
         return ack
+
+
+class _OnMessageInboundCallable:
+    """Callable and awaitable wrapper for on_message_inbound.
+
+    Allows existing sync tests to call `on_message_inbound(msg, session, endpoint)`
+    and get a dict result, while also being awaitable for async tests that do
+    `await on_message_inbound(msg, session, endpoint)`.
+    """
+    def __init__(self, async_callable):
+        self._async = async_callable
+
+    def __call__(self, msg: str, session, endpoint=None):
+        """Sync call path: run the async handler in a new event loop."""
+        import asyncio
+
+        # Create the coroutine
+        coro = self._async(msg, session, endpoint)
+        try:
+            # If there's an existing running loop, return the coroutine so
+            # the caller (an async test or async code path) can await it.
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop: safe to run and return the sync-compatible dict
+            ack = asyncio.run(coro)
+            if isinstance(ack, str) and "MSA|AA" in ack:
+                return {"status": "success", "ack": ack}
+            else:
+                return {"status": "error", "ack": ack}
+        else:
+            # Return coroutine to be awaited by caller
+            return coro
+
+    def __await__(self):
+        # Support `await on_message_inbound(...)` usage by returning the
+        # coroutine's awaitable. This method will be called when the
+        # instance is awaited; but we must capture the parameters.
+        raise TypeError("Use 'await on_message_inbound_async(msg, session, endpoint)' instead")
+
+
+# Keep the explicit async function for awaited usage and for internal calls
+on_message_inbound = _OnMessageInboundCallable(on_message_inbound_async)
+
+# Also export the async function directly for tests that want to await it
+__all__ = ["on_message_inbound_async", "on_message_inbound"]

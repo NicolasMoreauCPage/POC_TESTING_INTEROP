@@ -1,30 +1,142 @@
 {% extends "base.html" %}
+{% import "components.html" as components %}
+
 {% block content %}
-<div class="flex items-center justify-between mb-4">
-  <h2 class="text-lg font-semibold">{{ title }}</h2>
-  <a href="{{ new_url }}" class="inline-flex items-center rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700">Nouveau</a>
+{# Breadcrumb #}
+{{ components.breadcrumb(breadcrumbs) if breadcrumbs }}
+
+{# Header avec titre et actions #}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold text-slate-900">{{ title }}</h1>
+  
+  <div class="flex items-center gap-4">
+    {% if filters %}
+      <button 
+        type="button"
+        class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50"
+        @click="showFilters = !showFilters"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+        </svg>
+        Filtrer
+      </button>
+    {% endif %}
+
+    {% if new_url %}
+      <a 
+        href="{{ new_url }}"
+        class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        Nouveau
+      </a>
+    {% endif %}
+
+    {% if actions %}
+      {{ components.actions_menu(actions) }}
+    {% endif %}
+  </div>
 </div>
 
-<div class="overflow-x-auto bg-white rounded-2xl border border-slate-200">
-  <table class="min-w-full text-sm">
-    <thead class="bg-slate-50">
-      <tr>
-        {% for h in headers %}<th class="text-left font-medium text-slate-600 px-4 py-3">{{ h }}</th>{% endfor %}
-        <th class="text-left font-medium text-slate-600 px-4 py-3">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in rows %}
-      <tr class="border-t border-slate-100 hover:bg-slate-50">
-        {% for cell in row.cells %}<td class="px-4 py-3">{{ cell }}</td>{% endfor %}
-        <td class="px-4 py-3">
-          {% if row.detail_url %}
-            <a href="{{ row.detail_url }}" class="text-blue-600 hover:underline">Détail</a>
-          {% endif %}
-        </td>
-      </tr>
+{# Onglets contextuels (facultatif) #}
+{% if tabs %}
+  <div class="mb-4 border-b border-slate-200">
+    <nav class="-mb-px flex gap-6" aria-label="Tabs">
+      {% for t in tabs %}
+        <a href="{{ t.url }}"
+           class="whitespace-nowrap py-3 px-1 border-b-2 text-sm font-medium {{ 'border-blue-600 text-blue-600' if t.active else 'border-transparent text-slate-600 hover:text-slate-800 hover:border-slate-300' }}">
+          {{ t.label }}
+        </a>
       {% endfor %}
-    </tbody>
-  </table>
+    </nav>
+  </div>
+{% endif %}
+
+{# Filtres #}
+{% if filters %}
+  <div x-show="showFilters">
+    {{ components.search_filter(filters, request.url.path) }}
+  </div>
+{% endif %}
+
+{# Tableau principal #}
+<div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-slate-200">
+      <thead class="bg-slate-50">
+        <tr>
+          {% for header in headers %}
+            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+              {{ header }}
+            </th>
+          {% endfor %}
+          {% if show_actions %}
+            <th class="relative px-6 py-3">
+              <span class="sr-only">Actions</span>
+            </th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-slate-200">
+        {% for row in rows %}
+          <tr class="hover:bg-slate-50">
+            {% for cell in row.cells %}
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                {% if row.detail_url and loop.first %}
+                  <a href="{{ row.detail_url }}" class="hover:text-blue-600">{{ cell }}</a>
+                {% else %}
+                  {{ cell|safe }}
+                {% endif %}
+              </td>
+            {% endfor %}
+            
+            {% if show_actions %}
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <div class="flex items-center justify-end gap-3">
+                  {% if row.detail_url %}
+                    <a href="{{ row.detail_url }}" class="text-blue-600 hover:text-blue-700">
+                      Voir
+                    </a>
+                  {% endif %}
+                  {% if row.context_url %}
+                    <a href="{{ row.context_url }}" class="text-green-600 hover:text-green-700">
+                      Contexte
+                    </a>
+                  {% endif %}
+                  {% if row.edit_url %}
+                    <a href="{{ row.edit_url }}" class="text-slate-600 hover:text-slate-700">
+                      Modifier
+                    </a>
+                  {% endif %}
+                  {% if row.delete_url %}
+                    <form method="post" action="{{ row.delete_url }}" class="inline-block" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet élément ?');">
+                      <button type="submit" class="text-red-600 hover:text-red-700">
+                        Supprimer
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            {% endif %}
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="{{ headers|length + (1 if show_actions else 0) }}" class="px-6 py-4 text-center text-sm text-slate-500">
+              Aucun élément trouvé
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# Pagination #}
+  {% if pagination %}
+    {{ components.pagination(pagination.page, pagination.total_pages, pagination.base_url) }}
+  {% endif %}
 </div>
+
 {% endblock %}

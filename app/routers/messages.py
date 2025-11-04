@@ -10,7 +10,7 @@ from app.db import get_session
 from app.models_endpoints import MessageLog, SystemEndpoint
 from app.db_session_factory import session_factory
 from app.services.transport_inbound import on_message_inbound
-from app.services.fhir_transport import send_fhir
+from app.services.fhir_transport import post_fhir_bundle as send_fhir
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(prefix="/messages", tags=["messages"])
@@ -61,6 +61,7 @@ def list_messages(
     ep_name = {e.id: e.name for e in endpoints}
 
     return templates.TemplateResponse(
+        request,
         "messages.html",
         {
             "request": request,
@@ -83,7 +84,7 @@ def list_messages(
 @router.get("/send", response_class=HTMLResponse)
 def send_message_form(request: Request, session: Session = Depends(get_session)):
     endpoints = session.exec(select(SystemEndpoint).order_by(SystemEndpoint.name)).all()
-    return templates.TemplateResponse("send_message.html", {"request": request, "endpoints": endpoints})
+    return templates.TemplateResponse(request, "send_message.html", {"request": request, "endpoints": endpoints})
 
 @router.post("/send")
 async def send_message(request: Request):
@@ -102,14 +103,25 @@ async def send_message(request: Request):
     # HL7 via on_message_inbound
     if kind == "MLLP":
         with session_factory() as s:
-            ep = s.get(SystemEndpoint, int(endpoint_id)) if endpoint_id else None
+            try:
+                endpoint_pk = int(endpoint_id) if endpoint_id else None
+            except (TypeError, ValueError):
+                endpoint_pk = None
+            ep = s.get(SystemEndpoint, endpoint_pk) if endpoint_pk else None
+            endpoints = s.exec(select(SystemEndpoint).order_by(SystemEndpoint.name)).all()
             if ep and ep.kind != "MLLP":
-                endpoints = s.exec(select(SystemEndpoint).order_by(SystemEndpoint.name)).all()
-                return templates.TemplateResponse("send_message.html", {"request": request, "error": "Endpoint invalide", "endpoints": endpoints})
+                return templates.TemplateResponse(
+                    request,
+                    "send_message.html",
+                    {"request": request, "error": "Endpoint invalide", "endpoints": endpoints},
+                )
             # allow processing even if no endpoint selected (simulate inbound)
             ack = await on_message_inbound(payload, s, ep)
-        endpoints = s.exec(select(SystemEndpoint).order_by(SystemEndpoint.name)).all()
-        return templates.TemplateResponse("send_message_result.html", {"request": request, "kind": kind, "ack": ack, "endpoints": endpoints})
+        return templates.TemplateResponse(
+            request,
+            "send_message_result.html",
+            {"request": request, "kind": kind, "ack": ack, "endpoints": endpoints},
+        )
 
     # FHIR inbound simulation: just log and return a simple response
     if kind == "FHIR":
@@ -124,18 +136,19 @@ async def send_message(request: Request):
             ep = s.get(SystemEndpoint, int(endpoint_id)) if endpoint_id else None
             log = MessageLog(direction="in", kind="FHIR", endpoint_id=(ep.id if ep else None), payload=payload, ack_payload="", status="received", created_at=datetime.utcnow())
             s.add(log); s.commit(); s.refresh(log)
-        return templates.TemplateResponse("send_message_result.html", {"request": request, "kind": kind, "ack": f"Logged message id={log.id}"})
+    return templates.TemplateResponse(request, "send_message_result.html", {"request": request, "kind": kind, "ack": f"Logged message id={log.id}"})
 
-    return templates.TemplateResponse("send_message.html", {"request": request, "error": "Kind non supporté", "endpoints": []})
+    return templates.TemplateResponse(request, "send_message.html", {"request": request, "error": "Kind non supporté", "endpoints": []})
 
 
 @router.get("/{message_id}", response_class=HTMLResponse)
 def message_detail(message_id: int, request: Request, session: Session = Depends(get_session)):
     m = session.get(MessageLog, message_id)
     if not m:
-        return templates.TemplateResponse("not_found.html", {"request": request, "title": "Message introuvable"}, status_code=404)
+        return templates.TemplateResponse(request, "not_found.html", {"request": request, "title": "Message introuvable"}, status_code=404)
     ep = session.get(SystemEndpoint, m.endpoint_id) if m.endpoint_id else None
     return templates.TemplateResponse(
+        request,
         "message_detail.html",
         {"request": request, "m": m, "endpoint": ep},
     )

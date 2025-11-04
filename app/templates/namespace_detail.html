@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% import "components.html" as components %}
+
+{% block content %}
+<div class="container">
+    <div class="my-8">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-3xl font-bold">{{ namespace.name }}</h1>
+            <div class="flex gap-4">
+                <a href="/admin/ght/{{ context.id }}/namespaces/{{ namespace.id }}/edit" 
+                   class="px-4 py-2 text-blue-600 hover:text-blue-800">
+                    Modifier
+                </a>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                    <dt class="text-sm font-medium text-slate-500">URI du système</dt>
+                    <dd class="mt-1 text-lg text-slate-900">{{ namespace.system }}</dd>
+                </div>
+
+                <div>
+                    <dt class="text-sm font-medium text-slate-500">OID</dt>
+                    <dd class="mt-1 text-lg text-slate-900">{{ namespace.oid or '-' }}</dd>
+                </div>
+
+                <div>
+                    <dt class="text-sm font-medium text-slate-500">Type</dt>
+                    <dd class="mt-1 text-lg text-slate-900">
+                        {% if namespace.type == 'PI' %}Patient Interne (PI)
+                        {% elif namespace.type == 'VN' %}Visite/Venue (VN)
+                        {% elif namespace.type == 'XX' %}Organisation (XX)
+                        {% elif namespace.type == 'RI' %}Resource ID (RI)
+                        {% else %}{{ namespace.type }}{% endif %}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt class="text-sm font-medium text-slate-500">État</dt>
+                    <dd class="mt-1">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                   {% if namespace.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ 'Actif' if namespace.is_active else 'Inactif' }}
+                        </span>
+                    </dd>
+                </div>
+
+                <div class="sm:col-span-2">
+                    <dt class="text-sm font-medium text-slate-500">Description</dt>
+                    <dd class="mt-1 text-slate-900">{{ namespace.description or '-' }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        {% if identifiers %}
+        <div class="mt-8">
+            <h2 class="text-xl font-semibold mb-4">Identifiants dans cet espace de noms</h2>
+            
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Entité</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">État</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-slate-200">
+                        {% for id in identifiers %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                                {{ id.value }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                {{ id.type.name }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                {% if id.patient_id %}
+                                <a href="/admin/patients/{{ id.patient_id }}" class="text-blue-600 hover:text-blue-800">
+                                    Patient #{{ id.patient_id }}
+                                </a>
+                                {% elif id.venue_id %}
+                                <a href="/admin/venues/{{ id.venue_id }}" class="text-blue-600 hover:text-blue-800">
+                                    Venue #{{ id.venue_id }}
+                                </a>
+                                {% elif id.entity_id %}
+                                <a href="/admin/entities/{{ id.entity_id }}" class="text-blue-600 hover:text-blue-800">
+                                    Entité #{{ id.entity_id }}
+                                </a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                           {% if id.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                    {{ 'Actif' if id.is_active else 'Inactif' }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

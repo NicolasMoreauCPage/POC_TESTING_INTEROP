@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% import "components.html" as components %}
+
+{% block content %}
+
+<div class="container">
+    <div class="my-8">
+        <div class="flex flex-col gap-4 mb-8">
+            <div class="flex items-center justify-between">
+                <h1 class="text-3xl font-bold">{{ context.name }}</h1>
+                <div class="flex flex-wrap items-center gap-3">
+                    <form method="post" action="/admin/ght/{{ context.id }}/seed-demo" class="inline-flex">
+                        <button type="submit"
+                                class="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Générer la structure de démo
+                        </button>
+                    </form>
+                    {% if context.is_active %}
+                    <span class="px-3 py-1 text-sm font-semibold text-green-700 bg-green-100 rounded-full">Actif</span>
+                    {% else %}
+                    <span class="px-3 py-1 text-sm font-semibold text-slate-700 bg-slate-100 rounded-full">Inactif</span>
+                    {% endif %}
+                    <a href="/admin/ght/{{ context.id }}/edit" 
+                       class="inline-flex items-center px-4 py-2 text-sm text-blue-600 hover:text-blue-800">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        Modifier
+                    </a>
+                </div>
+            </div>
+
+            {# Sélecteur d'établissement (entité juridique) #}
+            <form method="post" action="/admin/ght/{{ context.id }}/set-ej" class="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-lg px-4 py-2">
+                <label for="ej_id" class="text-sm font-medium text-slate-700">Établissement :</label>
+                <select name="ej_id" id="ej_id" class="rounded border-slate-300 px-2 py-1 text-sm">
+                    <option value="">— Choisir —</option>
+                    {% for ej in entites_juridiques %}
+                        <option value="{{ ej.id }}" {% if ej.id == selected_ej_id %}selected{% endif %}>{{ ej.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="ml-2 px-3 py-1 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">Valider</button>
+                {% if selected_ej_id %}
+                  <span class="ml-4 text-sm text-slate-600">Établissement sélectionné : <b>{{ selected_ej_name }}</b></span>
+                {% endif %}
+            </form>
+        </div>
+
+        <!-- Espaces de noms -->
+        <div class="mb-12">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-semibold">Espaces de noms</h2>
+                <a href="/admin/ght/{{ context.id }}/namespaces/new"
+                   class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Nouvel espace de noms
+                </a>
+            </div>
+
+            {% if namespaces %}
+            <div class="bg-white shadow-sm rounded-xl border border-slate-200 overflow-hidden">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Nom</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">System</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">OID</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-slate-200">
+                        {% for ns in namespaces %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                                {{ ns.name }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                {{ ns.type }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                {{ ns.system }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                {{ ns.oid if ns.oid else "—" }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
+                                <a href="/admin/ght/{{ context.id }}/namespaces/{{ ns.id }}/edit"
+                                   class="text-blue-600 hover:text-blue-800">Modifier</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center">
+                <p class="text-slate-600">Aucun espace de noms configuré</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Entités juridiques -->
+        <div>
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-semibold">Entités juridiques</h2>
+                <a href="/admin/ght/{{ context.id }}/ej/new"
+                   class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Nouvelle entité juridique
+                </a>
+            </div>
+
+            {% if entites_juridiques %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for ej in entites_juridiques %}
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold">{{ ej.name }}</h3>
+                        {% if ej.is_active %}
+                        <span class="px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full">Actif</span>
+                        {% else %}
+                        <span class="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 rounded-full">Inactif</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="space-y-2 mb-4">
+                        <p class="text-sm text-slate-600">
+                            <span class="font-medium">FINESS:</span> {{ ej.finess_ej }}
+                        </p>
+                        {% if ej.siren %}
+                        <p class="text-sm text-slate-600">
+                            <span class="font-medium">SIREN:</span> {{ ej.siren }}
+                        </p>
+                        {% endif %}
+                        {% if ej.address_line %}
+                        <p class="text-sm text-slate-600">
+                            {{ ej.address_line }}<br>
+                            {{ ej.postal_code }} {{ ej.city }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="flex justify-between items-center pt-4 border-t border-slate-200">
+                        <a href="/admin/ght/{{ context.id }}/ej/{{ ej.id }}/edit"
+                           class="text-blue-600 hover:text-blue-800">
+                            Modifier
+                        </a>
+                        <a href="/admin/ght/{{ context.id }}/ej/{{ ej.id }}"
+                           class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            Gérer
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center">
+                <p class="text-slate-600">Aucune entité juridique configurée</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% import "components.html" as components %}
+
+{% block content %}
+<div class="container">
+    <div class="my-8">
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <a href="/admin/ght/{{ context.id }}"
+                   class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 mb-4">
+                    &larr; Retour au contexte
+                </a>
+                <h1 class="text-3xl font-bold">{{ entite.name }}</h1>
+                {% if entite.short_name %}
+                <p class="text-slate-600">{{ entite.short_name }}</p>
+                {% endif %}
+            </div>
+            <div class="flex items-center gap-3">
+                {% if entite.is_active %}
+                <span class="px-3 py-1 text-sm font-semibold text-green-700 bg-green-100 rounded-full">Actif</span>
+                {% else %}
+                <span class="px-3 py-1 text-sm font-semibold text-slate-700 bg-slate-100 rounded-full">Inactif</span>
+                {% endif %}
+                <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/edit"
+                   class="inline-flex items-center px-4 py-2 text-sm text-blue-600 hover:text-blue-800">
+                    Modifier
+                </a>
+            </div>
+        </div>
+
+        {% if counts %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+            <div class="rounded-xl border border-blue-100 bg-blue-50 px-5 py-4 shadow-sm">
+                <p class="text-xs uppercase tracking-wide text-blue-600 font-semibold">Entités géographiques</p>
+                <p class="mt-2 text-3xl font-bold text-blue-700">{{ counts.entites_geo }}</p>
+                <p class="text-xs text-blue-500 mt-1">{{ counts.entites_geo_actives }} actives</p>
+            </div>
+            <div class="rounded-xl border border-emerald-100 bg-emerald-50 px-5 py-4 shadow-sm">
+                <p class="text-xs uppercase tracking-wide text-emerald-600 font-semibold">Pôles & services</p>
+                <p class="mt-2 text-3xl font-bold text-emerald-700">{{ counts.poles }}</p>
+                <p class="text-xs text-emerald-500 mt-1">{{ counts.services }} services</p>
+            </div>
+            <div class="rounded-xl border border-amber-100 bg-amber-50 px-5 py-4 shadow-sm">
+                <p class="text-xs uppercase tracking-wide text-amber-600 font-semibold">Unités & hébergement</p>
+                <p class="mt-2 text-3xl font-bold text-amber-700">{{ counts.ufs }}</p>
+                <p class="text-xs text-amber-500 mt-1">{{ counts.uhs }} UH</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                <p class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Capacité lits</p>
+                <p class="mt-2 text-3xl font-bold text-slate-800">{{ counts.lits }}</p>
+                <p class="text-xs text-slate-500 mt-1">{{ counts.chambres }} chambres</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+            <div class="bg-white rounded-xl shadow-sm border border-blue-200 p-6">
+                <h2 class="text-lg font-semibold text-blue-700 mb-3">Actions rapides</h2>
+                <div class="space-y-3 text-sm">
+                    <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/new"
+                       class="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-blue-700 hover:bg-blue-100 transition">
+                        Nouvelle entité géographique
+                        <span aria-hidden="true">+</span>
+                    </a>
+                    <a href="/admin/ght/{{ context.id }}/namespaces/new"
+                       class="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-2 text-slate-600 hover:bg-slate-50 transition">
+                        Configurer un namespace
+                        <span aria-hidden="true">&rarr;</span>
+                    </a>
+                    <a href="/structure?ej={{ entite.id }}"
+                       class="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-2 text-slate-600 hover:bg-slate-50 transition">
+                        Vue structure globale
+                        <span aria-hidden="true">&rarr;</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h2 class="text-xl font-semibold mb-4">Identifiants</h2>
+                <dl class="space-y-3">
+                    <div>
+                        <dt class="text-sm font-medium text-slate-500">FINESS</dt>
+                        <dd class="text-base text-slate-900">{{ entite.finess_ej }}</dd>
+                    </div>
+                    {% if entite.siren %}
+                    <div>
+                        <dt class="text-sm font-medium text-slate-500">SIREN</dt>
+                        <dd class="text-base text-slate-900">{{ entite.siren }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if entite.siret %}
+                    <div>
+                        <dt class="text-sm font-medium text-slate-500">SIRET</dt>
+                        <dd class="text-base text-slate-900">{{ entite.siret }}</dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h2 class="text-xl font-semibold mb-4">Adresse</h2>
+                {% if entite.address_line or entite.city %}
+                <p class="text-base text-slate-900">
+                    {% if entite.address_line %}
+                        {{ entite.address_line }}<br>
+                    {% endif %}
+                    {% if entite.postal_code or entite.city %}
+                        {{ entite.postal_code }} {{ entite.city }}<br>
+                    {% endif %}
+                    {{ entite.country }}
+                </p>
+                {% else %}
+                <p class="text-slate-500">Adresse non renseignée</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if entite.description %}
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-12">
+            <h2 class="text-xl font-semibold mb-4">Description</h2>
+            <p class="text-base text-slate-900 whitespace-pre-line">{{ entite.description }}</p>
+        </div>
+        {% endif %}
+
+        <div>
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-semibold">Entités géographiques</h2>
+                <div class="flex items-center gap-3">
+                    <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/new"
+                       class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700">
+                        <span aria-hidden="true">+</span> Ajouter une entité géographique
+                    </a>
+                    <a href="/admin/ght/{{ context.id }}"
+                       class="text-sm text-blue-600 hover:text-blue-800">
+                        Retour au contexte GHT
+                    </a>
+                </div>
+            </div>
+
+            {% if entites_geographiques %}
+            <div class="bg-white shadow-sm rounded-xl border border-slate-200 overflow-hidden">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Nom</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Identifiant</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">FINESS</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Statut</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-slate-200">
+                        {% for eg in entites_geographiques %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                                {{ eg.name }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                {{ eg.identifier }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                {{ eg.finess }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                           {% if eg.status == 'active' %}bg-green-100 text-green-700{% elif eg.status == 'suspended' %}bg-amber-100 text-amber-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+                                    {{ eg.status|capitalize }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
+                                <div class="flex items-center justify-end gap-3">
+                                    <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ eg.id }}"
+                                       class="text-blue-600 hover:text-blue-800">
+                                        Structure
+                                    </a>
+                                    <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ eg.id }}/edit"
+                                       class="text-slate-600 hover:text-slate-800">
+                                        Modifier
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center">
+                <p class="text-slate-600">Aucune entité géographique affectée pour le moment.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

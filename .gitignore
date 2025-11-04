@@ -1,0 +1,22 @@
+# Dossiers Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Environnement virtuel
+.venv/
+env/
+venv/
+
+# Fichiers temporaires
+*.log
+*.sqlite3
+
+# Configuration locale
+.env
+.DS_Store
+
+# Cache d'IDE
+.vscode/
+.idea/

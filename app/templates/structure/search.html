@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Recherche Structure{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
+  <header class="space-y-2">
+    <p class="text-sm uppercase tracking-[0.2em] text-slate-400 font-semibold">Structure</p>
+    <h1 class="text-2xl font-semibold text-slate-900">Recherche des disponibilités</h1>
+    <p class="text-sm text-slate-600">Filtrez la structure hospitalière pour identifier rapidement les lits libres en fonction du type de service et de l'unité fonctionnelle.</p>
+  </header>
+
+  <form method="get" class="grid gap-4 md:grid-cols-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div>
+      <label for="service_type" class="block text-sm font-medium text-slate-700">Type de service</label>
+      <select id="service_type" name="service_type"
+              class="mt-1 block w-full rounded-md border-slate-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+        <option value="">Tous les types</option>
+        {% for st in service_types %}
+        <option value="{{ st.value }}" {% if selected_service_type == st.value %}selected{% endif %}>
+          {{ st.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label for="uf_id" class="block text-sm font-medium text-slate-700">Unité fonctionnelle</label>
+      <select id="uf_id" name="uf_id"
+              class="mt-1 block w-full rounded-md border-slate-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+        <option value="">Toutes les UF</option>
+        {% for uf in unites_fonctionnelles %}
+        <option value="{{ uf.id }}" {% if selected_uf_id == uf.id %}selected{% endif %}>
+          {{ uf.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="flex items-end">
+      <button type="submit"
+              class="inline-flex w-full items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+        Rechercher
+      </button>
+    </div>
+  </form>
+
+  <section class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-200 px-6 py-4">
+      <h2 class="text-lg font-semibold text-slate-800">Résultats</h2>
+      <p class="text-xs text-slate-500">Lits opérationnellement libres correspondant aux filtres appliqués.</p>
+    </div>
+
+    {% if results %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200">
+        <thead class="bg-slate-50">
+          <tr>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Lit</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Chambre</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Unité d'hébergement</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">UF</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Service</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Pôle</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Site</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200 bg-white">
+          {% for row in results %}
+          <tr>
+            <td class="px-4 py-4 text-sm text-slate-700">
+              <div class="flex flex-col">
+                <span class="font-medium text-slate-900">{{ row.lit.name }}</span>
+                <span class="text-xs text-slate-500">{{ row.lit.identifier }}</span>
+              </div>
+            </td>
+            <td class="px-4 py-4 text-sm text-slate-600">
+              {% if row.chambre %}
+              <div class="flex flex-col">
+                <span>{{ row.chambre.name }}</span>
+                <span class="text-xs text-slate-400">{{ row.chambre.identifier }}</span>
+              </div>
+              {% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-4 text-sm text-slate-600">
+              {% if row.uh %}
+              <div class="flex flex-col">
+                <span>{{ row.uh.name }}</span>
+                <span class="text-xs text-slate-400">{{ row.uh.identifier }}</span>
+              </div>
+              {% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-4 text-sm text-slate-600">
+              {% if row.uf %}
+              <div class="flex flex-col">
+                <span>{{ row.uf.name }}</span>
+                <span class="text-xs text-slate-400">{{ row.uf.identifier }}</span>
+              </div>
+              {% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-4 text-sm text-slate-600">
+              {% if row.service %}
+              <div class="flex flex-col">
+                <span>{{ row.service.name }}</span>
+                <span class="text-xs text-slate-400">{{ row.service.service_type }}</span>
+              </div>
+              {% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-4 text-sm text-slate-600">
+              {{ row.pole.name if row.pole else "—" }}
+            </td>
+            <td class="px-4 py-4 text-sm text-slate-600">
+              {{ row.entite_geo.name if row.entite_geo else "—" }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="px-6 py-16 text-center text-sm text-slate-500">
+      {% if selected_service_type or selected_uf_id %}
+      Aucun lit disponible ne correspond à ces filtres.
+      {% else %}
+      Lancez une recherche pour afficher les disponibilités.
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "MedData_Bridge"
+version = "0.0.1"
+authors = [
+  { name="Nicolas", email="author@example.com" },
+]
+description = "POC FastAPI pour tester l'interopérabilité FHIR et HL7v2"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/whatever/MedData_Bridge"
+"Bug Tracker" = "https://github.com/whatever/MedData_Bridge/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]

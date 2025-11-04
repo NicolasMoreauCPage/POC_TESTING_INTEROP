@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% import "components.html" as components %}
+
+{% block content %}
+<div class="container">
+    <h2 class="text-2xl font-semibold mb-6">Configuration des points de transport pour {{ endpoint.name }}</h2>
+
+    <!-- MLLP Configurations -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-medium">Serveurs MLLP</h3>
+            <a href="/endpoints/{{ endpoint.id }}/mllp/new" 
+               class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                Nouveau serveur MLLP
+            </a>
+        </div>
+
+        {% if mllp_configs %}
+        <div class="bg-white shadow-sm rounded-xl border border-slate-200 overflow-hidden">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Nom</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Port</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">État</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-slate-200">
+                    {% for config in mllp_configs %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                            {{ config.name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                            {{ config.port }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                            {% if config.is_enabled %}
+                            <span class="px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full">Actif</span>
+                            {% else %}
+                            <span class="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 rounded-full">Inactif</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
+                            <a href="/endpoints/{{ endpoint.id }}/mllp/{{ config.id }}/edit"
+                               class="text-blue-600 hover:text-blue-800">Modifier</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center">
+            <p class="text-slate-600">Aucun serveur MLLP configuré</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- FHIR Configurations -->
+    <div>
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-medium">Points FHIR</h3>
+            <a href="/endpoints/{{ endpoint.id }}/fhir/new" 
+               class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                Nouveau point FHIR
+            </a>
+        </div>
+
+        {% if fhir_configs %}
+        <div class="bg-white shadow-sm rounded-xl border border-slate-200 overflow-hidden">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Nom</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">URL</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Version</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">État</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-slate-200">
+                    {% for config in fhir_configs %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                            {{ config.name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                            {{ config.base_url }}{{ config.path_prefix }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                            {{ config.version }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                            {% if config.is_enabled %}
+                            <span class="px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full">Actif</span>
+                            {% else %}
+                            <span class="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 rounded-full">Inactif</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
+                            <a href="/endpoints/{{ endpoint.id }}/fhir/{{ config.id }}/edit"
+                               class="text-blue-600 hover:text-blue-800">Modifier</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center">
+            <p class="text-slate-600">Aucun point FHIR configuré</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

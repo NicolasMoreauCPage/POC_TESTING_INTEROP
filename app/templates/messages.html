@@ -1,13 +1,25 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="flex items-center justify-between mb-4">
-  <h2 class="text-lg font-semibold">Supervision des messages</h2>
-  <a href="/messages" class="inline-flex items-center rounded-xl bg-gray-100 text-slate-700 px-3 py-1 text-sm">Rafraîchir</a>
+<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-6">
+  <div>
+    <h2 class="text-xl font-semibold text-slate-800">Supervision des messages</h2>
+    <p class="text-sm text-slate-500">Analyse des échanges HL7 MLLP et FHIR entrants/sortants.</p>
+  </div>
+  <div class="flex flex-wrap gap-2 text-xs">
+    <a href="/messages/send" class="inline-flex items-center gap-1 rounded-full bg-blue-600 px-3 py-1.5 text-white hover:bg-blue-700 transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+      Injecter un message
+    </a>
+    <a href="/messages" class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1.5 text-slate-600 hover:bg-slate-200 transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v16H4z"/></svg>
+      Rafraîchir
+    </a>
+  </div>
 </div>
 
 <!-- Filtres -->
-<form method="get" action="/messages" class="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<form method="get" action="/messages" class="bg-white rounded-2xl border border-slate-200 p-6 mb-6 shadow-sm">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
     <label class="block">
       <span class="text-sm text-slate-600">Endpoint</span>
       <select name="endpoint_id" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
@@ -18,54 +30,63 @@
       </select>
     </label>
 
-    <label class="block">
-      <span class="text-sm text-slate-600">Protocole</span>
-      <select name="kind" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
-        <option value="">Tous</option>
-        <option value="MLLP" {% if filters.kind == 'MLLP' %}selected{% endif %}>HL7v2 (MLLP)</option>
-        <option value="FHIR" {% if filters.kind == 'FHIR' %}selected{% endif %}>FHIR</option>
-      </select>
-    </label>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 md:col-span-2">
+      <label class="block">
+        <span class="text-sm text-slate-600">Protocole</span>
+        <select name="kind" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2">
+          <option value="">Tous</option>
+          <option value="MLLP" {% if filters.kind == 'MLLP' %}selected{% endif %}>HL7v2 (MLLP)</option>
+          <option value="FHIR" {% if filters.kind == 'FHIR' %}selected{% endif %}>FHIR</option>
+        </select>
+      </label>
+      <label class="flex items-center gap-2 mt-6 md:mt-8">
+        <input type="checkbox" name="neg_ack_only" value="on" {% if filters.neg_ack_only %}checked{% endif %} class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+        <span class="text-sm text-slate-600">Afficher uniquement les ACK négatifs</span>
+      </label>
+    </div>
 
-    <label class="block">
-      <span class="text-sm text-slate-600">Début</span>
-      <input type="datetime-local" name="date_start" value="{{ filters.date_start }}" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" />
-    </label>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:col-span-3">
+      <label class="block">
+        <span class="text-sm text-slate-600">Début</span>
+        <input type="datetime-local" name="date_start" value="{{ filters.date_start }}" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" />
+      </label>
 
-    <label class="block">
-      <span class="text-sm text-slate-600">Fin</span>
-      <input type="datetime-local" name="date_end" value="{{ filters.date_end }}" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" />
-    </label>
+      <label class="block">
+        <span class="text-sm text-slate-600">Fin</span>
+        <input type="datetime-local" name="date_end" value="{{ filters.date_end }}" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" />
+      </label>
 
-    <label class="block">
-      <span class="text-sm text-slate-600">Limite</span>
-      <input type="number" name="limit" min="1" max="5000" value="{{ filters.limit }}" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" />
-    </label>
-
-    <label class="flex items-center gap-2 mt-2">
-      <input type="checkbox" name="neg_ack_only" value="on" {% if filters.neg_ack_only %}checked{% endif %} class="rounded" />
-      <span class="text-sm text-slate-600">ACK négatifs uniquement</span>
-    </label>
+      <label class="block">
+        <span class="text-sm text-slate-600">Limite</span>
+        <input type="number" name="limit" min="1" max="5000" value="{{ filters.limit }}" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" />
+      </label>
+    </div>
   </div>
 
-  <div class="mt-4 flex gap-2">
-    <button type="submit" class="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700">Filtrer</button>
-    <a href="/messages" class="rounded-xl border border-slate-200 px-4 py-2 text-sm">Réinitialiser</a>
+  <div class="mt-5 flex flex-wrap gap-2">
+  <button type="submit" class="btn btn-primary inline-flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v16H4z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9l6 6m0-6l-6 6"/></svg>
+      Appliquer les filtres
+    </button>
+    <a href="/messages" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M3 12h10m-10 6h18"/></svg>
+      Réinitialiser
+    </a>
   </div>
 </form>
 
 <!-- Tableau des messages -->
-<div class="overflow-x-auto bg-white rounded-2xl border border-slate-200">
-  <table class="min-w-full text-sm">
+<div class="overflow-x-auto bg-white rounded-2xl border border-slate-200 shadow-sm">
+  <table class="min-w-full text-sm leading-relaxed">
     <thead class="bg-slate-50">
       <tr>
-        <th class="text-left font-medium text-slate-600 px-4 py-3">Horodatage</th>
-        <th class="text-left font-medium text-slate-600 px-4 py-3">Endpoint</th>
-        <th class="text-left font-medium text-slate-600 px-4 py-3">Protocole</th>
-        <th class="text-left font-medium text-slate-600 px-4 py-3">Direction</th>
-        <th class="text-left font-medium text-slate-600 px-4 py-3">Statut</th>
-        <th class="text-left font-medium text-slate-600 px-4 py-3">Correlation ID</th>
-        <th class="text-left font-medium text-slate-600 px-4 py-3">Détails</th>
+        <th class="text-left font-semibold text-slate-500 px-4 py-3 uppercase text-xs tracking-wide">Horodatage</th>
+        <th class="text-left font-semibold text-slate-500 px-4 py-3 uppercase text-xs tracking-wide">Endpoint</th>
+        <th class="text-left font-semibold text-slate-500 px-4 py-3 uppercase text-xs tracking-wide">Type</th>
+        <th class="text-left font-semibold text-slate-500 px-4 py-3 uppercase text-xs tracking-wide">Direction</th>
+        <th class="text-left font-semibold text-slate-500 px-4 py-3 uppercase text-xs tracking-wide">Statut</th>
+        <th class="text-left font-semibold text-slate-500 px-4 py-3 uppercase text-xs tracking-wide">Correlation ID</th>
+        <th class="text-left font-semibold text-slate-500 px-4 py-3 uppercase text-xs tracking-wide">Action</th>
       </tr>
     </thead>
     <tbody>
@@ -75,34 +96,59 @@
       </tr>
       {% else %}
       {% for m in messages %}
-      <tr class="border-t border-slate-100 hover:bg-slate-50">
-        <td class="px-4 py-3">{{ m.created_at }}</td>
-        <td class="px-4 py-3">{{ ep_name.get(m.endpoint_id, m.endpoint_id) }}</td>
+      <tr class="border-t border-slate-100 hover:bg-blue-50/40 transition">
+        <td class="px-4 py-3 text-slate-600">{{ m.created_at.strftime('%d/%m/%Y %H:%M:%S') if m.created_at else '—' }}</td>
+        <td class="px-4 py-3 font-medium text-slate-800">{{ ep_name.get(m.endpoint_id, '—') }}</td>
         <td class="px-4 py-3">
           {% if m.kind == 'FHIR' %}
-            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs">FHIR</span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-600">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"/></svg>
+              FHIR
+            </span>
           {% else %}
-            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs">HL7v2</span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h18M9 3v4m6-4v4"/></svg>
+              HL7v2
+            </span>
           {% endif %}
         </td>
         <td class="px-4 py-3">
           {% if m.direction == 'in' %}
-            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs">IN</span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5l7 7-7 7"/></svg>
+              Entrant
+            </span>
           {% else %}
-            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs">OUT</span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-600">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l-7-7 7-7"/></svg>
+              Sortant
+            </span>
           {% endif %}
         </td>
         <td class="px-4 py-3">
           {% if m.status in ['ack_error','error'] %}
-            <span class="inline-flex items-center rounded-full bg-red-50 text-red-700 px-2 py-1 text-xs">{{ m.status }}</span>
-          {% elif m.status in ['ack_ok','sent','received'] %}
-            <span class="inline-flex items-center rounded-full bg-green-50 text-green-700 px-2 py-1 text-xs">{{ m.status }}</span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              {{ m.status }}
+            </span>
+          {% elif m.status in ['ack_ok','sent','received','processed'] %}
+            <span class="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              {{ m.status }}
+            </span>
           {% else %}
-            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs">{{ m.status }}</span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+              {{ m.status }}
+            </span>
           {% endif %}
         </td>
-        <td class="px-4 py-3">{{ m.correlation_id or '—' }}</td>
-        <td class="px-4 py-3"><a href="/messages/{{ m.id }}" class="text-blue-600 hover:underline">Voir</a></td>
+        <td class="px-4 py-3 text-slate-600">{{ m.correlation_id or '—' }}</td>
+        <td class="px-4 py-3">
+          <a href="/messages/{{ m.id }}" class="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 transition">
+            Consulter
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </a>
+        </td>
       </tr>
       {% endfor %}
       {% endif %}

@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% import "components.html" as components %}
+
+{% block content %}
+<div class="container">
+    <div class="my-8 space-y-10">
+        <div class="flex items-start justify-between gap-6">
+            <div>
+                <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}"
+                   class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 mb-3">
+                    &larr; Retour à {{ entite.name }}
+                </a>
+                <h1 class="text-3xl font-bold text-slate-900">{{ geo.name }}</h1>
+                <p class="text-slate-600 mt-1">Identifiant global : <span class="font-mono">{{ geo.identifier }}</span></p>
+                <p class="text-slate-600">FINESS géographique : <span class="font-mono">{{ geo.finess }}</span></p>
+            </div>
+            <div class="flex items-center gap-3">
+                {% if geo.is_active %}
+                <span class="px-3 py-1 text-sm font-semibold text-green-700 bg-green-100 rounded-full">Actif</span>
+                {% else %}
+                <span class="px-3 py-1 text-sm font-semibold text-slate-700 bg-slate-100 rounded-full">Inactif</span>
+                {% endif %}
+                <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/edit"
+                   class="inline-flex items-center px-4 py-2 text-sm text-blue-600 hover:text-blue-800">
+                    Modifier
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="rounded-xl border border-blue-100 bg-blue-50 px-5 py-4 shadow-sm">
+                <p class="text-xs uppercase tracking-wide text-blue-600 font-semibold">Pôles</p>
+                <p class="mt-2 text-3xl font-bold text-blue-700">{{ counts.poles }}</p>
+            </div>
+            <div class="rounded-xl border border-emerald-100 bg-emerald-50 px-5 py-4 shadow-sm">
+                <p class="text-xs uppercase tracking-wide text-emerald-600 font-semibold">Services</p>
+                <p class="mt-2 text-3xl font-bold text-emerald-700">{{ counts.services }}</p>
+            </div>
+            <div class="rounded-xl border border-amber-100 bg-amber-50 px-5 py-4 shadow-sm">
+                <p class="text-xs uppercase tracking-wide text-amber-600 font-semibold">Unités fonctionnelles</p>
+                <p class="mt-2 text-3xl font-bold text-amber-700">{{ counts.ufs }}</p>
+                <p class="text-xs text-amber-500 mt-1">{{ counts.uhs }} unités d'hébergement</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                <p class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Capacité lits</p>
+                <p class="mt-2 text-3xl font-bold text-slate-800">{{ counts.lits }}</p>
+                <p class="text-xs text-slate-500 mt-1">{{ counts.lits_actifs }} actifs</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                <h2 class="text-lg font-semibold text-slate-900 mb-4">Actions rapides</h2>
+                <div class="space-y-3">
+                    <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/poles/new"
+                       class="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-700 hover:bg-blue-100 transition">
+                        Créer un pôle
+                        <span aria-hidden="true">+</span>
+                    </a>
+                    <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}"
+                       class="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition">
+                        Gérer les entités juridiques
+                        <span aria-hidden="true">&rarr;</span>
+                    </a>
+                    <a href="/structure"
+                       class="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition">
+                        Vue globale de la structure
+                        <span aria-hidden="true">&rarr;</span>
+                    </a>
+                </div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm lg:col-span-2">
+                <h2 class="text-lg font-semibold text-slate-900 mb-4">Données institutionnelles</h2>
+                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                    <div>
+                        <dt class="text-slate-500">SIREN</dt>
+                        <dd class="text-slate-900 font-medium">{{ geo.siren or '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-slate-500">SIRET</dt>
+                        <dd class="text-slate-900 font-medium">{{ geo.siret or '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-slate-500">Statut</dt>
+                        <dd class="text-slate-900 font-medium">
+                            {{ geo.status|capitalize }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-slate-500">Mode</dt>
+                        <dd class="text-slate-900 font-medium">
+                            {% if geo.mode == 'instance' %}Instance{% elif geo.mode == 'kind' %}Modèle{% else %}{{ geo.mode }}{% endif %}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-slate-500">Type physique</dt>
+                        <dd class="text-slate-900 font-medium">{{ geo.physical_type|upper }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-slate-500">Adresse</dt>
+                        <dd class="text-slate-900">
+                            {% if geo.address_line1 %}
+                                {{ geo.address_line1 }}<br>
+                                {% if geo.address_line2 %}{{ geo.address_line2 }}<br>{% endif %}
+                                {% if geo.address_line3 %}{{ geo.address_line3 }}<br>{% endif %}
+                                {{ geo.address_postalcode }} {{ geo.address_city }}
+                                {% if geo.address_country %}<br>{{ geo.address_country }}{% endif %}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+
+        <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+            <h2 class="text-lg font-semibold text-slate-900 mb-4">Capacités et structure</h2>
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-4 text-center">
+                <div>
+                    <p class="text-3xl font-bold text-blue-600">{{ counts.poles }}</p>
+                    <p class="text-sm text-slate-500">Pôles</p>
+                </div>
+                <div>
+                    <p class="text-3xl font-bold text-blue-600">{{ counts.services }}</p>
+                    <p class="text-sm text-slate-500">Services</p>
+                </div>
+                <div>
+                    <p class="text-3xl font-bold text-blue-600">{{ counts.ufs }}</p>
+                    <p class="text-sm text-slate-500">Unités fonctionnelles</p>
+                </div>
+                <div>
+                    <p class="text-3xl font-bold text-blue-600">{{ counts.uhs }}</p>
+                    <p class="text-sm text-slate-500">Unités d'hébergement</p>
+                </div>
+                <div>
+                    <p class="text-3xl font-bold text-blue-600">{{ counts.chambres }}</p>
+                    <p class="text-sm text-slate-500">Chambres</p>
+                </div>
+                <div>
+                    <p class="text-3xl font-bold text-blue-600">{{ counts.lits }}</p>
+                    <p class="text-sm text-slate-500">Lits</p>
+                </div>
+            </div>
+            {% if lit_operational %}
+            <div class="mt-6">
+                <h3 class="text-sm font-semibold text-slate-700 mb-2">Répartition opérationnelle des lits</h3>
+                <div class="flex flex-wrap gap-2">
+                    {% for status, value in lit_operational.items() %}
+                    <span class="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 bg-slate-50">
+                        {{ status|replace('_', ' ')|title }} :
+                        <span class="font-semibold text-slate-800">{{ value }}</span>
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="space-y-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-semibold text-slate-900">Structure hospitalière</h2>
+                <p class="text-sm text-slate-500">Construisez l'arborescence depuis cette vue : pôle &rarr; service &rarr; UF &rarr; UH &rarr; chambre &rarr; lit.</p>
+            </div>
+
+            {% if structure_tree %}
+            <div class="space-y-5">
+                {% for pole_node in structure_tree %}
+                {% set pole = pole_node.entity %}
+                <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 px-6 py-4 border-b border-slate-200 bg-slate-50">
+                        <div>
+                            <h3 class="text-xl font-semibold text-slate-900">{{ pole.name }}</h3>
+                            <p class="text-sm text-slate-500">Identifiant : <span class="font-mono">{{ pole.identifier }}</span></p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/poles/{{ pole.id }}/edit"
+                               class="text-sm text-blue-600 hover:text-blue-800">Modifier</a>
+                            <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/poles/{{ pole.id }}/services/new"
+                               class="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-100">
+                                Ajouter un service
+                            </a>
+                        </div>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        {% if pole_node.services %}
+                            {% for service_node in pole_node.services %}
+                            {% set service = service_node.entity %}
+                            <div class="border-l-2 border-blue-100 pl-4">
+                                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                    <div>
+                                        <h4 class="text-lg font-semibold text-blue-700">{{ service.name }}</h4>
+                                        <p class="text-xs uppercase tracking-wide text-blue-500">Service {{ service.service_type }}</p>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-3">
+                                        <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/poles/{{ pole.id }}/services/{{ service.id }}/edit"
+                                           class="text-sm text-blue-600 hover:text-blue-800">Modifier</a>
+                                        <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/poles/{{ pole.id }}/services/{{ service.id }}/ufs/new"
+                                           class="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">
+                                            Ajouter une UF
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="mt-3 space-y-3">
+                                    {% if service_node.ufs %}
+                                        {% for uf_node in service_node.ufs %}
+                                        {% set uf = uf_node.entity %}
+                                        <div class="ml-4 border-l-2 border-emerald-100 pl-4">
+                                            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                                <div>
+                                                    <h5 class="font-semibold text-emerald-700">{{ uf.name }}</h5>
+                                                    <p class="text-xs text-emerald-500">Identifiant : <span class="font-mono">{{ uf.identifier }}</span></p>
+                                                </div>
+                                            <div class="flex flex-wrap items-center gap-3">
+                                                <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/poles/{{ pole.id }}/services/{{ service.id }}/ufs/{{ uf.id }}"
+                                                   class="text-xs text-emerald-600 hover:text-emerald-800">
+                                                    Tableau de bord
+                                                </a>
+                                                <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/poles/{{ pole.id }}/services/{{ service.id }}/ufs/{{ uf.id }}/edit"
+                                                   class="text-xs text-emerald-700 hover:text-emerald-900">Modifier</a>
+                                                <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/poles/{{ pole.id }}/services/{{ service.id }}/ufs/{{ uf.id }}/uh/new"
+                                                   class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs text-emerald-700 hover:bg-emerald-100">
+                                                    Ajouter une UH
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            <div class="mt-2 space-y-3">
+                                                {% if uf_node.uhs %}
+                                                    {% for uh_node in uf_node.uhs %}
+                                                    {% set uh = uh_node.entity %}
+                                                    <div class="ml-4 border-l-2 border-purple-100 pl-4">
+                                                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                                            <div>
+                                                                <p class="font-medium text-purple-700">{{ uh.name }}</p>
+                                                                <p class="text-xs text-purple-500">Identifiant : <span class="font-mono">{{ uh.identifier }}</span></p>
+                                                            </div>
+                                                            <div class="flex flex-wrap items-center gap-3">
+                                                                <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/poles/{{ pole.id }}/services/{{ service.id }}/ufs/{{ uf.id }}/uh/{{ uh.id }}/edit"
+                                                                   class="text-xs text-purple-700 hover:text-purple-900">Modifier</a>
+                                                                <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/poles/{{ pole.id }}/services/{{ service.id }}/ufs/{{ uf.id }}/uh/{{ uh.id }}/chambres/new"
+                                                                   class="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs text-purple-700 hover:bg-purple-100">
+                                                                    Ajouter une chambre
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                        <div class="mt-2 space-y-3">
+                                                            {% if uh_node.chambres %}
+                                                                {% for chambre_node in uh_node.chambres %}
+                                                                {% set chambre = chambre_node.entity %}
+                                                                <div class="ml-4 border-l-2 border-amber-100 pl-4">
+                                                                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                                                        <div>
+                                                                            <p class="font-medium text-amber-700">{{ chambre.name }}</p>
+                                                                            <p class="text-xs text-amber-500">Identifiant : <span class="font-mono">{{ chambre.identifier }}</span></p>
+                                                                        </div>
+                                                                        <div class="flex flex-wrap items-center gap-3">
+                                                                            <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/poles/{{ pole.id }}/services/{{ service.id }}/ufs/{{ uf.id }}/uh/{{ uh.id }}/chambres/{{ chambre.id }}/edit"
+                                                                               class="text-xs text-amber-700 hover:text-amber-900">Modifier</a>
+                                                                            <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/poles/{{ pole.id }}/services/{{ service.id }}/ufs/{{ uf.id }}/uh/{{ uh.id }}/chambres/{{ chambre.id }}/lits/new"
+                                                                               class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-700 hover:bg-amber-100">
+                                                                                Ajouter un lit
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                    {% if chambre_node.lits %}
+                                                                    <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                                        {% for lit in chambre_node.lits %}
+                                                                        <div class="border border-slate-200 rounded-lg px-3 py-2 flex items-center justify-between text-sm">
+                                                                            <div>
+                                                                                <p class="font-medium text-slate-700">{{ lit.name }}</p>
+                                                                                <p class="text-xs text-slate-500 font-mono">{{ lit.identifier }}</p>
+                                                                            </div>
+                                                                            <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/poles/{{ pole.id }}/services/{{ service.id }}/ufs/{{ uf.id }}/uh/{{ uh.id }}/chambres/{{ chambre.id }}/lits/{{ lit.id }}/edit"
+                                                                               class="text-xs text-blue-600 hover:text-blue-800">
+                                                                                Modifier
+                                                                            </a>
+                                                                        </div>
+                                                                        {% endfor %}
+                                                                    </div>
+                                                                    {% else %}
+                                                                    <p class="ml-1 text-xs text-slate-400 mt-2">Aucun lit configuré pour cette chambre.</p>
+                                                                    {% endif %}
+                                                                </div>
+                                                                {% endfor %}
+                                                            {% else %}
+                                                            <p class="ml-4 text-xs text-slate-400">Aucune chambre configurée.</p>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                {% else %}
+                                                <p class="ml-4 text-xs text-slate-400">Aucune unité d'hébergement.</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                    <p class="ml-4 text-xs text-slate-400">Aucune unité fonctionnelle configurée.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-sm text-slate-500">Aucun service n'a encore été ajouté à ce pôle.</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="bg-slate-50 border border-dashed border-slate-300 rounded-xl p-8 text-center text-slate-600">
+                Aucun pôle défini pour cette entité géographique. Commencez par <a href="/admin/ght/{{ context.id }}/ej/{{ entite.id }}/eg/{{ geo.id }}/poles/new" class="text-blue-600 hover:text-blue-800 underline">créer un premier pôle</a>.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

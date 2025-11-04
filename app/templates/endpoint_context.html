@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-semibold">Contexte de l'endpoint {{ endpoint.name }}</h2>
+        <div>
+            <a href="/endpoints/{{ endpoint.id }}/clone-structure" 
+               class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-xl hover:bg-green-700">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V7M8 7a4 4 0 0 1 4-4v0a4 4 0 0 1 4 4M8 7h8" />
+                </svg>
+                Cloner cette structure
+            </a>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Informations du contexte</h4>
+        </div>
+        <div class="card-body">
+            <p><strong>Dernière séquence:</strong> {{ context.last_sequence_value }}</p>
+            <p><strong>Créé le:</strong> {{ context.created_at }}</p>
+            <p><strong>Mis à jour le:</strong> {{ context.updated_at }}</p>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Mappings Patients</h4>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID Externe</th>
+                        <th>ID Patient</th>
+                        <th>Patient</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mapping in patient_mappings %}
+                    <tr>
+                        <td>{{ mapping.external_id }}</td>
+                        <td>{{ mapping.patient.patient_seq }}</td>
+                        <td>{{ mapping.patient.family }}, {{ mapping.patient.given }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Mappings Dossiers</h4>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID Externe</th>
+                        <th>ID Dossier</th>
+                        <th>Patient</th>
+                        <th>UF</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mapping in dossier_mappings %}
+                    <tr>
+                        <td>{{ mapping.external_id }}</td>
+                        <td>{{ mapping.dossier.dossier_seq }}</td>
+                        <td>{{ mapping.dossier.patient.family }}, {{ mapping.dossier.patient.given }}</td>
+                        <td>{{ mapping.dossier.uf_responsabilite }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Mappings Venues</h4>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID Externe</th>
+                        <th>ID Venue</th>
+                        <th>Dossier</th>
+                        <th>Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mapping in venue_mappings %}
+                    <tr>
+                        <td>{{ mapping.external_id }}</td>
+                        <td>{{ mapping.venue.venue_seq }}</td>
+                        <td>{{ mapping.venue.dossier.dossier_seq }}</td>
+                        <td>{{ mapping.venue.type }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Mappings Mouvements</h4>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID Externe</th>
+                        <th>ID Mouvement</th>
+                        <th>Venue</th>
+                        <th>Type</th>
+                        <th>UF</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mapping in mouvement_mappings %}
+                    <tr>
+                        <td>{{ mapping.external_id }}</td>
+                        <td>{{ mapping.mouvement.mouvement_seq }}</td>
+                        <td>{{ mapping.mouvement.venue.venue_seq }}</td>
+                        <td>{{ mapping.mouvement.type }}</td>
+                        <td>{{ mapping.mouvement.uf }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

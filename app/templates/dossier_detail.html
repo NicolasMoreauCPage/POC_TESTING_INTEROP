@@ -1,5 +1,18 @@
 {% extends "base.html" %}
 {% block content %}
+
+{# Bandeau contextuel patient/dossier #}
+{% if patient %}
+  <div class="mb-4">
+    <div class="flex flex-wrap gap-2 items-center">
+      <a href="/patients/{{ patient.id }}" class="rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700 hover:bg-emerald-100">Patient : {{ patient.family }} {{ patient.given }} <span class="text-xs text-emerald-500">#{{ patient.id }}</span></a>
+      <a href="/dossiers?patient_id={{ patient.id }}" class="rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700 hover:bg-indigo-100">Dossiers</a>
+      <a href="/venues?patient_id={{ patient.id }}" class="rounded-full bg-blue-50 px-3 py-1 text-sm text-blue-700 hover:bg-blue-100">Venues</a>
+      <a href="/mouvements?patient_id={{ patient.id }}" class="rounded-full bg-fuchsia-50 px-3 py-1 text-sm text-fuchsia-700 hover:bg-fuchsia-100">Mouvements</a>
+    </div>
+  </div>
+{% endif %}
+
 <h2 class="text-lg font-semibold mb-4">Dossier #{{ dossier.dossier_seq }} (ID {{ dossier.id }})</h2>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -9,7 +22,7 @@
       <div class="text-base">{{ dossier.patient.family }} {{ dossier.patient.given }}</div>
       <div class="text-sm text-slate-600 mt-2">UF responsabilité (dossier): <b>{{ dossier.uf_responsabilite }}</b></div>
   <div class="text-sm text-slate-600">Type d'admission: <b>{{ dossier.admission_type }}</b></div>
-  <div class="text-sm text-slate-600">Source: <b>{{ dossier.admit_source }}</b></div>
+  <div class="text-sm text-slate-600">Source: <b>{{ dossier.admission_source }}</b></div>
   <div class="text-sm text-slate-600">Médecin responsable: <b>{{ dossier.attending_provider }}</b></div>
   <div class="text-sm text-slate-600">Admission: <b>{{ dossier.admit_time }}</b></div>
   <div class="text-sm text-slate-600">Diagnostic principal: <b>{{ dossier.primary_diagnosis }}</b></div>
@@ -47,10 +60,10 @@
   <div class="space-y-4">
     <div class="bg-white rounded-2xl border border-slate-200 p-6">
       <div class="text-sm text-slate-500 mb-3">Actions</div>
-      <form action="/generate/pam/{{ dossier.id }}" method="post" class="mb-2">
+      <form action="/generate/pam/{{ dossier.id }}" method="post" class="mb-2" data-download="1">
         <button type="submit" class="w-full rounded-xl bg-slate-800 text-white px-4 py-2 text-sm hover:bg-black">Télécharger IHE PAM</button>
       </form>
-      <form action="/generate/fhir/{{ dossier.id }}" method="post">
+      <form action="/generate/fhir/{{ dossier.id }}" method="post" data-download="1">
         <button type="submit" class="w-full rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700">Télécharger FHIR (JSON)</button>
       </form>
       <a href="/dossiers/{{ dossier.id }}/edit" class="block mt-4 bg-blue-600 text-white px-4 py-2 rounded text-center">Modifier</a>
@@ -59,6 +72,39 @@
       </form>
       <a href="/dossiers" class="block text-slate-600 px-4 py-2 text-center">Retour</a>
     </div>
+
+    {% if scenario_entries %}
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+      <div>
+        <div class="text-sm text-slate-500">Scénarios d'intégration</div>
+        <p class="text-xs text-slate-500 mt-1">Rejouez les messages HL7/FHIR de démonstration vers des endpoints expéditeurs.</p>
+      </div>
+      {% for entry in scenario_entries %}
+      <div class="rounded-xl border border-slate-200 p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-semibold text-slate-800">{{ entry.scenario.name }}</p>
+            <p class="text-xs text-slate-500">{{ entry.scenario.protocol }} • {{ entry.scenario.steps|length }} messages</p>
+          </div>
+          <a href="/scenarios/{{ entry.scenario.id }}" class="text-xs text-blue-600 hover:underline">Voir le détail</a>
+        </div>
+        <form method="post" action="/dossiers/{{ dossier.id }}/replay" class="space-y-3">
+          <input type="hidden" name="scenario_id" value="{{ entry.scenario.id }}">
+          <div class="space-y-1">
+            <label class="block text-xs font-medium uppercase tracking-wide text-slate-500">Destinataires</label>
+            <select name="endpoint_ids" multiple class="block w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500" size="4" required>
+              {% for ep in replay_endpoints %}
+                <option value="{{ ep.id }}">{{ ep.name }} ({{ ep.kind }})</option>
+              {% endfor %}
+            </select>
+            <p class="text-xs text-slate-400">Maintenez Ctrl/Cmd pour sélectionner plusieurs systèmes.</p>
+          </div>
+          <button type="submit" class="w-full rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm hover:bg-emerald-700">Rejouer le scénario</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

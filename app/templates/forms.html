@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="space-y-4">
+  <h2 class="text-xl font-semibold text-slate-800">{{ title }}</h2>
+  
+  {% if error %}
+  <div class="p-4 bg-red-50 border border-red-300 rounded-xl">
+    <div class="flex items-center gap-3">
+      <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span class="text-red-700">{{ error }}</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <form 
+    method="post" 
+    class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 max-w-2xl has-state-transitions"
+    {% if action_url %}action="{{ action_url }}"{% endif %}
+    novalidate
+    role="form"
+  >
+  <div class="grid gap-6 w-full form-grid">
+    {% for field in fields %}
+      <div class="space-y-2 relative group">
+        {% set field_id = field.name + '_field' %}
+        {% set help_id = field.name + '_help' %}
+        {% set error_id = field.name + '_error' %}
+        
+        <label for="{{ field_id }}" class="flex items-baseline gap-2">
+          <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
+            {{ field.label }}
+          </span>
+          {% if field.required %}
+            <span class="text-red-500 font-medium" aria-hidden="true">*</span>
+          {% endif %}
+          {% if field.help %}
+          <div id="{{ help_id }}" class="relative inline-block">
+            <button 
+              type="button" 
+              class="text-slate-400 hover:text-slate-600" 
+              aria-label="Plus d'informations sur {{ field.label }}"
+              aria-describedby="{{ help_id }}_tooltip"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+            <div 
+              id="{{ help_id }}_tooltip"
+              class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10"
+              role="tooltip"
+            >
+              <span class="text-xs text-slate-200">{{ field.help }}</span>
+              <div class="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
+            </div>
+          </div>
+          {% endif %}
+        </label>
+
+        {% if field.type == "select" %}
+          <div class="relative">
+            <select
+              id="{{ field_id }}"
+              class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-8 text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 {% if field.error %}border-red-500 ring-red-500{% endif %}"
+              name="{{ field.name }}"
+              {% if field.required %}required aria-required="true" data-required="true"{% endif %}
+              aria-invalid="{% if field.error %}true{% else %}false{% endif %}"
+              {% set ids = [] %}
+              {% if field.help %}{% set ids = (ids + [help_id]) %}{% endif %}
+              {% if field.error %}{% set ids = (ids + [error_id]) %}{% endif %}
+              {% if ids %}aria-describedby="{{ ids|join(' ') }}"{% endif %}
+            >
+              <option value="">Sélectionnez...</option>
+              {% for option in field.options %}
+                <option 
+                  value="{{ option.value if option is mapping else option }}"
+                  {% if field.value == (option.value if option is mapping else option) %}selected{% endif %}
+                >
+                  {{ option.label if option is mapping else option }}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-700" aria-hidden="true">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+        {% else %}
+          <input
+            id="{{ field_id }}"
+            class="w-full rounded-xl border border-slate-300 dark:border-slate-600 px-3 py-2 
+                   text-slate-800 dark:text-slate-200
+                   placeholder-slate-400 dark:placeholder-slate-500
+                   bg-white dark:bg-slate-800
+                   focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400
+                   disabled:bg-slate-50 dark:disabled:bg-slate-900 
+                   disabled:text-slate-500 dark:disabled:text-slate-400
+                   hover:border-slate-400 dark:hover:border-slate-500
+                   transition-colors duration-200
+                   {% if field.error %}border-red-500 ring-red-500{% endif %}"
+            name="{{ field.name }}" {% if field.name == 'family' %}autofocus{% endif %}
+            type="{{ field.type }}"
+            value="{{ field.value or '' }}"
+            placeholder="{{ field.placeholder or '' }}"
+            {% if field.required %}required aria-required="true" data-required="true"{% endif %}
+            aria-invalid="{% if field.error %}true{% else %}false{% endif %}"
+            {% set ids = [] %}
+            {% if field.help %}{% set ids = (ids + [help_id]) %}{% endif %}
+            {% if field.error %}{% set ids = (ids + [error_id]) %}{% endif %}
+            {% if ids %}aria-describedby="{{ ids|join(' ') }}"{% endif %}
+            {% if field.pattern %}pattern="{{ field.pattern }}"{% endif %}
+            {% if field.min %}min="{{ field.min }}"{% endif %}
+            {% if field.max %}max="{{ field.max }}"{% endif %}
+            {% if field.readonly %}readonly{% endif %}
+            {% if field.disabled %}disabled{% endif %}
+          />
+        {% endif %}
+        
+        {% if field.error %}
+          <p id="{{ error_id }}" class="error-message form-error text-sm text-red-600 dark:text-red-400 flex items-center gap-1 mt-1" role="alert">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {{ field.error }}
+          </p>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  <div class="mt-8 flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+      <div class="flex gap-4">
+        <button 
+          type="submit" 
+          class="rounded-xl bg-blue-600 text-white px-6 py-2.5 text-sm font-medium
+                 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                 disabled:opacity-50 disabled:cursor-not-allowed
+                 flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          Enregistrer
+        </button>
+        
+        {% if cancel_url %}
+        <a 
+          href="{{ cancel_url }}"
+          class="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-medium text-slate-700
+                 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+        >
+          Annuler
+        </a>
+        {% endif %}
+      </div>
+      
+      <span class="text-sm text-slate-500 flex items-center gap-1">
+        <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Les champs marqués d'un astérisque sont obligatoires
+      </span>
+    </div>
+
+    <!-- Zone de feedback -->
+    <div id="form-feedback" class="hidden rounded-xl border p-4 mt-4"></div>
+  </div>
+</form>
+
+<!-- Inline quick-init: ensure a FormManager is attached to this form as soon as possible.
+     This acts as a small race-free fallback when the external forms.js is loaded
+     dynamically or deferred. It will try to instantiate FormManager if available,
+     otherwise poll briefly. This keeps the main logic in forms.js but avoids
+     the case where a submit happens before handlers are attached. -->
+<script>
+  (function(){
+    try {
+      const form = document.querySelector('form[role="form"]');
+      if (!form) return;
+      const tryAttach = () => {
+        if (form.manager) return true;
+        if (window.FormManager) {
+          try {
+            form.manager = new FormManager(form);
+            form.setAttribute('data-forms-manager', '1');
+            if (form.classList && form.classList.contains('has-state-transitions')) {
+              if (window.StateTransitionManager && typeof window.StateTransitionManager.setupTransitionValidation === 'function') {
+                window.StateTransitionManager.setupTransitionValidation(form);
+              }
+            }
+            return true;
+          } catch (e) {
+            console.error('Failed to attach FormManager inline fallback', e);
+            return false;
+          }
+        }
+        return false;
+      };
+
+      if (!tryAttach()) {
+        // Poll briefly for the external script to define FormManager
+        let attempts = 0;
+        const interval = setInterval(() => {
+          attempts += 1;
+          if (tryAttach() || attempts > 10) {
+            clearInterval(interval);
+          }
+        }, 50);
+      }
+    } catch (e) {
+      console.error('Inline form init error', e);
+    }
+  })();
+</script>
+
+<!-- Load state transitions manager first -->
+<script src="/static/js/state_transitions.js"></script>
+<!-- Load forms.js with cache-busting -->
+<script>
+  (function() {
+    try {
+      var scriptUrl = "/static/js/forms.js" + "?v=" + Date.now();
+      var s = document.createElement('script');
+      s.src = scriptUrl;
+      s.defer = true;
+      document.head.appendChild(s);
+      console.debug('Loaded forms.js with cache-bust:', scriptUrl);
+    } catch (e) {
+      console.error('Failed to dynamically load forms.js', e);
+    }
+  })();
+</script>
+
+{% endblock %}

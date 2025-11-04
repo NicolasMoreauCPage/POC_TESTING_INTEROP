@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-4">
+  <h2 class="text-xl font-semibold text-slate-800">{{ title }}</h2>
+  
+  <form method="post" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 max-w-2xl">
+    <div class="space-y-6">
+      <!-- Champs de base -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-slate-700">
+            Code technique <span class="text-red-500">*</span>
+          </label>
+          <input type="text" name="name" required
+                 class="w-full rounded-xl border border-slate-300 px-3 py-2"
+                 placeholder="Ex: admission-type"
+                 value="{{ system.name if system else '' }}" />
+          <p class="text-xs text-slate-500">
+            Identifiant unique pour ce système (lettres, chiffres et tirets)
+          </p>
+        </div>
+        
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-slate-700">
+            Libellé <span class="text-red-500">*</span>
+          </label>
+          <input type="text" name="label" required
+                 class="w-full rounded-xl border border-slate-300 px-3 py-2"
+                 placeholder="Ex: Type d'admission"
+                 value="{{ system.label if system else '' }}" />
+        </div>
+      </div>
+      
+      <!-- Description -->
+      <div class="space-y-2">
+        <label class="text-sm font-medium text-slate-700">Description</label>
+        <textarea name="description" rows="3"
+                  class="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  placeholder="Description détaillée du système de vocabulaire">{{ system.description if system else '' }}</textarea>
+      </div>
+      
+      <!-- URI et OID -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-slate-700">URI</label>
+          <input type="text" name="uri"
+                 class="w-full rounded-xl border border-slate-300 px-3 py-2"
+                 placeholder="http://..."
+                 value="{{ system.uri if system else '' }}" />
+          <p class="text-xs text-slate-500">URI du système (pour FHIR)</p>
+        </div>
+        
+        <div class="space-y-2">
+          <label class="text-sm font-medium text-slate-700">OID</label>
+          <input type="text" name="oid"
+                 class="w-full rounded-xl border border-slate-300 px-3 py-2"
+                 placeholder="2.16.840.1.113883..."
+                 value="{{ system.oid if system else '' }}" />
+          <p class="text-xs text-slate-500">OID du système (pour HL7v2)</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="mt-8 flex justify-end gap-4">
+      <a href="{% if system %}/vocabularies/{{ system.id }}{% else %}/vocabularies{% endif %}"
+         class="px-4 py-2 text-slate-700 hover:text-slate-900">
+        Annuler
+      </a>
+      <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+        {{ "Enregistrer" if system else "Créer" }}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

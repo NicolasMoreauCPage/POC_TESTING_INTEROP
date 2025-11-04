@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% import "components.html" as components %}
+
+{% block content %}
+<div class="container">
+    {% set form = form_data if form_data is defined and form_data else context %}
+    {% set raw_active = form.is_active if form is not none and form.is_active is not none else True %}
+    {% set is_active_value = raw_active in [True, 'true', '1', 'yes', 'on'] %}
+    <div class="my-8">
+        <h1 class="text-3xl font-bold mb-6">
+            {% if context %}Modifier{% else %}Nouveau{% endif %} contexte GHT
+        </h1>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <form method="POST" action="{% if context %}/admin/ght/{{ context.id }}/edit{% else %}/admin/ght/new{% endif %}">
+                <div class="space-y-6">
+                    <!-- Informations de base -->
+                    {{ components.form_field('Nom du GHT', 'name', value=(form.name if form else ''), required=True, help='Nom complet du Groupement Hospitalier de Territoire') }}
+                    <script>
+                        // Debug helper injected to diagnose why the form 'Créer' button does nothing.
+                        // Opens quick console traces in the browser to confirm JS loading and submit handling.
+                        document.addEventListener('DOMContentLoaded', function() {
+                            try {
+                                console.log('ght_form.html: DOMContentLoaded');
+                                const form = document.querySelector('form[action^="/admin/ght"]');
+                                if (!form) {
+                                    console.warn('ght_form.html: form not found');
+                                    return;
+                                }
+                                console.log('ght_form.html: form found, binding debug submit listener');
+                                // Log clicks on the submit button
+                                const submit = form.querySelector('button[type=submit]');
+                                if (submit) {
+                                    submit.addEventListener('click', (ev) => {
+                                        console.log('ght_form: submit button clicked', ev);
+                                    });
+                                }
+                                // Log actual submit event
+                                form.addEventListener('submit', function(ev) {
+                                    console.log('ght_form: form submit event', {method: form.method, action: form.action});
+                                });
+                            } catch (e) {
+                                console.error('ght_form debug script error', e);
+                            }
+                        });
+                    </script>
+
+                    {{ components.form_field('Code unique', 'code', value=(form.code if form else ''), required=True, help='Code unique pour ce GHT (lettres, chiffres, tirets)') }}
+
+                    {{ components.form_field('Description', 'description', type='textarea', value=(form.description if form else ''), rows=3) }}
+
+                    {{ components.form_field('État', 'is_active', type='select', value=( 'true' if is_active_value else 'false' ), options=[{'value':'true','label':'Actif'},{'value':'false','label':'Inactif'}]) }}
+
+                    <div class="flex justify-end gap-4">
+                        <a href="/admin/ght" 
+                           class="px-4 py-2 text-slate-600 hover:text-slate-800">
+                            Annuler
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if context %}Mettre à jour{% else %}Créer{% endif %}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    {% include "components.html" with context %}
+    
+    {% if description %}
+    <div class="row mb-4">
+        <div class="col">
+            <div class="alert alert-info">
+                {{ description }}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if system_info %}
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Informations système</h5>
+                    <dl class="row">
+                        {% for key, value in system_info.items() %}
+                        <dt class="col-sm-3">{{ key }}</dt>
+                        <dd class="col-sm-9">{{ value }}</dd>
+                        {% endfor %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col">
+            {% include "list.html" with context %}
+        </div>
+    </div>
+    
+    {% if mappings %}
+    <div class="row mt-4">
+        <div class="col">
+            <h3>Correspondances</h3>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Système</th>
+                        <th>Code</th>
+                        <th>Libellé</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mapping in mappings %}
+                    <tr>
+                        <td>{{ mapping.target_system }}</td>
+                        <td>{{ mapping.target_code }}</td>
+                        <td>{{ mapping.target_display }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if actions %}
+    <div class="row mt-4">
+        <div class="col">
+            {% for action in actions %}
+            {% if action.type == 'link' %}
+            <a href="{{ action.url }}" class="btn btn-primary me-2">{{ action.label }}</a>
+            {% elif action.type == 'button' %}
+            <form method="POST" action="{{ action.url }}" class="d-inline">
+                <button type="submit" class="btn btn-danger me-2"
+                        onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce système ?')">
+                    {{ action.label }}
+                </button>
+            </form>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

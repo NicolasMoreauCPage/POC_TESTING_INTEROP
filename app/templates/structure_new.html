@@ -1,0 +1,538 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- En-tête avec filtres -->
+    <div class="mb-8 space-y-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <h1 class="text-3xl font-bold">Vue structurelle</h1>
+                {% if filtered_ej_id %}
+                <span class="text-sm text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
+                    Vue filtrée par établissement
+                    <a href="/structure" class="text-blue-600 hover:text-blue-800 ml-2">
+                        Voir tout &rarr;
+                    </a>
+                </span>
+                {% endif %}
+            </div>
+            <div class="flex items-center gap-4">
+                <button id="expandAllBtn" class="px-4 py-2 text-sm text-blue-600 hover:text-blue-800">
+                    Tout déplier
+                </button>
+                <button id="collapseAllBtn" class="px-4 py-2 text-sm text-blue-600 hover:text-blue-800">
+                    Tout replier
+                </button>
+            </div>
+        </div>
+
+        <!-- Filtres -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Type de structure</label>
+                <select id="structureTypeFilter" class="w-full rounded-lg border-slate-200">
+                    <option value="">Tous les types</option>
+                    <option value="pole">Pôles</option>
+                    <option value="service">Services</option>
+                    <option value="uf">Unités Fonctionnelles</option>
+                    <option value="uh">Unités d'Hébergement</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Rechercher</label>
+                <input type="text" id="searchInput" 
+                       class="w-full rounded-lg border-slate-200"
+                       placeholder="Rechercher par nom ou identifiant...">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Statut</label>
+                <select id="statusFilter" class="w-full rounded-lg border-slate-200">
+                    <option value="">Tous les statuts</option>
+                    <option value="active">Actif</option>
+                    <option value="inactive">Inactif</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Structure principale -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Navigation arborescente -->
+        <div class="lg:col-span-1">
+            <div class="sticky top-4">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 bg-slate-50 border-b border-slate-200">
+                        <h2 class="font-semibold text-slate-900">Navigation</h2>
+                    </div>
+                    <div id="treeView" class="p-4 text-sm">
+                        <!-- Chargé dynamiquement -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Détails de la structure -->
+        <div class="lg:col-span-3">
+            <div id="structureDetail" class="bg-white rounded-xl shadow-sm border border-slate-200">
+                <div class="border-b border-slate-200">
+                    <div class="px-6 py-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-xl font-semibold text-slate-900" id="detailTitle">
+                                    Sélectionnez un élément
+                                </h3>
+                                <p class="text-sm text-slate-500" id="detailType"></p>
+                            </div>
+                            <div class="flex items-center gap-3" id="detailActions"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Informations détaillées -->
+                <div class="divide-y divide-slate-200">
+                    <div class="px-6 py-4">
+                        <!-- Message initial -->
+                        <div id="selectMessage" class="text-center text-slate-500 py-8">
+                            Sélectionnez un élément dans l'arborescence pour voir ses détails
+                        </div>
+                        
+                        <!-- Contenu des détails -->
+                        <div id="detailInfo" class="hidden">
+                            <!-- Le contenu sera injecté par JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Sous-éléments -->
+                    <div class="px-6 py-4 hidden" id="detailChildren">
+                        <!-- Liste des sous-éléments chargée dynamiquement -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// État global
+let currentStructure = null;
+let selectedNode = null;
+let expandedNodes = new Set();
+
+// Initialisation
+document.addEventListener('DOMContentLoaded', () => {
+    initializeStructure();
+    setupEventListeners();
+});
+
+// Configuration des écouteurs d'événements
+function setupEventListeners() {
+    // Filtres
+    document.getElementById('searchInput').addEventListener('input', filterStructure);
+    document.getElementById('structureTypeFilter').addEventListener('change', filterStructure);
+    document.getElementById('statusFilter').addEventListener('change', filterStructure);
+    
+    // Boutons d'expansion
+    document.getElementById('expandAllBtn').addEventListener('click', expandAll);
+    document.getElementById('collapseAllBtn').addEventListener('click', collapseAll);
+}
+
+// Initialisation de la structure
+async function initializeStructure() {
+    try {
+        // Récupérer les paramètres de l'URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const ejId = urlParams.get('ej');
+        
+        // Construire l'URL de l'API
+        let apiUrl = '/api/structure/tree';
+        if (ejId) {
+            apiUrl += `?eg_ids=${ejId}`;
+        }
+        
+        // Charger les données
+        const response = await fetch(apiUrl);
+        if (!response.ok) throw new Error('Erreur lors du chargement de la structure');
+        
+        currentStructure = await response.json();
+        renderStructure();
+    } catch (error) {
+        console.error('Erreur:', error);
+        showError('Impossible de charger la structure');
+    }
+}
+
+// Rendu de la structure
+function renderStructure() {
+    const treeView = document.getElementById('treeView');
+    treeView.innerHTML = currentStructure.map(eg => renderNode(eg)).join('');
+}
+
+function renderNode(node, level = 0, parentId = null) {
+    const padding = level * 16;
+    const nodeId = `node-${node.type}-${node.id}`;
+    const hasChildren = node.poles?.length > 0 || node.services?.length > 0 || 
+                       node.ufs?.length > 0 || node.unites_hebergement?.length > 0 ||
+                       node.chambres?.length > 0 || node.lits?.length > 0;
+    
+    let html = `
+        <div class="structure-node" data-node-id="${nodeId}" data-type="${node.type}" data-parent="${parentId || ''}">
+            <div class="flex items-center gap-2 py-1 px-2 rounded hover:bg-slate-50 cursor-pointer" 
+                 style="padding-left: ${padding + 8}px"
+                 onclick="selectNode('${node.type}', ${node.id})">
+                ${hasChildren ? `
+                    <button class="w-4 h-4 flex items-center justify-center text-slate-400 hover:text-slate-600"
+                            onclick="toggleNode('${nodeId}', event)">
+                        <svg class="w-3 h-3 transform transition-transform ${expandedNodes.has(nodeId) ? 'rotate-90' : ''}"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </button>
+                ` : '<div class="w-4"></div>'}
+                <span class="flex-1">${node.name}</span>
+            </div>
+    `;
+
+    if (hasChildren && expandedNodes.has(nodeId)) {
+        // Récursion sur les enfants
+        if (node.poles?.length > 0) {
+            html += node.poles.map(pole => renderNode(pole, level + 1, nodeId)).join('');
+        }
+        if (node.services?.length > 0) {
+            html += node.services.map(service => renderNode(service, level + 1, nodeId)).join('');
+        }
+        if (node.ufs?.length > 0) {
+            html += node.ufs.map(uf => renderNode(uf, level + 1, nodeId)).join('');
+        }
+        if (node.unites_hebergement?.length > 0) {
+            html += node.unites_hebergement.map(uh => renderNode(uh, level + 1, nodeId)).join('');
+        }
+        if (node.chambres?.length > 0) {
+            html += node.chambres.map(chambre => renderNode(chambre, level + 1, nodeId)).join('');
+        }
+        if (node.lits?.length > 0) {
+            html += node.lits.map(lit => renderNode(lit, level + 1, nodeId)).join('');
+        }
+    }
+
+    html += '</div>';
+    return html;
+}
+
+// Sélection d'un nœud
+async function selectNode(type, id) {
+    try {
+        const response = await fetch(`/api/structure/details/${type}/${id}`);
+        if (!response.ok) throw new Error('Erreur lors du chargement des détails');
+        
+        const details = await response.json();
+        selectedNode = { type, id };
+        renderDetails(details);
+        
+        // Mettre en surbrillance le nœud sélectionné
+        document.querySelectorAll('.structure-node > div').forEach(el => {
+            el.classList.remove('bg-blue-50', 'text-blue-700');
+        });
+        document.querySelector(`[data-node-id="node-${type}-${id}"] > div`)
+            ?.classList.add('bg-blue-50', 'text-blue-700');
+    } catch (error) {
+        console.error('Erreur:', error);
+        showError('Impossible de charger les détails');
+    }
+}
+
+// Rendu des détails
+function renderDetails(details) {
+    // Titre et type
+    document.getElementById('detailTitle').textContent = details.name;
+    document.getElementById('detailType').textContent = getTypeLabel(details.type);
+    
+    // Actions
+    const actionsHtml = `
+        <button onclick="editNode(${details.id})" 
+                class="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800">
+            Modifier
+        </button>
+        <a href="/structure/${details.type}/${details.id}/map" 
+           class="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-800">
+            Voir sur le plan
+        </a>
+    `;
+    document.getElementById('detailActions').innerHTML = actionsHtml;
+    
+    // Informations détaillées
+    let infoHtml = `
+        <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <dt class="text-sm font-medium text-slate-500">Identifiant</dt>
+                <dd class="mt-1">${details.identifier || '-'}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-slate-500">Statut</dt>
+                <dd class="mt-1">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                               ${details.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'}">
+                        ${details.status === 'active' ? 'Actif' : 'Inactif'}
+                    </span>
+                </dd>
+            </div>
+    `;
+    
+    // Ajouter des champs spécifiques selon le type
+    if (details.type === 'service') {
+        infoHtml += `
+            <div>
+                <dt class="text-sm font-medium text-slate-500">Type de service</dt>
+                <dd class="mt-1">${details.service_type || '-'}</dd>
+            </div>
+        `;
+    } else if (details.type === 'uf') {
+        infoHtml += `
+            <div>
+                <dt class="text-sm font-medium text-slate-500">Type d'unité</dt>
+                <dd class="mt-1">${details.uf_type || '-'}</dd>
+            </div>
+        `;
+    }
+    
+    infoHtml += `
+            <div class="md:col-span-2">
+                <dt class="text-sm font-medium text-slate-500">Description</dt>
+                <dd class="mt-1">${details.description || '-'}</dd>
+            </div>
+        </dl>
+    `;
+    document.getElementById('detailInfo').innerHTML = infoHtml;
+    
+    // Sous-éléments
+    renderChildren(details);
+}
+
+// Rendu des sous-éléments
+function renderChildren(details) {
+    const childrenContainer = document.getElementById('detailChildren');
+    let hasChildren = false;
+    let childrenHtml = '';
+    
+    // En-tête de section selon le type
+    if (details.poles?.length > 0) {
+        hasChildren = true;
+        childrenHtml += renderChildrenSection('Pôles', details.poles);
+    }
+    if (details.services?.length > 0) {
+        hasChildren = true;
+        childrenHtml += renderChildrenSection('Services', details.services);
+    }
+    if (details.ufs?.length > 0) {
+        hasChildren = true;
+        childrenHtml += renderChildrenSection('Unités Fonctionnelles', details.ufs);
+    }
+    if (details.unites_hebergement?.length > 0) {
+        hasChildren = true;
+        childrenHtml += renderChildrenSection("Unités d'Hébergement", details.unites_hebergement);
+    }
+    if (details.chambres?.length > 0) {
+        hasChildren = true;
+        childrenHtml += renderChildrenSection('Chambres', details.chambres);
+    }
+    if (details.lits?.length > 0) {
+        hasChildren = true;
+        childrenHtml += renderChildrenSection('Lits', details.lits);
+    }
+    
+    childrenContainer.innerHTML = hasChildren ? childrenHtml : '';
+    if (hasChildren) {
+        childrenContainer.classList.remove('hidden');
+    } else {
+        childrenContainer.classList.add('hidden');
+    }
+}
+
+function renderChildrenSection(title, items) {
+    return `
+        <div class="mb-6 last:mb-0">
+            <h4 class="text-sm font-medium text-slate-900 mb-3">${title}</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                ${items.map(item => `
+                    <div class="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-slate-50">
+                        <div>
+                            <p class="font-medium text-slate-900">${item.name}</p>
+                            <p class="text-xs text-slate-500">${item.identifier || ''}</p>
+                        </div>
+                        <button onclick="selectNode('${item.type}', ${item.id})"
+                                class="text-blue-600 hover:text-blue-800">
+                            Voir
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+// Sélection d'un nœud
+async function selectNode(type, id) {
+    try {
+        const response = await fetch(`/api/structure/details/${type}/${id}`);
+        if (!response.ok) throw new Error('Erreur lors du chargement des détails');
+        
+        const details = await response.json();
+        selectedNode = details;
+        
+        // Masquer le message initial et afficher les sections de détails
+        document.getElementById('selectMessage').classList.add('hidden');
+        document.getElementById('detailInfo').classList.remove('hidden');
+        document.getElementById('detailChildren').classList.remove('hidden');
+        
+        // Mettre à jour le titre
+        document.getElementById('detailTitle').textContent = details.name;
+        document.getElementById('detailType').textContent = getTypeLabel(details.type);
+        
+        // Mettre à jour les actions
+        const actionsHtml = `
+            <a href="/structure/${details.type}/${details.id}/edit"
+               class="px-3 py-1.5 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg">
+                Modifier
+            </a>
+            <a href="/structure/${details.type}/${details.id}/map"
+               class="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-800">
+                Voir sur le plan
+            </a>
+        `;
+        document.getElementById('detailActions').innerHTML = actionsHtml;
+        
+        // Informations détaillées
+        let infoHtml = `
+            <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <dt class="text-sm font-medium text-slate-500">Identifiant</dt>
+                    <dd class="mt-1">${details.identifier || '-'}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-slate-500">Statut</dt>
+                    <dd class="mt-1">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                   ${details.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'}">
+                            ${details.status === 'active' ? 'Actif' : 'Inactif'}
+                        </span>
+                    </dd>
+                </div>
+        `;
+        
+        // Ajouter des champs spécifiques selon le type
+        if (details.type === 'service') {
+            infoHtml += `
+                <div>
+                    <dt class="text-sm font-medium text-slate-500">Type de service</dt>
+                    <dd class="mt-1">${details.service_type || '-'}</dd>
+                </div>
+            `;
+        } else if (details.type === 'uf') {
+            infoHtml += `
+                <div>
+                    <dt class="text-sm font-medium text-slate-500">Type d'unité</dt>
+                    <dd class="mt-1">${details.uf_type || '-'}</dd>
+                </div>
+            `;
+        }
+        
+        infoHtml += `
+                <div class="md:col-span-2">
+                    <dt class="text-sm font-medium text-slate-500">Description</dt>
+                    <dd class="mt-1">${details.description || '-'}</dd>
+                </div>
+            </dl>
+        `;
+        document.getElementById('detailInfo').innerHTML = infoHtml;
+        
+        // Afficher le panneau de détails
+        document.getElementById('detailsPanel').classList.remove('hidden');
+        
+        // Mettre en surbrillance le nœud sélectionné
+        document.querySelectorAll('.structure-node').forEach(node => {
+            if (node.dataset.nodeId === `node-${type}-${id}`) {
+                node.classList.add('bg-blue-50');
+            } else {
+                node.classList.remove('bg-blue-50');
+            }
+        });
+    } catch (error) {
+        console.error('Erreur:', error);
+        showError('Impossible de charger les détails');
+    }
+}
+
+// Utilitaires
+function getTypeLabel(type) {
+    const labels = {
+        eg: 'Entité Géographique',
+        pole: 'Pôle',
+        service: 'Service',
+        uf: 'Unité Fonctionnelle',
+        uh: 'Unité d\'Hébergement',
+        chambre: 'Chambre',
+        lit: 'Lit'
+    };
+    return labels[type] || type;
+}
+
+function toggleNode(nodeId, event) {
+    event.stopPropagation();
+    const button = event.currentTarget;
+    const icon = button.querySelector('svg');
+    
+    if (expandedNodes.has(nodeId)) {
+        expandedNodes.delete(nodeId);
+        icon.classList.remove('rotate-90');
+    } else {
+        expandedNodes.add(nodeId);
+        icon.classList.add('rotate-90');
+    }
+    
+    renderStructure();
+}
+
+function expandAll() {
+    document.querySelectorAll('.structure-node').forEach(node => {
+        expandedNodes.add(node.dataset.nodeId);
+    });
+    renderStructure();
+}
+
+function collapseAll() {
+    expandedNodes.clear();
+    renderStructure();
+}
+
+function filterStructure() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const typeFilter = document.getElementById('structureTypeFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    
+    document.querySelectorAll('.structure-node').forEach(node => {
+        const matches = (
+            (searchTerm === '' || node.textContent.toLowerCase().includes(searchTerm)) &&
+            (typeFilter === '' || node.dataset.type === typeFilter) &&
+            (statusFilter === '' || node.dataset.status === statusFilter)
+        );
+        
+        node.style.display = matches ? '' : 'none';
+        
+        // Si un nœud correspond, montrer aussi ses parents
+        if (matches) {
+            let parent = node;
+            while (parent = document.querySelector(`[data-node-id="${parent.dataset.parent}"]`)) {
+                parent.style.display = '';
+                expandedNodes.add(parent.dataset.nodeId);
+            }
+        }
+    });
+    
+    renderStructure();
+}
+
+function showError(message) {
+    // TODO: Implémenter un système de notification d'erreur
+    console.error(message);
+}
+</script>
+{% endblock %}

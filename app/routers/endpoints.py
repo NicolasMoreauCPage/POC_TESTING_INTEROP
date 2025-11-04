@@ -1,13 +1,20 @@
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlmodel import select
+from sqlmodel import select, Session
 from starlette import status
 from datetime import datetime, timezone
+import logging
 
 from app.db import get_session
+
+logger = logging.getLogger(__name__)
 from app.models_endpoints import SystemEndpoint
-from app.runners import registry  # ⬅️ registre runtime (à créer si pas encore)
+from app.models_context import (
+    EndpointContext, PatientContextMapping, DossierContextMapping,
+    VenueContextMapping, MouvementContextMapping
+)
+from app.runners import registry
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(prefix="/endpoints", tags=["endpoints"])
@@ -27,12 +34,13 @@ def list_endpoints(request: Request, session=Depends(get_session)):
         runtime = "RUNNING" if e.id in running_ids else "STOPPED"
         rows.append({
             "cells": [e.id, e.name, e.kind, e.role, e.host or "-", e.port or "-", e.base_url or "-", "ON" if e.is_enabled else "OFF", runtime],
-            "detail_url": f"/endpoints/{e.id}"
+            "detail_url": f"/endpoints/{e.id}",
+            "context_url": f"/endpoints/{e.id}/context"  # Ajout du lien vers le contexte
         })
     ctx = {"request": request, "title": "Systèmes (Paramétrage)",
-           "headers": ["ID","Nom","Type","Rôle","Host","Port","FHIR URL","Actif","Runtime"],
-           "rows": rows, "new_url": "/endpoints/new"}
-    return templates.TemplateResponse("list.html", ctx)
+        "headers": ["ID","Nom","Type","Rôle","Host","Port","FHIR URL","Actif","Runtime"],
+        "rows": rows, "new_url": "/endpoints/new"}
+    return templates.TemplateResponse(request, "list.html", ctx)
 
 @router.get("/new", response_class=HTMLResponse)
 def new_endpoint(request: Request):
@@ -51,7 +59,7 @@ def new_endpoint(request: Request):
         {"label":"Auth kind (none|bearer)","name":"auth_kind","type":"text","value":"none"},
         {"label":"Auth token (si bearer)","name":"auth_token","type":"text"},
     ]
-    return templates.TemplateResponse("form.html", {"request": request, "title":"Nouveau système", "fields":fields})
+    return templates.TemplateResponse(request, "form.html", {"request": request, "title":"Nouveau système", "fields":fields})
 
 @router.post("/new")
 def create_endpoint(
@@ -86,7 +94,7 @@ def detail_endpoint(endpoint_id: int, request: Request, session=Depends(get_sess
     if not e:
         raise HTTPException(status_code=404, detail="Endpoint not found")
     is_running = endpoint_id in set(registry.running_ids())
-    return templates.TemplateResponse("endpoint_detail.html", {"request": request, "e": e, "is_running": is_running})
+    return templates.TemplateResponse(request, "endpoint_detail.html", {"request": request, "e": e, "is_running": is_running})
 
 # ========= AJOUTS =========
 
@@ -163,3 +171,190 @@ def restart_endpoint(endpoint_id: int, session=Depends(get_session)):
         registry.stop(e, session)
     registry.start(e, session); session.commit()
     return RedirectResponse(url=f"/endpoints/{endpoint_id}", status_code=status.HTTP_303_SEE_OTHER)
+
+@router.get("/{endpoint_id}/clone-structure", response_class=HTMLResponse)
+def show_clone_structure_form(endpoint_id: int, request: Request, session: Session = Depends(get_session)):
+    """Affiche le formulaire pour cloner la structure d'un endpoint vers un autre"""
+    source = session.get(SystemEndpoint, endpoint_id)
+    if not source:
+        raise HTTPException(404, "Endpoint source not found")
+        
+    # Récupérer tous les autres endpoints disponibles comme cibles potentielles
+    targets = session.exec(
+        select(SystemEndpoint)
+        .where(SystemEndpoint.id != endpoint_id)
+        .where(SystemEndpoint.role.in_(["receiver", "both"]))
+    ).all()
+    
+    return templates.TemplateResponse(
+        request,
+        "endpoint_clone_structure.html",
+        {
+            "request": request,
+            "source": source,
+            "targets": targets
+        }
+    )
+
+@router.post("/{source_id}/clone-structure/{target_id}")
+async def clone_structure(
+    source_id: int,
+    target_id: int,
+    session: Session = Depends(get_session)
+):
+    """Clone la structure et les mappings d'un endpoint vers un autre"""
+    source = session.get(SystemEndpoint, source_id)
+    target = session.get(SystemEndpoint, target_id)
+    
+    if not source or not target:
+        raise HTTPException(404, "Endpoint not found")
+    
+    if target.role not in ["receiver", "both"]:
+        raise HTTPException(400, "Target endpoint must be a receiver")
+        
+    try:
+        # Récupérer les contextes
+        source_context = session.exec(
+            select(EndpointContext)
+            .where(EndpointContext.endpoint_id == source_id)
+        ).first()
+        
+        if not source_context:
+            raise HTTPException(400, "Source endpoint has no context")
+            
+        target_context = session.exec(
+            select(EndpointContext)
+            .where(EndpointContext.endpoint_id == target_id)
+        ).first()
+        
+        if not target_context:
+            target_context = EndpointContext(endpoint_id=target_id)
+            session.add(target_context)
+            session.commit()
+            session.refresh(target_context)
+            
+        # Cloner les mappings de patients
+        source_mappings = session.exec(
+            select(PatientContextMapping)
+            .where(PatientContextMapping.context_id == source_context.id)
+        ).all()
+        
+        for mapping in source_mappings:
+            new_mapping = PatientContextMapping(
+                context_id=target_context.id,
+                patient_id=mapping.patient_id,
+                external_id=mapping.external_id
+            )
+            session.add(new_mapping)
+            
+        # Cloner les mappings de dossiers
+        source_mappings = session.exec(
+            select(DossierContextMapping)
+            .where(DossierContextMapping.context_id == source_context.id)
+        ).all()
+        
+        for mapping in source_mappings:
+            new_mapping = DossierContextMapping(
+                context_id=target_context.id,
+                dossier_id=mapping.dossier_id,
+                external_id=mapping.external_id
+            )
+            session.add(new_mapping)
+            
+        # Cloner les mappings de venues
+        source_mappings = session.exec(
+            select(VenueContextMapping)
+            .where(VenueContextMapping.context_id == source_context.id)
+        ).all()
+        
+        for mapping in source_mappings:
+            new_mapping = VenueContextMapping(
+                context_id=target_context.id,
+                venue_id=mapping.venue_id,
+                external_id=mapping.external_id
+            )
+            session.add(new_mapping)
+            
+        # Cloner les mappings de mouvements
+        source_mappings = session.exec(
+            select(MouvementContextMapping)
+            .where(MouvementContextMapping.context_id == source_context.id)
+        ).all()
+        
+        for mapping in source_mappings:
+            new_mapping = MouvementContextMapping(
+                context_id=target_context.id,
+                mouvement_id=mapping.mouvement_id,
+                external_id=mapping.external_id
+            )
+            session.add(new_mapping)
+            
+        # Mettre à jour la dernière valeur de séquence
+        target_context.last_sequence_value = source_context.last_sequence_value
+        target_context.updated_at = datetime.now(timezone.utc)
+        session.add(target_context)
+        
+        session.commit()
+        
+        return RedirectResponse(
+            url=f"/endpoints/{target_id}/context",
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+        
+    except Exception as e:
+        logger.exception("Error cloning structure")
+        raise HTTPException(500, f"Error cloning structure: {str(e)}")
+
+@router.get("/{endpoint_id}/context", response_class=HTMLResponse)
+def show_endpoint_context(endpoint_id: int, request: Request, session: Session = Depends(get_session)):
+    """Affiche le contexte d'un endpoint et tous ses mappings"""
+    endpoint = session.get(SystemEndpoint, endpoint_id)
+    if not endpoint:
+        raise HTTPException(status_code=404, detail="Endpoint not found")
+        
+    # Récupérer le contexte
+    context = session.exec(
+        select(EndpointContext)
+        .where(EndpointContext.endpoint_id == endpoint_id)
+    ).first()
+    
+    if not context:
+        # Créer un nouveau contexte si nécessaire
+        context = EndpointContext(endpoint_id=endpoint_id)
+        session.add(context)
+        session.commit()
+        session.refresh(context)
+    
+    # Récupérer tous les mappings
+    patient_mappings = session.exec(
+        select(PatientContextMapping)
+        .where(PatientContextMapping.context_id == context.id)
+    ).all()
+    
+    dossier_mappings = session.exec(
+        select(DossierContextMapping)
+        .where(DossierContextMapping.context_id == context.id)
+    ).all()
+    
+    venue_mappings = session.exec(
+        select(VenueContextMapping)
+        .where(VenueContextMapping.context_id == context.id)
+    ).all()
+    
+    mouvement_mappings = session.exec(
+        select(MouvementContextMapping)
+        .where(MouvementContextMapping.context_id == context.id)
+    ).all()
+    
+    return templates.TemplateResponse(
+        "endpoint_context.html",
+        {
+            "request": request,
+            "endpoint": endpoint,
+            "context": context,
+            "patient_mappings": patient_mappings,
+            "dossier_mappings": dossier_mappings,
+            "venue_mappings": venue_mappings,
+            "mouvement_mappings": mouvement_mappings
+        }
+    )

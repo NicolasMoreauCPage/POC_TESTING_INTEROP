@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% import "components.html" as components %}
+
+{% block content %}
+<div class="container">
+    {% set form = form_data if form_data is defined and form_data else entite %}
+    {% set raw_active = form.is_active if form is not none and form.is_active is not none else True %}
+    {% set is_active_value = raw_active in [True, 'true', '1', 'yes', 'on'] %}
+    <div class="my-8">
+        <h1 class="text-3xl font-bold mb-6">
+            {% if entite %}Modifier{% else %}Nouvelle{% endif %} entité juridique
+        </h1>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <form method="POST"
+                  action="{% if entite %}/admin/ght/{{ context.id }}/ej/{{ entite.id }}/edit{% else %}/admin/ght/{{ context.id }}/ej/new{% endif %}">
+                <div class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Nom</label>
+                            <input type="text" name="name" value="{{ form.name if form else '' }}" required
+                                   class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Nom court</label>
+                            <input type="text" name="short_name" value="{{ form.short_name if form else '' }}"
+                                   class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Description</label>
+                        <textarea name="description" rows="3"
+                                  class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ form.description if form else '' }}</textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">FINESS</label>
+                            <input type="text" name="finess_ej" value="{{ form.finess_ej if form else '' }}" required
+                                   class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <p class="mt-1 text-sm text-slate-500">Identifiant FINESS de l'entité juridique</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">SIREN</label>
+                            <input type="text" name="siren" value="{{ form.siren if form else '' }}"
+                                   class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">SIRET</label>
+                            <input type="text" name="siret" value="{{ form.siret if form else '' }}"
+                                   class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Adresse</label>
+                        <input type="text" name="address_line" value="{{ form.address_line if form else '' }}"
+                               class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                               placeholder="Adresse (ligne unique)">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Code postal</label>
+                            <input type="text" name="postal_code" value="{{ form.postal_code if form else '' }}"
+                                   class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Ville</label>
+                            <input type="text" name="city" value="{{ form.city if form else '' }}"
+                                   class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Pays</label>
+                            <input type="text" name="country" value="{{ form.country if form else 'FR' }}"
+                                   class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">État</label>
+                        <select name="is_active"
+                                class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="true" {% if is_active_value %}selected{% endif %}>Actif</option>
+                            <option value="false" {% if not is_active_value %}selected{% endif %}>Inactif</option>
+                        </select>
+                    </div>
+
+                    <div class="flex justify-end gap-4">
+                        <a href="/admin/ght/{{ context.id }}"
+                           class="px-4 py-2 text-slate-600 hover:text-slate-800">
+                            Annuler
+                        </a>
+                        <button type="submit"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            {% if entite %}Mettre à jour{% else %}Créer{% endif %}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

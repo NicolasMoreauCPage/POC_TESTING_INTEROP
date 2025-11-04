@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="text-2xl font-semibold mb-6">Cloner la structure de {{ source.name }}</h2>
+    
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <h3 class="text-lg font-medium mb-4">Sélectionner l'endpoint cible</h3>
+        
+        {% if not targets %}
+        <div class="text-slate-600">
+            Aucun endpoint receiver disponible pour le clonage.
+        </div>
+        {% else %}
+        <div class="grid gap-4">
+            {% for target in targets %}
+            <div class="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50">
+                <div>
+                    <h4 class="font-medium">{{ target.name }}</h4>
+                    <p class="text-sm text-slate-600">
+                        {{ target.kind }} | {{ target.role }}
+                        {% if target.host %}
+                        | {{ target.host }}:{{ target.port }}
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <form method="POST" action="/endpoints/{{ source.id }}/clone-structure/{{ target.id }}" 
+                      class="inline-flex"
+                      onsubmit="return confirm('Êtes-vous sûr de vouloir cloner la structure vers {{ target.name }} ? Ceci écrasera le contexte existant.')">
+                    <button type="submit" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        Cloner vers cet endpoint
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <div class="mt-6 border-t pt-6">
+            <h3 class="text-lg font-medium mb-4">Notes importantes</h3>
+            <ul class="list-disc ml-6 text-slate-600 space-y-2">
+                <li>Le clonage copiera tous les mappings d'identifiants (patients, dossiers, venues, mouvements)</li>
+                <li>La dernière valeur de séquence sera également copiée</li>
+                <li>Si l'endpoint cible a déjà un contexte, il sera écrasé</li>
+                <li>Cette opération ne peut pas être annulée</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="mt-6">
+        <a href="/endpoints/{{ source.id }}/context" 
+           class="inline-flex items-center text-slate-600 hover:text-slate-800">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Retour au contexte
+        </a>
+    </div>
+</div>
+{% endblock %}

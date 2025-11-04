@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-4xl mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-2xl font-bold text-slate-800">{{ title }}</h2>
+    <a href="/patients" class="btn btn-secondary">← Retour</a>
+  </div>
+
+  <form method="post" action="{{ action_url }}" class="space-y-6">
+    <div class="form-grid grid gap-4 md:gap-6">
+    
+    <!-- Accordéon Identité -->
+    <details class="bg-white rounded-xl border border-slate-200 overflow-hidden" open>
+      <summary class="cursor-pointer bg-gradient-to-r from-blue-50 to-blue-100 px-6 py-4 font-semibold text-slate-800 hover:from-blue-100 hover:to-blue-200 transition-colors">
+        <span class="text-lg">👤 Identité</span>
+      </summary>
+      <div class="p-6 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">
+              Numéro de séquence <span class="text-red-500">*</span>
+            </label>
+            <input type="number" name="patient_seq" value="{{ patient.patient_seq if patient else next_seq }}" 
+                   required class="input-field" placeholder="Auto">
+            <p class="text-xs text-slate-500 mt-1">Identifiant séquentiel unique</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">External ID (SI source)</label>
+            <input type="text" name="external_id" value="{{ patient.external_id if patient else '' }}" 
+                   class="input-field" placeholder="Ex: PAT123456">
+            <p class="text-xs text-slate-500 mt-1">Identifiant du système externe</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">
+              Civilité
+            </label>
+            <select name="prefix" class="input-field">
+              <option value="">-- Choisir --</option>
+              <option value="M." {% if patient and patient.prefix == 'M.' %}selected{% endif %}>M. (Monsieur)</option>
+              <option value="Mme" {% if patient and patient.prefix == 'Mme' %}selected{% endif %}>Mme (Madame)</option>
+              <option value="Mlle" {% if patient and patient.prefix == 'Mlle' %}selected{% endif %}>Mlle (Mademoiselle)</option>
+            </select>
+          </div>
+          <div class="col-span-2"></div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1" for="family">
+              Nom <span class="text-red-500">*</span>
+            </label>
+            <input type="text" id="family" name="family" value="{{ patient.family if patient else '' }}"
+                   required aria-required="true" data-required="true" aria-invalid="{{ 'true' if not patient or not patient.family }}"
+                   class="input-field{% if not patient or not patient.family %} border-red-500{% endif %}"
+                   placeholder="MARTIN">
+            {% if not patient or not patient.family %}
+            <p class="error-message form-error text-sm text-red-600 flex items-center gap-1 mt-1" data-for="family">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Ce champ est obligatoire
+            </p>
+            {% endif %}
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Nom de naissance (nom de jeune fille)
+            </label>
+            <input type="text" name="birth_family" value="{{ patient.birth_family if patient else '' }}" 
+                   class="input-field" placeholder="DUPONT">
+            <p class="text-xs text-slate-500 mt-1">PID-5 type L - Si différent du nom actuel</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1" for="given">
+              Prénom <span class="text-red-500">*</span>
+            </label>
+            <input type="text" id="given" name="given" value="{{ patient.given if patient else '' }}"
+                   required aria-required="true" data-required="true" aria-invalid="{{ 'true' if not patient or not patient.given }}"
+                   class="input-field{% if not patient or not patient.given %} border-red-500{% endif %}"
+                   placeholder="Sophie">
+            {% if not patient or not patient.given %}
+            <p class="error-message form-error text-sm text-red-600 flex items-center gap-1 mt-1" data-for="given">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Ce champ est obligatoire
+            </p>
+            {% endif %}
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Deuxième prénom
+            </label>
+            <input type="text" name="middle" value="{{ patient.middle if patient else '' }}" 
+                   class="input-field" placeholder="Marie">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Suffixe
+            </label>
+            <input type="text" name="suffix" value="{{ patient.suffix if patient else '' }}" 
+                   class="input-field" placeholder="Jr., III, etc.">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">
+              Date de naissance
+            </label>
+            <input type="date" name="birth_date" value="{{ patient.birth_date if patient else '' }}" 
+                   class="input-field">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">
+              Sexe administratif
+            </label>
+            <select name="gender" class="input-field">
+              <option value="">-- Choisir --</option>
+              <option value="male" {% if patient and patient.gender == 'male' %}selected{% endif %}>Masculin</option>
+              <option value="female" {% if patient and patient.gender == 'female' %}selected{% endif %}>Féminin</option>
+              <option value="other" {% if patient and patient.gender == 'other' %}selected{% endif %}>Autre</option>
+              <option value="unknown" {% if patient and patient.gender == 'unknown' %}selected{% endif %}>Inconnu</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <!-- Accordéon Coordonnées -->
+    <details class="bg-white rounded-xl border border-slate-200 overflow-hidden" open>
+      <summary class="cursor-pointer bg-gradient-to-r from-green-50 to-green-100 px-6 py-4 font-semibold text-slate-800 hover:from-green-100 hover:to-green-200 transition-colors">
+        <span class="text-lg">📍 Coordonnées (domicile)</span>
+      </summary>
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Adresse</label>
+          <input type="text" name="address" value="{{ patient.address if patient else '' }}" 
+                 class="input-field" placeholder="15 rue Victor Hugo">
+          <p class="text-xs text-slate-500 mt-1">Numéro et rue - PID-11.1</p>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Ville</label>
+            <input type="text" name="city" value="{{ patient.city if patient else '' }}" 
+                   class="input-field" placeholder="Lyon">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Département/Région</label>
+            <input type="text" name="state" value="{{ patient.state if patient else '' }}" 
+                   class="input-field" placeholder="Rhône">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Code postal</label>
+            <input type="text" name="postal_code" value="{{ patient.postal_code if patient else '' }}" 
+                   class="input-field" placeholder="69001">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Pays</label>
+          <select name="country" class="input-field">
+            <option value="">-- Choisir --</option>
+            <option value="FRA" {% if patient and patient.country == 'FRA' %}selected{% endif %}>🇫🇷 France (FRA)</option>
+            <option value="BEL" {% if patient and patient.country == 'BEL' %}selected{% endif %}>🇧🇪 Belgique (BEL)</option>
+            <option value="CHE" {% if patient and patient.country == 'CHE' %}selected{% endif %}>🇨🇭 Suisse (CHE)</option>
+            <option value="LUX" {% if patient and patient.country == 'LUX' %}selected{% endif %}>🇱🇺 Luxembourg (LUX)</option>
+            <option value="DEU" {% if patient and patient.country == 'DEU' %}selected{% endif %}>🇩🇪 Allemagne (DEU)</option>
+            <option value="ITA" {% if patient and patient.country == 'ITA' %}selected{% endif %}>🇮🇹 Italie (ITA)</option>
+            <option value="ESP" {% if patient and patient.country == 'ESP' %}selected{% endif %}>🇪🇸 Espagne (ESP)</option>
+            <option value="GBR" {% if patient and patient.country == 'GBR' %}selected{% endif %}>🇬🇧 Royaume-Uni (GBR)</option>
+          </select>
+          <p class="text-xs text-slate-500 mt-1">Code ISO 3 lettres - PID-11.6</p>
+        </div>
+
+        <div class="border-t pt-4 mt-4">
+          <h4 class="font-medium text-slate-700 mb-3">📞 Téléphones (PID-13 multi-valué)</h4>
+          <div class="grid grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Téléphone fixe</label>
+              <input type="tel" name="phone" value="{{ patient.phone if patient else '' }}" 
+                     class="input-field" placeholder="0123456789">
+              <p class="text-xs text-slate-500 mt-1">Principal</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Mobile</label>
+              <input type="tel" name="mobile" value="{{ patient.mobile if patient else '' }}" 
+                     class="input-field" placeholder="0612345678">
+              <p class="text-xs text-slate-500 mt-1">Type CP/CELL</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Téléphone pro</label>
+              <input type="tel" name="work_phone" value="{{ patient.work_phone if patient else '' }}" 
+                     class="input-field" placeholder="0498765432">
+              <p class="text-xs text-slate-500 mt-1">Type WP/WORK</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1" for="email">Email</label>
+          <input type="email" id="email" name="email" value="{{ patient.email if patient else '' }}"
+                 class="input-field" placeholder="sophie.martin@example.com"
+                 aria-describedby="email_help">
+          <p id="email_help" class="text-xs text-slate-500 mt-1">Adresse email du patient (optionnelle)</p>
+        </div>
+      </div>
+    </details>
+
+    <!-- Accordéon Lieu de naissance -->
+    <details class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <summary class="cursor-pointer bg-gradient-to-r from-purple-50 to-purple-100 px-6 py-4 font-semibold text-slate-800 hover:from-purple-100 hover:to-purple-200 transition-colors">
+        <span class="text-lg">🏥 Lieu de naissance</span>
+      </summary>
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Adresse de naissance</label>
+          <input type="text" name="birth_address" value="{{ patient.birth_address if patient else '' }}" 
+                 class="input-field" placeholder="Maternité de la Croix-Rousse">
+          <p class="text-xs text-slate-500 mt-1">Établissement/Rue - PID-11 répétition 2</p>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Ville de naissance</label>
+            <input type="text" name="birth_city" value="{{ patient.birth_city if patient else '' }}" 
+                   class="input-field" placeholder="Lyon">
+            <p class="text-xs text-slate-500 mt-1">PID-23</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Département/Région</label>
+            <input type="text" name="birth_state" value="{{ patient.birth_state if patient else '' }}" 
+                   class="input-field" placeholder="Rhône">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Code postal</label>
+            <input type="text" name="birth_postal_code" value="{{ patient.birth_postal_code if patient else '' }}" 
+                   class="input-field" placeholder="69004">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Pays de naissance</label>
+          <select name="birth_country" class="input-field">
+            <option value="">-- Choisir --</option>
+            <option value="FRA" {% if patient and patient.birth_country == 'FRA' %}selected{% endif %}>🇫🇷 France (FRA)</option>
+            <option value="BEL" {% if patient and patient.birth_country == 'BEL' %}selected{% endif %}>🇧🇪 Belgique (BEL)</option>
+            <option value="CHE" {% if patient and patient.birth_country == 'CHE' %}selected{% endif %}>🇨🇭 Suisse (CHE)</option>
+            <option value="LUX" {% if patient and patient.birth_country == 'LUX' %}selected{% endif %}>🇱🇺 Luxembourg (LUX)</option>
+            <option value="DEU" {% if patient and patient.birth_country == 'DEU' %}selected{% endif %}>🇩🇪 Allemagne (DEU)</option>
+            <option value="ITA" {% if patient and patient.birth_country == 'ITA' %}selected{% endif %}>🇮🇹 Italie (ITA)</option>
+            <option value="ESP" {% if patient and patient.birth_country == 'ESP' %}selected{% endif %}>🇪🇸 Espagne (ESP)</option>
+            <option value="GBR" {% if patient and patient.birth_country == 'GBR' %}selected{% endif %}>🇬🇧 Royaume-Uni (GBR)</option>
+          </select>
+        </div>
+      </div>
+    </details>
+
+    <!-- Accordéon Informations administratives -->
+    <details class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <summary class="cursor-pointer bg-gradient-to-r from-amber-50 to-amber-100 px-6 py-4 font-semibold text-slate-800 hover:from-amber-100 hover:to-amber-200 transition-colors">
+        <span class="text-lg">📋 Informations administratives</span>
+      </summary>
+      <div class="p-6 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">NIR (Numéro de sécurité sociale)</label>
+            <input type="text" name="nir" value="{{ patient.nir if patient else '' }}" 
+                   class="input-field" placeholder="1 85 06 75 123 456 78" maxlength="15">
+            <p class="text-xs text-slate-500 mt-1">15 chiffres - PID-3 type NH</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Statut marital</label>
+            <select name="marital_status" class="input-field">
+              <option value="">-- Choisir --</option>
+              <option value="S" {% if patient and patient.marital_status == 'S' %}selected{% endif %}>S - Célibataire</option>
+              <option value="M" {% if patient and patient.marital_status == 'M' %}selected{% endif %}>M - Marié(e)</option>
+              <option value="D" {% if patient and patient.marital_status == 'D' %}selected{% endif %}>D - Divorcé(e)</option>
+              <option value="W" {% if patient and patient.marital_status == 'W' %}selected{% endif %}>W - Veuf/Veuve</option>
+              <option value="P" {% if patient and patient.marital_status == 'P' %}selected{% endif %}>P - Partenariat/PACS</option>
+              <option value="A" {% if patient and patient.marital_status == 'A' %}selected{% endif %}>A - Séparé(e)</option>
+              <option value="U" {% if patient and patient.marital_status == 'U' %}selected{% endif %}>U - Non spécifié</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Nationalité</label>
+            <input type="text" name="nationality" value="{{ patient.nationality if patient else '' }}" 
+                   class="input-field" placeholder="FR">
+            <p class="text-xs text-slate-500 mt-1">Code pays ISO (ex: FR, BE, CH)</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">
+              Fiabilité de l'identité (PID-32)
+            </label>
+            <select name="identity_reliability_code" class="input-field">
+              <option value="">-- Choisir --</option>
+              <option value="VIDE" {% if patient and patient.identity_reliability_code == 'VIDE' %}selected{% endif %}>VIDE - Identité vérifiée (INS validé)</option>
+              <option value="VALI" {% if patient and patient.identity_reliability_code == 'VALI' %}selected{% endif %}>VALI - Validé par pièce d'identité</option>
+              <option value="PROV" {% if patient and patient.identity_reliability_code == 'PROV' %}selected{% endif %}>PROV - Provisoire</option>
+              <option value="DOUTE" {% if patient and patient.identity_reliability_code == 'DOUTE' %}selected{% endif %}>DOUTE - Identité douteuse</option>
+              <option value="FICTI" {% if patient and patient.identity_reliability_code == 'FICTI' %}selected{% endif %}>FICTI - Fictive (test)</option>
+            </select>
+            <p class="text-xs text-slate-500 mt-1">HL7 Table 0445 - Obligatoire IHE PAM France</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Nom de jeune fille de la mère</label>
+            <input type="text" name="mothers_maiden_name" value="{{ patient.mothers_maiden_name if patient else '' }}" 
+                   class="input-field" placeholder="LEFEBVRE">
+            <p class="text-xs text-slate-500 mt-1">Utilisé pour vérification d'identité</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Médecin traitant</label>
+            <input type="text" name="primary_care_provider" value="{{ patient.primary_care_provider if patient else '' }}" 
+                   class="input-field" placeholder="Dr. DURAND">
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <!-- Boutons d'action -->
+    <div class="flex gap-3 pt-4">
+      <button type="submit" class="btn btn-primary">
+        💾 Enregistrer
+      </button>
+      <a href="/patients" class="btn btn-secondary">
+        ✖ Annuler
+      </a>
+    </div>
+    </div>
+  </form>
+
+  <!-- Note RGPD -->
+  <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+    <strong>ℹ️ Conformité RGPD France :</strong> Les données sensibles (race, religion) ne sont pas collectées conformément à la réglementation française (Article 9 RGPD + loi Informatique et Libertés).
+  </div>
+</div>
+
+<style>
+  details summary::-webkit-details-marker {
+    display: none;
+  }
+  details summary::before {
+    content: '▶';
+    display: inline-block;
+    margin-right: 0.5rem;
+    transition: transform 0.2s;
+  }
+  details[open] summary::before {
+    transform: rotate(90deg);
+  }
+</style>
+{% endblock %}

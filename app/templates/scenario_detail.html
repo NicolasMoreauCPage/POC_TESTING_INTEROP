@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-semibold text-slate-900">{{ scenario.name }}</h1>
+    <p class="text-sm text-slate-600">
+      Protocole : {{ scenario.protocol }} — {{ steps|length }} étapes{% if scenario.category %} — {{ scenario.category }}{% endif %}
+    </p>
+    {% if scenario.description %}
+      <p class="text-sm text-slate-500 mt-1">{{ scenario.description }}</p>
+    {% endif %}
+    {% if scenario.source_path %}
+      <p class="text-xs text-slate-400 mt-1">Source : {{ scenario.source_path }}</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="bg-white border border-slate-200 rounded-xl p-6 mb-6">
+  {% if endpoints %}
+  <form method="post" action="/scenarios/{{ scenario.id }}/send" class="flex flex-wrap items-end gap-4">
+    <div>
+      <label for="endpoint_id" class="block text-sm font-medium text-slate-700">Endpoint cible</label>
+      <select id="endpoint_id" name="endpoint_id" class="mt-1 block w-64 rounded-xl border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        {% for ep in endpoints %}
+          <option value="{{ ep.id }}">{{ ep.name }} ({{ ep.kind }})</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label for="step_id" class="block text-sm font-medium text-slate-700">Étape (optionnel)</label>
+      <select id="step_id" name="step_id" class="mt-1 block w-48 rounded-xl border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+        <option value="">Scénario complet</option>
+        {% for step in steps %}
+          <option value="{{ step.id }}">#{{ step.order_index }} — {{ step.name or step.message_type or 'Message' }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="flex gap-3">
+      <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700">
+        Envoyer
+      </button>
+      <a href="/scenarios" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50">
+        Retour
+      </a>
+    </div>
+  </form>
+  {% else %}
+    <p class="text-sm text-red-600">Aucun endpoint expéditeur n'est configuré. Configurez un système (MLLP/FHIR) en mode &laquo;&nbsp;sender&nbsp;&raquo; pour rejouer le scénario.</p>
+  {% endif %}
+</div>
+
+<div class="bg-white border border-slate-200 rounded-xl">
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-slate-200">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">#</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Type</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Message</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-slate-200">
+        {% for step in steps %}
+          {% set trigger = (step.message_type.split('^')[1] if step.message_type and '^' in step.message_type else step.message_type) %}
+          {% set deprecated = trigger and trigger.startswith('Z') and trigger != 'Z99' %}
+          <tr class="align-top {% if deprecated %}bg-amber-50{% endif %}">
+            <td class="px-4 py-3 text-sm font-mono text-slate-600">#{{ step.order_index }}</td>
+            <td class="px-4 py-3 text-sm text-slate-600">
+              {{ step.message_type or step.name or step.message_format|upper }}
+              {% if step.delay_seconds %}
+                <div class="text-xs text-slate-400">Delay {{ step.delay_seconds }}s</div>
+              {% endif %}
+              {% if deprecated %}
+                <div class="text-xs font-semibold text-amber-700">Message Z** non émis (profil IHE&nbsp;PAM ≥ 2.8)</div>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-xs font-mono text-slate-700">
+              <pre class="whitespace-pre-wrap max-h-64 overflow-y-auto bg-slate-50 p-3 rounded">{{ step.payload }}</pre>
+            </td>
+            <td class="px-4 py-3 text-sm">
+              {% if deprecated %}
+                <span class="text-amber-700">Non émis</span>
+              {% elif endpoints %}
+                <form method="post" action="/scenarios/{{ scenario.id }}/send">
+                  <input type="hidden" name="endpoint_id" value="{{ endpoints[0].id }}">
+                  <input type="hidden" name="step_id" value="{{ step.id }}">
+                  <button type="submit" class="text-blue-600 hover:text-blue-700">Envoyer seul</button>
+                </form>
+              {% else %}
+                <span class="text-slate-400">Configurer un endpoint expéditeur</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="4" class="px-4 py-3 text-center text-sm text-slate-500">Aucune étape dans ce scénario.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="space-y-6">
+  <header class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-800">Sélection du contexte GHT</h1>
+      <p class="text-sm text-slate-500">Choisissez un groupement existant ou créez-en un nouveau pour accéder au tableau de bord.</p>
+    </div>
+    <a href="/admin/ght/new"
+       class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+      Nouveau contexte GHT
+    </a>
+  </header>
+
+  {% if contexts %}
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+    {% for ctx in contexts %}
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-semibold text-slate-800">{{ ctx.name }}</h3>
+          <p class="text-xs text-slate-500">Code : {{ ctx.code }}</p>
+        </div>
+        {% if ctx.is_active %}
+        <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-600">Actif</span>
+        {% else %}
+        <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-500">Inactif</span>
+        {% endif %}
+      </div>
+      <p class="mt-4 text-sm text-slate-600">{{ ctx.description or "Aucune description fournie." }}</p>
+      <div class="mt-5 flex gap-2 text-xs">
+        <a href="/admin/ght/{{ ctx.id }}/edit" class="inline-flex items-center rounded-lg border border-slate-200 px-3 py-1.5 text-slate-600 hover:bg-slate-100">Modifier</a>
+        <a href="/admin/ght/{{ ctx.id }}"
+           class="inline-flex items-center rounded-lg bg-blue-50 px-3 py-1.5 text-blue-600 hover:bg-blue-100">Sélectionner</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
+    Aucun contexte GHT configuré pour le moment. Créez-en un pour démarrer.
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
