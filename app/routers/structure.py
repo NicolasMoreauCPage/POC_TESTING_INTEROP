@@ -45,11 +45,26 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templa
 @api_router.get("/tree")
 async def get_structure_tree(
     session: Session = Depends(get_session),
-    ej: Optional[int] = Query(None, description="ID de l'établissement juridique à filtrer")
+    ej: Optional[int] = Query(None, description="ID de l'établissement juridique à filtrer"),
+    eg_ids: Optional[str] = Query(None, description="Liste d'IDs d'entités géographiques séparés par des virgules")
 ):
-    # Start with EGs (optionally filtered by EJ)
+    # Apply scheduled status updates
+    changed = False
+    for model in (Pole, Service, UniteFonctionnelle, UniteHebergement, Chambre, Lit):
+        entities = session.exec(select(model)).all()
+        if apply_scheduled_status(entities):
+            changed = True
+    if changed:
+        session.commit()
+    
+    # Start with EGs (filtered by ej OR eg_ids, with eg_ids taking precedence)
     query = select(EntiteGeographique)
-    if ej:
+    if eg_ids:
+        # Filter by specific EG IDs
+        eg_id_list = [int(id_str) for id_str in eg_ids.split(',')]
+        query = query.where(EntiteGeographique.id.in_(eg_id_list))
+    elif ej:
+        # Filter by entite juridique
         query = query.where(EntiteGeographique.entite_juridique_id == ej)
     
     # Load full hierarchy
@@ -246,8 +261,34 @@ async def import_structure_hl7(
     return {"status": "ok", "created": summary}
 
 # --- Entité Géographique ---
-@router.get("/eg", response_model=List[EntiteGeographique])
+@router.get("/eg", response_class=HTMLResponse)
 async def list_entites_geographiques(
+    request: Request,
+    session: Session = Depends(get_session),
+    q: Optional[str] = Query(None, alias="q"),
+):
+    query = select(EntiteGeographique)
+    if q:
+        like = f"%{q}%"
+        query = query.where(
+            (EntiteGeographique.name.ilike(like))
+            | (EntiteGeographique.identifier.ilike(like))
+            | (EntiteGeographique.finess.ilike(like))
+        )
+    
+    egs = session.exec(query.order_by(EntiteGeographique.name)).all()
+    
+    return templates.TemplateResponse(
+        "structure/eg_list.html",
+        {
+            "request": request,
+            "entites_geographiques": egs,
+            "search_term": q,
+        },
+    )
+
+@router.get("/api/eg", response_model=List[EntiteGeographique])
+async def list_entites_geographiques_api(
     session: Session = Depends(get_session),
     skip: int = 0,
     limit: int = 100
@@ -297,8 +338,44 @@ async def create_entite_geographique(
     return eg
 
 # --- Pôles ---
-@router.get("/poles", response_model=List[Pole])
+@router.get("/poles", response_class=HTMLResponse)
 async def list_poles(
+    request: Request,
+    session: Session = Depends(get_session),
+    eg_id: Optional[int] = Query(None),
+    q: Optional[str] = Query(None, alias="q"),
+):
+    query = select(Pole)
+    if eg_id:
+        query = query.where(Pole.entite_geo_id == eg_id)
+    if q:
+        like = f"%{q}%"
+        query = query.where(
+            (Pole.name.ilike(like))
+            | (Pole.identifier.ilike(like))
+        )
+    
+    poles = session.exec(query.order_by(Pole.name)).all()
+    if apply_scheduled_status(poles):
+        session.commit()
+    
+    egs = session.exec(select(EntiteGeographique).order_by(EntiteGeographique.name)).all()
+    eg_map = {eg.id: eg.name for eg in egs}
+    
+    return templates.TemplateResponse(
+        "structure/poles_list.html",
+        {
+            "request": request,
+            "poles": poles,
+            "entites_geographiques": egs,
+            "eg_map": eg_map,
+            "selected_eg_id": eg_id,
+            "search_term": q,
+        },
+    )
+
+@router.get("/api/poles", response_model=List[Pole])
+async def list_poles_api(
     session: Session = Depends(get_session),
     eg_id: Optional[int] = None
 ):
@@ -322,8 +399,49 @@ async def create_pole(
     return pole
 
 # --- Services ---
-@router.get("/services", response_model=List[Service])
+@router.get("/services", response_class=HTMLResponse)
 async def list_services(
+    request: Request,
+    session: Session = Depends(get_session),
+    pole_id: Optional[int] = Query(None),
+    service_type: Optional[LocationServiceType] = Query(None),
+    q: Optional[str] = Query(None, alias="q"),
+):
+    query = select(Service)
+    if pole_id:
+        query = query.where(Service.pole_id == pole_id)
+    if service_type:
+        query = query.where(Service.service_type == service_type)
+    if q:
+        like = f"%{q}%"
+        query = query.where(
+            (Service.name.ilike(like))
+            | (Service.identifier.ilike(like))
+        )
+    
+    services = session.exec(query.order_by(Service.name)).all()
+    if apply_scheduled_status(services):
+        session.commit()
+    
+    poles = session.exec(select(Pole).order_by(Pole.name)).all()
+    pole_map = {pole.id: pole.name for pole in poles}
+    
+    return templates.TemplateResponse(
+        "structure/services_list.html",
+        {
+            "request": request,
+            "services": services,
+            "poles": poles,
+            "pole_map": pole_map,
+            "service_types": LocationServiceType,
+            "selected_pole_id": pole_id,
+            "selected_service_type": service_type.value if service_type else None,
+            "search_term": q,
+        },
+    )
+
+@router.get("/api/services", response_model=List[Service])
+async def list_services_api(
     session: Session = Depends(get_session),
     pole_id: Optional[int] = None,
     service_type: Optional[LocationServiceType] = None
@@ -660,6 +778,42 @@ async def delete_unite_hebergement(
     return RedirectResponse(url="/structure/uh", status_code=303)
 
 # --- Chambres ---
+@router.get("/chambres", response_class=HTMLResponse)
+async def list_chambres(
+    request: Request,
+    session: Session = Depends(get_session),
+    uh_id: Optional[int] = Query(None),
+    q: Optional[str] = Query(None, alias="q"),
+):
+    query = select(Chambre)
+    if uh_id:
+        query = query.where(Chambre.unite_hebergement_id == uh_id)
+    if q:
+        like = f"%{q}%"
+        query = query.where(
+            (Chambre.name.ilike(like))
+            | (Chambre.identifier.ilike(like))
+        )
+    
+    chambres = session.exec(query.order_by(Chambre.name)).all()
+    if apply_scheduled_status(chambres):
+        session.commit()
+    
+    uhs = session.exec(select(UniteHebergement).order_by(UniteHebergement.name)).all()
+    uh_map = {uh.id: uh.name for uh in uhs}
+    
+    return templates.TemplateResponse(
+        "structure/chambres_list.html",
+        {
+            "request": request,
+            "chambres": chambres,
+            "unites_hebergement": uhs,
+            "uh_map": uh_map,
+            "selected_uh_id": uh_id,
+            "search_term": q,
+        },
+    )
+
 @router.get("/chambres/new", response_class=HTMLResponse)
 async def new_chambre_form(
     request: Request,
@@ -768,8 +922,49 @@ async def create_chambre(
     )
 
 # --- Lits ---
-@router.get("/lits", response_model=List[Lit])
+@router.get("/lits", response_class=HTMLResponse)
 async def list_lits(
+    request: Request,
+    session: Session = Depends(get_session),
+    chambre_id: Optional[int] = Query(None),
+    status: Optional[LocationStatus] = Query(None),
+    q: Optional[str] = Query(None, alias="q"),
+):
+    query = select(Lit)
+    if chambre_id:
+        query = query.where(Lit.chambre_id == chambre_id)
+    if status:
+        query = query.where(Lit.status == status)
+    if q:
+        like = f"%{q}%"
+        query = query.where(
+            (Lit.name.ilike(like))
+            | (Lit.identifier.ilike(like))
+        )
+    
+    lits = session.exec(query.order_by(Lit.name)).all()
+    if apply_scheduled_status(lits):
+        session.commit()
+    
+    chambres = session.exec(select(Chambre).order_by(Chambre.name)).all()
+    chambre_map = {chambre.id: chambre.name for chambre in chambres}
+    
+    return templates.TemplateResponse(
+        "structure/lits_list.html",
+        {
+            "request": request,
+            "lits": lits,
+            "chambres": chambres,
+            "chambre_map": chambre_map,
+            "statuses": LocationStatus,
+            "selected_chambre_id": chambre_id,
+            "selected_status": status.value if status else None,
+            "search_term": q,
+        },
+    )
+
+@router.get("/api/lits", response_model=List[Lit])
+async def list_lits_api(
     session: Session = Depends(get_session),
     chambre_id: Optional[int] = None,
     status: Optional[LocationStatus] = None
@@ -915,106 +1110,6 @@ async def search_lits_disponibles(
 ):
     """Recherche les lits disponibles avec filtres (JSON)."""
     return _fetch_available_lits(session, service_type=service_type, uf_id=uf_id)
-
-@api_router.get("/tree")
-async def get_structure_tree(
-    eg_ids: Optional[str] = Query(None, description="Liste d'IDs d'entités géographiques séparés par des virgules"),
-    session: Session = Depends(get_session)
-):
-    """Retourne l'arbre complet de la structure pour une ou plusieurs entités géographiques"""
-    changed = False
-    for model in (Pole, Service, UniteFonctionnelle, UniteHebergement, Chambre, Lit):
-        entities = session.exec(select(model)).all()
-        if apply_scheduled_status(entities):
-            changed = True
-    if changed:
-        session.commit()
-
-    # Si aucun ID n'est fourni, retourner toutes les entités géographiques
-    if not eg_ids:
-        egs = session.exec(select(EntiteGeographique)).all()
-    else:
-        eg_id_list = [int(id_str) for id_str in eg_ids.split(',')]
-        egs = session.exec(select(EntiteGeographique).where(EntiteGeographique.id.in_(eg_id_list))).all()
-
-    if not egs:
-        raise HTTPException(status_code=404, detail="Aucune entité géographique trouvée")
-    
-    # Construit une liste d'arbres récursivement
-    result = []
-    for eg in egs:
-        tree = {
-            "id": eg.id,
-            "name": eg.name,
-        "finess": eg.finess,
-        "type": "eg",
-        "poles": []
-    }
-    
-        # Construction de l'arbre pour chaque EG
-        for pole in eg.poles:
-            pole_data = {
-                "id": pole.id,
-                "name": pole.name,
-                "type": "pole",
-                "services": []
-            }
-            
-            for service in pole.services:
-                service_data = {
-                    "id": service.id,
-                    "name": service.name,
-                    "type": "service",
-                    "service_type": service.service_type,
-                    "ufs": []
-                }
-                
-                for uf in service.unites_fonctionnelles:
-                    uf_data = {
-                        "id": uf.id,
-                        "name": uf.name,
-                        "type": "uf",
-                        "uf_type": uf.uf_type,
-                        "unites_hebergement": []
-                    }
-                    
-                    for uh in uf.unites_hebergement:
-                        uh_data = {
-                            "id": uh.id,
-                            "name": uh.name,
-                            "type": "uh",
-                            "chambres": []
-                        }
-                        
-                        for chambre in uh.chambres:
-                            chambre_data = {
-                                "id": chambre.id,
-                                "name": chambre.name,
-                                "type": "chambre",
-                                "lits": [
-                                    {
-                                        "id": lit.id,
-                                        "name": lit.name,
-                                        "type": "lit",
-                                        "status": lit.status,
-                                        "operationalStatus": lit.operationalStatus
-                                    }
-                                    for lit in chambre.lits
-                                ]
-                            }
-                            uh_data["chambres"].append(chambre_data)
-                        
-                        uf_data["unites_hebergement"].append(uh_data)
-                    
-                    service_data["ufs"].append(uf_data)
-                
-                pole_data["services"].append(service_data)
-            
-            tree["poles"].append(pole_data)
-        
-        result.append(tree)
-    
-    return result
 
 
 @router.get("/{type}/{id}/map", response_class=HTMLResponse)

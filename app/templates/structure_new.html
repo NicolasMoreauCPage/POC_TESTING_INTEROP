@@ -112,7 +112,15 @@
     </div>
 </div>
 
+<!-- Configuration from backend -->
+<script id="backend-config" type="application/json">
+{{ (filtered_egs | default([])) | tojson }}
+</script>
+
 <script>
+// Configuration depuis le backend
+const FILTERED_EGS = JSON.parse(document.getElementById('backend-config').textContent);
+
 // État global
 let currentStructure = null;
 let selectedNode = null;
@@ -139,14 +147,12 @@ function setupEventListeners() {
 // Initialisation de la structure
 async function initializeStructure() {
     try {
-        // Récupérer les paramètres de l'URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const ejId = urlParams.get('ej');
-        
         // Construire l'URL de l'API
         let apiUrl = '/api/structure/tree';
-        if (ejId) {
-            apiUrl += `?eg_ids=${ejId}`;
+        
+        // Si on a des EG filtrés (passés depuis le backend), les utiliser
+        if (FILTERED_EGS && FILTERED_EGS.length > 0) {
+            apiUrl += `?eg_ids=${FILTERED_EGS.join(',')}`;
         }
         
         // Charger les données

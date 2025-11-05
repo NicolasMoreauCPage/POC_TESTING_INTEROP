@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Pôles{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
+  <div class="sm:flex sm:items-center sm:justify-between">
+    <div class="sm:flex-auto">
+      <h1 class="text-xl font-semibold text-slate-900">Pôles</h1>
+      <p class="mt-2 text-sm text-slate-600">Liste des pôles de l'établissement.</p>
+    </div>
+  </div>
+
+  <div class="grid gap-4 sm:grid-cols-2">
+    <div>
+      <label for="eg_filter" class="block text-sm font-medium text-slate-700">Entité Géographique</label>
+      <select id="eg_filter" name="eg_filter" onchange="applyFilters()"
+        class="mt-1 block w-full rounded-md border-slate-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+        <option value="">Toutes les EG</option>
+        {% for eg in entites_geographiques %}
+        <option value="{{ eg.id }}" {% if selected_eg_id == eg.id %}selected{% endif %}>
+          {{ eg.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="text_filter" class="block text-sm font-medium text-slate-700">Recherche</label>
+      <input type="search" id="text_filter" name="text_filter" value="{{ search_term or '' }}"
+        placeholder="Nom ou identifiant"
+        class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();applyFilters();}">
+    </div>
+  </div>
+
+  <div class="-mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
+    <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+      <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+        <table class="min-w-full divide-y divide-slate-200">
+          <thead class="bg-slate-50">
+            <tr>
+              <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-900 sm:pl-6">Pôle</th>
+              <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-slate-900">EG</th>
+              <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-slate-900">Statut</th>
+              <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                <span class="sr-only">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200 bg-white">
+            {% for pole in poles %}
+            <tr>
+              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6">
+                <div class="flex flex-col">
+                  <span>{{ pole.name }}</span>
+                  <span class="text-xs text-slate-500">{{ pole.identifier }}</span>
+                </div>
+              </td>
+              <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-500">
+                {{ eg_map.get(pole.entite_geo_id, "—") }}
+              </td>
+              <td class="whitespace-nowrap px-3 py-4 text-sm">
+                <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 {{ 'bg-emerald-100 text-emerald-800' if pole.status == 'active' else 'bg-amber-100 text-amber-800' }}">
+                  {{ pole.status }}
+                </span>
+              </td>
+              <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                <a href="/structure?ej={{ pole.entite_geo_id }}" class="text-indigo-600 hover:text-indigo-900">Voir structure</a>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4" class="py-10 text-center text-sm text-slate-500">
+                Aucun pôle trouvé.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function applyFilters() {
+  const egId = document.getElementById('eg_filter').value;
+  const searchTerm = document.getElementById('text_filter').value.trim();
+
+  const params = new URLSearchParams();
+  if (egId) params.append('eg_id', egId);
+  if (searchTerm) params.append('q', searchTerm);
+
+  const query = params.toString();
+  window.location.href = query ? `/structure/poles?${query}` : '/structure/poles';
+}
+</script>
+{% endblock %}

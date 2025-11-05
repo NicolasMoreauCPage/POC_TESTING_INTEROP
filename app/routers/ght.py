@@ -66,9 +66,14 @@ async def set_ej_for_ght(
         ej = _get_ej_or_404(session, context, ej_id)
         request.session[f"ght_{context_id}_ej_id"] = ej_id
         request.session[f"ght_{context_id}_ej_name"] = ej.name
+        # Définir aussi les contextes globaux pour cohérence de l'UI et des filtres
+        request.session["ej_context_id"] = ej_id
+        request.session["ght_context_id"] = context_id
     else:
         request.session.pop(f"ght_{context_id}_ej_id", None)
         request.session.pop(f"ght_{context_id}_ej_name", None)
+        # Si on désélectionne l'EJ, effacer le contexte global EJ mais conserver le GHT courant
+        request.session.pop("ej_context_id", None)
     return RedirectResponse(f"/admin/ght/{context_id}", status_code=303)
 
 @router.post("/new")
@@ -992,7 +997,15 @@ async def view_entite_juridique(
 ):
     context = _get_context_or_404(session, context_id)
     entite = _get_ej_or_404(session, context, ej_id)
+    # Poser les contextes en session et sur request.state pour l'affichage immédiat
     request.session["ght_context_id"] = context_id
+    request.session["ej_context_id"] = ej_id
+    # Pour éviter d'attendre la requête suivante, alimenter aussi request.state
+    try:
+        request.state.ght_context = context
+        request.state.ej_context = entite
+    except Exception:
+        pass
 
     geo_ids = [geo.id for geo in entite.entites_geographiques]
 
@@ -1052,6 +1065,13 @@ async def view_entite_juridique(
         "lits": lit_count,
     }
 
+    # Charger les namespaces de cette EJ
+    namespaces = session.exec(
+        select(IdentifierNamespace)
+        .where(IdentifierNamespace.entite_juridique_id == ej_id)
+        .order_by(IdentifierNamespace.type, IdentifierNamespace.name)
+    ).all()
+
     return templates.TemplateResponse(
         "ej_detail.html",
         {
@@ -1059,6 +1079,7 @@ async def view_entite_juridique(
             "context": context,
             "entite": entite,
             "entites_geographiques": entite.entites_geographiques,
+            "namespaces": namespaces,
             "counts": counts,
         },
     )
@@ -1161,6 +1182,200 @@ async def update_entite_juridique(
         f"/admin/ght/{context.id}/ej/{entite.id}",
         status_code=303,
     )
+
+
+@router.post("/{context_id}/ej/{ej_id}/clone")
+async def clone_entite_juridique_structure(
+    request: Request,
+    context_id: int,
+    ej_id: int,
+    new_name: str = Form(...),
+    new_finess_ej: str = Form(...),
+    session: Session = Depends(get_session),
+):
+    """Clone la structure complète d'une EJ (EG, Pôles, Services, UF, UH, Chambres, Lits)."""
+    context = _get_context_or_404(session, context_id)
+    source_ej = _get_ej_or_404(session, context, ej_id)
+    
+    # Vérifier que le FINESS n'existe pas déjà
+    existing = session.exec(
+        select(EntiteJuridique).where(EntiteJuridique.finess_ej == new_finess_ej)
+    ).first()
+    if existing:
+        flash(request, f"Une entité juridique avec le FINESS {new_finess_ej} existe déjà.", "error")
+        return RedirectResponse(f"/admin/ght/{context_id}/ej/{ej_id}", status_code=303)
+    
+    # Créer la nouvelle EJ
+    new_ej = EntiteJuridique(
+        name=new_name,
+        finess_ej=new_finess_ej,
+        short_name=f"{source_ej.short_name} (Clonée)" if source_ej.short_name else None,
+        description=f"Clone de {source_ej.name}",
+        siren=None,  # Ne pas copier les identifiants légaux
+        siret=None,
+        address_line=source_ej.address_line,
+        postal_code=source_ej.postal_code,
+        city=source_ej.city,
+        country=source_ej.country,
+        is_active=source_ej.is_active,
+        ght_context_id=context.id,
+    )
+    session.add(new_ej)
+    session.flush()  # Pour obtenir l'ID
+    
+    # Mappings pour relier les anciennes IDs aux nouvelles
+    eg_map = {}
+    pole_map = {}
+    service_map = {}
+    uf_map = {}
+    uh_map = {}
+    chambre_map = {}
+    
+    # Cloner les EG
+    for source_eg in source_ej.entites_geographiques:
+        new_eg = EntiteGeographique(
+            name=source_eg.name,
+            identifier=f"{source_eg.identifier}_clone",
+            finess=f"CLN{source_eg.finess[3:]}" if source_eg.finess else None,  # Modifier FINESS
+            short_name=source_eg.short_name,
+            description=source_eg.description,
+            address_line=source_eg.address_line,
+            postal_code=source_eg.postal_code,
+            city=source_eg.city,
+            country=source_eg.country,
+            status=source_eg.status,
+            mode=source_eg.mode,
+            physical_type=source_eg.physical_type,
+            entite_juridique_id=new_ej.id,
+        )
+        session.add(new_eg)
+        session.flush()
+        eg_map[source_eg.id] = new_eg.id
+        
+        # Cloner les Pôles
+        for source_pole in source_eg.poles:
+            new_pole = Pole(
+                name=source_pole.name,
+                identifier=f"{source_pole.identifier}_clone",
+                short_name=source_pole.short_name,
+                description=source_pole.description,
+                status=source_pole.status,
+                mode=source_pole.mode,
+                physical_type=source_pole.physical_type,
+                entite_geo_id=new_eg.id,
+            )
+            session.add(new_pole)
+            session.flush()
+            pole_map[source_pole.id] = new_pole.id
+            
+            # Cloner les Services
+            for source_service in source_pole.services:
+                new_service = Service(
+                    name=source_service.name,
+                    identifier=f"{source_service.identifier}_clone",
+                    short_name=source_service.short_name,
+                    description=source_service.description,
+                    status=source_service.status,
+                    mode=source_service.mode,
+                    physical_type=source_service.physical_type,
+                    service_type=source_service.service_type,
+                    typology=source_service.typology,
+                    pole_id=new_pole.id,
+                )
+                session.add(new_service)
+                session.flush()
+                service_map[source_service.id] = new_service.id
+                
+                # Cloner les UF
+                for source_uf in source_service.unites_fonctionnelles:
+                    new_uf = UniteFonctionnelle(
+                        name=source_uf.name,
+                        identifier=f"{source_uf.identifier}_clone",
+                        short_name=source_uf.short_name,
+                        description=source_uf.description,
+                        status=source_uf.status,
+                        mode=source_uf.mode,
+                        physical_type=source_uf.physical_type,
+                        um_code=source_uf.um_code,
+                        uf_type=source_uf.uf_type,
+                        service_id=new_service.id,
+                    )
+                    session.add(new_uf)
+                    session.flush()
+                    uf_map[source_uf.id] = new_uf.id
+                    
+                    # Cloner les UH
+                    for source_uh in source_uf.unites_hebergement:
+                        new_uh = UniteHebergement(
+                            name=source_uh.name,
+                            identifier=f"{source_uh.identifier}_clone",
+                            short_name=source_uh.short_name,
+                            description=source_uh.description,
+                            status=source_uh.status,
+                            mode=source_uh.mode,
+                            physical_type=source_uh.physical_type,
+                            etage=source_uh.etage,
+                            aile=source_uh.aile,
+                            unite_fonctionnelle_id=new_uf.id,
+                        )
+                        session.add(new_uh)
+                        session.flush()
+                        uh_map[source_uh.id] = new_uh.id
+                        
+                        # Cloner les Chambres
+                        for source_chambre in source_uh.chambres:
+                            new_chambre = Chambre(
+                                name=source_chambre.name,
+                                identifier=f"{source_chambre.identifier}_clone",
+                                short_name=source_chambre.short_name,
+                                description=source_chambre.description,
+                                status=source_chambre.status,
+                                mode=source_chambre.mode,
+                                physical_type=source_chambre.physical_type,
+                                type_chambre=source_chambre.type_chambre,
+                                gender_usage=source_chambre.gender_usage,
+                                unite_hebergement_id=new_uh.id,
+                            )
+                            session.add(new_chambre)
+                            session.flush()
+                            chambre_map[source_chambre.id] = new_chambre.id
+                            
+                            # Cloner les Lits
+                            for source_lit in source_chambre.lits:
+                                new_lit = Lit(
+                                    name=source_lit.name,
+                                    identifier=f"{source_lit.identifier}_clone",
+                                    short_name=source_lit.short_name,
+                                    description=source_lit.description,
+                                    status=source_lit.status,
+                                    mode=source_lit.mode,
+                                    physical_type=source_lit.physical_type,
+                                    operational_status=source_lit.operational_status,
+                                    chambre_id=new_chambre.id,
+                                )
+                                session.add(new_lit)
+    
+    session.commit()
+    
+    # Compter les éléments clonés
+    total_eg = len(eg_map)
+    total_poles = len(pole_map)
+    total_services = len(service_map)
+    total_uf = len(uf_map)
+    total_uh = len(uh_map)
+    total_chambres = len(chambre_map)
+    total_lits = session.exec(
+        select(func.count(Lit.id))
+        .join(Chambre)
+        .where(Chambre.id.in_(list(chambre_map.values())))
+    ).one()
+    
+    flash(
+        request,
+        f'Structure clonée avec succès : {total_eg} EG, {total_poles} pôles, {total_services} services, {total_uf} UF, {total_uh} UH, {total_chambres} chambres, {total_lits} lits.',
+        "success",
+    )
+    return RedirectResponse(f"/admin/ght/{context_id}/ej/{new_ej.id}", status_code=303)
 
 
 @router.get("/{context_id}/ej/{ej_id}/eg/new")

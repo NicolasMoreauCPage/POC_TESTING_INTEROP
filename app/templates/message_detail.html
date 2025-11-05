@@ -44,6 +44,22 @@
       <span class="text-sm text-slate-600">Correlation ID</span>
       <input value="{{ m.correlation_id or '' }}" readonly class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2" />
     </label>
+    <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <label class="block">
+        <span class="text-sm text-slate-600">Validation IHE PAM</span>
+        <div class="mt-1">
+          {% if m.pam_validation_status == 'fail' %}
+            <span class="inline-flex items-center rounded-full bg-red-50 text-red-700 px-2 py-1 text-xs">invalide</span>
+          {% elif m.pam_validation_status == 'warn' %}
+            <span class="inline-flex items-center rounded-full bg-amber-50 text-amber-700 px-2 py-1 text-xs">avert.</span>
+          {% elif m.pam_validation_status == 'ok' %}
+            <span class="inline-flex items-center rounded-full bg-green-50 text-green-700 px-2 py-1 text-xs">ok</span>
+          {% else %}
+            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs">n/a</span>
+          {% endif %}
+        </div>
+      </label>
+    </div>
   </div>
 </div>
 
@@ -57,5 +73,19 @@
   <h3 class="text-sm font-semibold mb-2">ACK</h3>
   <pre class="whitespace-pre-wrap text-sm bg-slate-50 p-3 rounded">{{ m.ack_payload }}</pre>
 </div>
+{% endif %}
+
+{% if m.pam_validation_issues %}
+<div class="bg-white rounded-2xl border border-slate-200 p-4 mt-4">
+  <h3 class="text-sm font-semibold mb-2">Détails validation IHE PAM</h3>
+  {% set issues = m.pam_validation_issues %}
+  {% if issues and issues|length > 0 %}
+    <ul class="list-disc list-inside text-sm text-slate-700">
+      {% for it in issues if false %}{% endfor %}
+    </ul>
+  {% endif %}
+  <pre class="whitespace-pre-wrap text-xs bg-slate-50 p-3 rounded">{{ m.pam_validation_issues }}</pre>
+  <p class="text-xs text-slate-400 mt-2">Note: affichage brut JSON pour conserver tous les détails.</p>
+  </div>
 {% endif %}
 {% endblock %}

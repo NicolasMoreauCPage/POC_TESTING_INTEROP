@@ -53,6 +53,16 @@
             <span class="text-xs text-blue-500">• {{ request.state.ght_context.code }}</span>
           </div>
         {% endif %}
+        {% if request and request.state and request.state.ej_context %}
+          <div class="hidden md:flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700" title="Contexte Établissement Juridique actif">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7h4l2-2h6l2 2h4v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+            <span>{{ request.state.ej_context.name }}</span>
+            {% if request.state.ej_context.finess_ej %}
+              <span class="text-xs text-teal-500">• FINESS {{ request.state.ej_context.finess_ej }}</span>
+            {% endif %}
+            <a href="/context/clear?kind=ej" class="ml-1 inline-flex items-center justify-center h-5 w-5 rounded-full hover:bg-teal-100 text-teal-700" title="Effacer le contexte établissement">&times;</a>
+          </div>
+        {% endif %}
         {% if request and request.state and request.state.patient_context %}
           <div class="hidden md:flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700" title="Contexte Patient actif">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 0 0118 0z"/></svg>
@@ -89,7 +99,7 @@
         </button>
       </div>
     </div>
-    {% if not request.state.ght_context %}
+    {% if not request.state.ght_context and not request.url.path.startswith('/admin/') and not request.url.path.startswith('/context/') %}
     <div class="bg-yellow-50 border-b border-yellow-100">
       <div class="mx-auto max-w-content px-4 py-3 flex items-center gap-3 text-sm text-yellow-800">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -97,7 +107,7 @@
         </svg>
         <span>
           Sélectionnez un contexte GHT pour accéder aux fonctionnalités complètes.
-          <a href="/admin/ght" class="font-medium underline hover:text-yellow-900">Choisir un GHT</a>
+          <a href="/context/select" class="font-medium underline hover:text-yellow-900">Choisir un GHT</a>
         </span>
       </div>
     </div>

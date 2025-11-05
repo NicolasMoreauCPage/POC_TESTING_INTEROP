@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+  <div class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl font-semibold">Rejets par IPP et Dossier</h1>
+  </div>
+
+  <form method="get" class="mb-6 grid grid-cols-1 md:grid-cols-5 gap-4">
+    <div>
+      <label class="block text-sm text-slate-600">Endpoint</label>
+      <select name="endpoint_id" class="w-full rounded-xl border border-slate-300 px-3 py-2">
+        <option value="">Tous</option>
+        {% for ep in endpoints %}
+          <option value="{{ ep.id }}" {% if filters.endpoint_id|string == ep.id|string %}selected{% endif %}>{{ ep.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm text-slate-600">Depuis</label>
+      <input type="datetime-local" name="date_start" value="{{ filters.date_start }}" class="w-full rounded-xl border border-slate-300 px-3 py-2" />
+    </div>
+    <div>
+      <label class="block text-sm text-slate-600">Jusqu'à</label>
+      <input type="datetime-local" name="date_end" value="{{ filters.date_end }}" class="w-full rounded-xl border border-slate-300 px-3 py-2" />
+    </div>
+    <div>
+      <label class="block text-sm text-slate-600">Kind</label>
+      <select name="kind" class="w-full rounded-xl border border-slate-300 px-3 py-2">
+        <option value="">Tous</option>
+        <option value="MLLP" {% if filters.kind == 'MLLP' %}selected{% endif %}>MLLP</option>
+        <option value="FHIR" {% if filters.kind == 'FHIR' %}selected{% endif %}>FHIR</option>
+      </select>
+    </div>
+    <div class="flex items-end">
+      <button type="submit" class="btn btn-primary">Filtrer</button>
+    </div>
+  </form>
+
+  {% if not groups %}
+    <div class="bg-slate-50 border border-slate-200 rounded-xl p-8 text-center text-slate-600">Aucun rejet trouvé avec ces filtres.</div>
+  {% else %}
+  <div class="overflow-auto">
+    <table class="min-w-full divide-y divide-slate-200 text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-3 py-2 text-left text-slate-600">Endpoint</th>
+          <th class="px-3 py-2 text-left text-slate-600">IPP</th>
+          <th class="px-3 py-2 text-left text-slate-600">Dossier</th>
+          <th class="px-3 py-2 text-left text-slate-600">Rejets</th>
+          <th class="px-3 py-2 text-left text-slate-600">Dernier statut</th>
+          <th class="px-3 py-2 text-left text-slate-600">Dernier type</th>
+          <th class="px-3 py-2 text-left text-slate-600">Détails ACK (extrait)</th>
+          <th class="px-3 py-2 text-left text-slate-600"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for g in groups %}
+        <tr>
+          <td class="px-3 py-2">{{ ep_name.get(g.endpoint_id) or g.endpoint_id or '-' }}</td>
+          <td class="px-3 py-2 font-mono">{{ g.ipp or '-' }}</td>
+          <td class="px-3 py-2 font-mono">{{ g.dossier or '-' }}</td>
+          <td class="px-3 py-2">{{ g.count }}</td>
+          <td class="px-3 py-2">
+            {% if g.last_status in ['rejected','ack_error','error'] %}
+              <span class="inline-flex items-center rounded-full bg-red-50 text-red-700 border border-red-200 px-2 py-0.5">{{ g.last_status }}</span>
+            {% else %}
+              {{ g.last_status }}
+            {% endif %}
+          </td>
+          <td class="px-3 py-2">{{ g.last_type or '-' }}</td>
+          <td class="px-3 py-2 text-slate-600">{{ g.last_ack_excerpt or '' }}</td>
+          <td class="px-3 py-2 text-right">
+            <a class="text-blue-600 hover:underline" href="/messages/{{ g.last_message_id }}">voir</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -255,6 +255,12 @@ class FormManager {
     }
 
     async handleSubmit(event) {
+        // Skip forms with data-no-ajax - let them submit normally
+        if (this.form.hasAttribute('data-no-ajax')) {
+            console.debug('Form has data-no-ajax, allowing normal submission');
+            return; // Don't prevent default, let browser submit normally
+        }
+        
         event.preventDefault();
         console.debug('FormManager.handleSubmit called for', this.form.action, this.form.method);
         
@@ -543,6 +549,11 @@ const StateTransitionManager = {
 // Initialisation automatique
 function initializeForms() {
     document.querySelectorAll('form').forEach(form => {
+        // Skip forms with data-no-ajax attribute (e.g., filter forms that should use GET)
+        if (form.hasAttribute('data-no-ajax')) {
+            return; // Don't initialize FormManager for these forms
+        }
+        
         // Créer une instance de FormManager pour chaque formulaire
     const manager = new FormManager(form);
     form.manager = manager; // Stocker la référence pour un accès facile
@@ -574,6 +585,12 @@ if (document.readyState === 'loading') {
 document.addEventListener('submit', function (e) {
     const form = e.target;
     if (!form) return;
+    
+    // Skip forms with data-no-ajax attribute (e.g., filter forms that should use GET)
+    if (form.hasAttribute('data-no-ajax')) {
+        return; // Let the form submit normally
+    }
+    
     // If a manager already exists, let it handle the event
     if (form.manager) return;
 

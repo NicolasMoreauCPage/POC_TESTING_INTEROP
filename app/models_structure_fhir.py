@@ -24,7 +24,7 @@ class GHTContext(SQLModel, table=True):
     endpoints: List["SystemEndpoint"] = Relationship(back_populates="ght_context")
 
 class IdentifierNamespace(SQLModel, table=True):
-    """Espace de noms pour les identifiants au sein d'un GHT"""
+    """Espace de noms pour les identifiants au sein d'un GHT ou d'une EJ"""
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str  # Nom descriptif (ex: "IPP EJ Principal")
     system: str  # URI de l'espace de noms (ex: "urn:oid:1.2.250.1.71.1.2.2")
@@ -36,6 +36,10 @@ class IdentifierNamespace(SQLModel, table=True):
     # Relations
     ght_context_id: int = Field(foreign_key="ghtcontext.id")
     ght_context: GHTContext = Relationship(back_populates="namespaces")
+    
+    # Namespace peut être lié à une EJ spécifique (IPP, NDA, etc.) ou au niveau GHT (structure)
+    entite_juridique_id: Optional[int] = Field(default=None, foreign_key="entitejuridique.id")
+    entite_juridique: Optional["EntiteJuridique"] = Relationship(back_populates="namespaces")
 
 class EntiteJuridique(SQLModel, table=True):
     """Structure juridique (ES_JURIDIQUE) - niveau 1"""
@@ -69,6 +73,7 @@ class EntiteJuridique(SQLModel, table=True):
     ght_context: GHTContext = Relationship(back_populates="entites_juridiques")
     entites_geographiques: List["EntiteGeographique"] = Relationship(back_populates="entite_juridique")
     endpoints: List["SystemEndpoint"] = Relationship(back_populates="entite_juridique")
+    namespaces: List["IdentifierNamespace"] = Relationship(back_populates="entite_juridique")
 
 class EntiteGeographique(SQLModel, table=True):
     """Structure géographique (ES_GEOGRAPHIQUE) - niveau 2"""

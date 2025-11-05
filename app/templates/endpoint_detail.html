@@ -1,41 +1,195 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block content %}
-<h1>Endpoint #{{ e.id }} — {{ e.name }}</h1>
-
-<form method="post" action="/endpoints/{{ e.id }}/update" class="box">
-  <div class="grid" style="grid-template-columns: repeat(2, minmax(280px, 1fr)); gap: 1rem;">
-    <label>Nom <input name="name" value="{{ e.name }}" required></label>
-    <label>Type (MLLP|FHIR) <input name="kind" value="{{ e.kind }}" required></label>
-    <label>Rôle (sender|receiver|both) <input name="role" value="{{ e.role }}" required></label>
-    <label>Actif (true/false) <input name="is_enabled" value="{{ 'true' if e.is_enabled else 'false' }}"></label>
-
-    <label>Host (MLLP) <input name="host" value="{{ e.host or '' }}"></label>
-    <label>Port (MLLP) <input type="number" name="port" value="{{ e.port or '' }}"></label>
-
-    <label>Sending App (MSH-3) <input name="sending_app" value="{{ e.sending_app or '' }}"></label>
-    <label>Sending Facility (MSH-4) <input name="sending_facility" value="{{ e.sending_facility or '' }}"></label>
-    <label>Receiving App (MSH-5) <input name="receiving_app" value="{{ e.receiving_app or '' }}"></label>
-    <label>Receiving Facility (MSH-6) <input name="receiving_facility" value="{{ e.receiving_facility or '' }}"></label>
-
-    <label>FHIR base URL <input name="base_url" value="{{ e.base_url or '' }}"></label>
-    <label>Auth kind (none|bearer) <input name="auth_kind" value="{{ e.auth_kind or '' }}"></label>
-    <label>Auth token <input name="auth_token" value="{{ e.auth_token or '' }}"></label>
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-slate-800">Endpoint #{{ e.id }}  {{ e.name }}</h1>
+      <p class="text-slate-500 text-sm">Gérez la configuration et le rattachement de ce système.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm {{ 'bg-emerald-50 text-emerald-700' if is_running else 'bg-slate-100 text-slate-700' }}">
+        <span class="w-2 h-2 rounded-full {{ 'bg-emerald-500' if is_running else 'bg-slate-400' }}"></span>
+        {{ 'RUNNING' if is_running else 'STOPPED' }}
+      </span>
+      {% if e.kind == 'FILE' %}
+        <span class="text-xs text-slate-500 italic">(Polling automatique)</span>
+      {% else %}
+        <form method="post" action="/endpoints/{{ e.id }}/restart"><button type="submit" class="rounded-lg border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50">Redémarrer</button></form>
+      {% endif %}
+    </div>
   </div>
 
-  <div style="margin-top:1rem; display:flex; gap:.5rem;">
-    <button type="submit">Enregistrer</button>
-    <a href="/endpoints" class="btn">Retour</a>
-  </div>
-</form>
+  {% if error %}
+    <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error }}</div>
+  {% endif %}
 
-<div class="box" style="display:flex; gap:.5rem; align-items:center;">
-  <div>Runtime:&nbsp;
-    {% if is_running %}<span class="badge success">RUNNING</span>
-    {% else %}<span class="badge">STOPPED</span>{% endif %}
-  </div>
-  <form method="post" action="/endpoints/{{ e.id }}/start"><button type="submit" {% if is_running %}disabled{% endif %}>Start</button></form>
-  <form method="post" action="/endpoints/{{ e.id }}/stop"><button type="submit" {% if not is_running %}disabled{% endif %}>Stop</button></form>
-  <form method="post" action="/endpoints/{{ e.id }}/restart"><button type="submit">Restart</button></form>
-  <form method="post" action="/endpoints/{{ e.id }}/delete" onsubmit="return confirm('Supprimer cet endpoint ?');"><button type="submit" class="danger">Supprimer</button></form>
+  <form method="post" action="/endpoints/{{ e.id }}/update" class="bg-white rounded-xl border border-slate-200 p-4 md:p-6 space-y-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Nom</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" name="name" value="{{ e.name }}" required>
+      </div>
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Actif</label>
+        <select class="w-full rounded-lg border border-slate-300 px-3 py-2" name="is_enabled">
+          <option value="true" {% if e.is_enabled %}selected{% endif %}>Oui</option>
+          <option value="false" {% if not e.is_enabled %}selected{% endif %}>Non</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Type</label>
+        <select class="w-full rounded-lg border border-slate-300 px-3 py-2" name="kind" required>
+          {% set kinds = ['MLLP','FHIR','FILE'] %}
+          {% for k in kinds %}
+          <option value="{{ k }}" {% if e.kind==k %}selected{% endif %}>{{ k }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Rôle</label>
+        <select class="w-full rounded-lg border border-slate-300 px-3 py-2" name="role" required>
+          {% set roles = ['sender','receiver','both'] %}
+          {% for r in roles %}
+          <option value="{{ r }}" {% if e.role==r %}selected{% endif %}>{{ r }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">GHT Context</label>
+        <select class="w-full rounded-lg border border-slate-300 px-3 py-2" name="ght_context_id" id="ght_select">
+          <option value="">(Aucun)</option>
+          {% for ght in ghts %}
+          <option value="{{ ght.id }}" {% if e.ght_context_id == ght.id %}selected{% endif %}>{{ ght.name }}</option>
+          {% endfor %}
+        </select>
+        <p class="text-xs text-slate-500 mt-1">Obligatoire pour endpoints structure (MFN)</p>
+      </div>
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Établissement Juridique</label>
+        <select class="w-full rounded-lg border border-slate-300 px-3 py-2" name="entite_juridique_id" id="ej_select">
+          <option value="">(Aucun)</option>
+          {% for ej in ejs %}
+          <option value="{{ ej.id }}" data-ght="{{ ej.ght_context_id }}" {% if e.entite_juridique_id == ej.id %}selected{% endif %}>{{ ej.name }} ({{ ej.finess_ej }})</option>
+          {% endfor %}
+        </select>
+        <p class="text-xs text-slate-500 mt-1">Obligatoire pour endpoints identité/mouvements (ADT)</p>
+      </div>
+
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Host (MLLP)</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" name="host" value="{{ e.host or '' }}">
+      </div>
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Port (MLLP)</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" type="number" name="port" value="{{ e.port or '' }}">
+      </div>
+
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Sending App (MSH-3)</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" name="sending_app" value="{{ e.sending_app or '' }}">
+      </div>
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Sending Facility (MSH-4)</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" name="sending_facility" value="{{ e.sending_facility or '' }}">
+      </div>
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Receiving App (MSH-5)</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" name="receiving_app" value="{{ e.receiving_app or '' }}">
+      </div>
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Receiving Facility (MSH-6)</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" name="receiving_facility" value="{{ e.receiving_facility or '' }}">
+      </div>
+
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">FHIR base URL</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" name="base_url" value="{{ e.base_url or '' }}">
+      </div>
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Auth kind</label>
+        <select class="w-full rounded-lg border border-slate-300 px-3 py-2" name="auth_kind">
+          {% set auths = ['none','bearer'] %}
+          {% for a in auths %}
+          <option value="{{ a }}" {% if e.auth_kind==a %}selected{% endif %}>{{ a }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-sm text-slate-600 mb-1">Auth token</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" name="auth_token" value="{{ e.auth_token or '' }}">
+      </div>
+
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Inbox Path (FILE)</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" name="inbox_path" value="{{ e.inbox_path or '' }}">
+      </div>
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Outbox Path (FILE)</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" name="outbox_path" value="{{ e.outbox_path or '' }}">
+      </div>
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Archive Path (FILE)</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" name="archive_path" value="{{ e.archive_path or '' }}">
+      </div>
+      <div>
+        <label class="block text-sm text-slate-600 mb-1">Error Path (FILE)</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" name="error_path" value="{{ e.error_path or '' }}">
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-sm text-slate-600 mb-1">File Extensions (FILE)</label>
+        <input class="w-full rounded-lg border border-slate-300 px-3 py-2" name="file_extensions" value="{{ e.file_extensions or '' }}" placeholder=".hl7,.txt">
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between pt-2">
+      <div class="flex gap-3">
+        <button type="submit" class="btn btn-primary rounded-lg bg-blue-600 text-white px-4 py-2 hover:bg-blue-700">Enregistrer</button>
+        <a href="/endpoints" class="btn btn-secondary rounded-lg border border-slate-200 px-4 py-2 hover:bg-slate-50">Retour</a>
+      </div>
+      <div class="flex gap-2">
+        {% if e.kind != 'FILE' %}
+          <form method="post" action="/endpoints/{{ e.id }}/start"><button type="submit" class="rounded-lg border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50" {% if is_running %}disabled{% endif %}>Démarrer</button></form>
+          <form method="post" action="/endpoints/{{ e.id }}/stop"><button type="submit" class="rounded-lg border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50" {% if not is_running %}disabled{% endif %}>Arrêter</button></form>
+        {% endif %}
+        <form method="post" action="/endpoints/{{ e.id }}/delete" onsubmit="return confirm('Supprimer cet endpoint ?');"><button type="submit" class="rounded-lg border border-red-300 text-red-600 px-3 py-1 text-sm hover:bg-red-50">Supprimer</button></form>
+      </div>
+    </div>
+  </form>
+
+  <script>
+  (function(){
+    try {
+      const ghtSel = document.getElementById('ght_select');
+      const ejSel = document.getElementById('ej_select');
+      if (!ghtSel || !ejSel) return;
+      const filterEJ = () => {
+        const ght = ghtSel.value;
+        const opts = Array.from(ejSel.options);
+        let keep = false;
+        opts.forEach(opt => {
+          if (!opt.value) return;
+          const ok = !ght || (String(opt.dataset.ght||'') === String(ght));
+          opt.hidden = !ok;
+          if (!ok && opt.selected) opt.selected = false;
+          if (ok && opt.selected) keep = true;
+        });
+        if (!keep && ejSel.selectedIndex > 0) ejSel.value = '';
+      };
+      const syncGHTfromEJ = () => {
+        try {
+          if (ghtSel.value) return;
+          const sel = ejSel.options[ejSel.selectedIndex];
+          const g = sel ? sel.dataset.ght : '';
+          if (g) ghtSel.value = String(g);
+        } catch(_) {}
+      };
+      ghtSel.addEventListener('change', filterEJ);
+      ejSel.addEventListener('change', syncGHTfromEJ);
+      syncGHTfromEJ();
+      filterEJ();
+    } catch(e) { console && console.warn && console.warn('filterEJ init failed', e); }
+  })();
+  </script>
 </div>
 {% endblock %}

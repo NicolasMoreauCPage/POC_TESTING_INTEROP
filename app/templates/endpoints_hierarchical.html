@@ -1,56 +1,7 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 20px;
-            background: #f5f5f5;
-        }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-        .actions {
-            margin-bottom: 20px;
-            display: flex;
-            gap: 10px;
-        }
-        .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 14px;
-        }
-        .btn-primary {
-            background: #007bff;
-            color: white;
-        }
-        .btn-primary:hover {
-            background: #0056b3;
-        }
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-        .btn-secondary:hover {
-            background: #545b62;
-        }
-        
+{% extends "base.html" %}
+
+{% block content %}
+<style>
         /* Hierarchical structure */
         .ght-group {
             margin-bottom: 30px;
@@ -174,19 +125,35 @@
             font-style: italic;
         }
     </style>
-</head>
-<body>
-    <div class="container">
-        <h1>{{ title }}</h1>
-        
-        <div class="actions">
-            <a href="{{ new_url }}" class="btn btn-primary">Nouveau système</a>
-            <a href="/" class="btn btn-secondary">Retour</a>
+
+<div class="container mx-auto px-4 py-8">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-3xl font-bold text-slate-800">{{ title }}</h1>
+            <div class="flex gap-3">
+                <a href="{{ new_url }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Nouveau système
+                </a>
+                <a href="/" class="inline-flex items-center px-4 py-2 bg-slate-600 text-white text-sm rounded-lg hover:bg-slate-700">Retour</a>
+            </div>
         </div>
         
+        {% if is_filtered %}
+        <div class="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-6">
+            <strong>ℹ️ Mode filtré</strong> : Vous ne voyez que les endpoints du contexte actif.
+            <a href="/endpoints/admin" class="text-blue-600 hover:text-blue-800 underline ml-3">Voir tous les endpoints (mode administration)</a>
+        </div>
+        {% elif is_admin %}
+        <div class="bg-cyan-50 border border-cyan-300 rounded-lg p-4 mb-6">
+            <strong>🔧 Mode administration</strong> : Vous voyez tous les endpoints du système, sans filtrage.
+        </div>
+        {% endif %}
+        
         {% if not hierarchy %}
-        <div class="empty-message">
-            Aucun système configuré. Créez votre premier système ci-dessus.
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-12 text-center">
+            <p class="text-slate-600 text-lg">Aucun système configuré. Créez votre premier système ci-dessus.</p>
         </div>
         {% endif %}
         
@@ -329,5 +296,5 @@
             {% endif %}
         {% endfor %}
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

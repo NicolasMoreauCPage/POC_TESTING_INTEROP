@@ -22,7 +22,7 @@ from fastapi.responses import RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.db import get_session
-from app.models_structure_fhir import GHTContext
+from app.models_structure_fhir import GHTContext, EntiteJuridique
 from app.models import Patient, Dossier
 import os
 
@@ -57,6 +57,21 @@ async def get_active_patient_context(request: Request) -> Optional[Patient]:
             session = next(get_session())
             try:
                 return session.get(Patient, patient_id)
+            finally:
+                session.close()
+    except Exception:
+        pass
+    return None
+
+
+async def get_active_ej_context(request: Request) -> Optional[EntiteJuridique]:
+    """Récupère l'établissement juridique courant depuis la session et le charge si possible."""
+    try:
+        ej_id = request.session.get("ej_context_id")
+        if ej_id:
+            session = next(get_session())
+            try:
+                return session.get(EntiteJuridique, ej_id)
             finally:
                 session.close()
     except Exception:
@@ -108,6 +123,11 @@ class GHTContextMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Ajouter le contexte GHT aux attributs de la requête
         request.state.ght_context = await get_active_ght_context(request)
+        # Ajouter le contexte EJ si présent
+        request.state.ej_context = await get_active_ej_context(request)
+        # Si aucun GHT n'est défini mais qu'un EJ est sélectionné, déduire le GHT depuis l'EJ
+        if not request.state.ght_context and request.state.ej_context and getattr(request.state.ej_context, "ght_context", None):
+            request.state.ght_context = request.state.ej_context.ght_context
         # Ajouter les contextes Patient/Dossier si présents
         request.state.patient_context = await get_active_patient_context(request)
         request.state.dossier_context = await get_active_dossier_context(request)

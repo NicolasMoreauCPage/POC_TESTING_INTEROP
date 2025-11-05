@@ -22,6 +22,9 @@ class MessageLog(SQLModel, table=True):
     payload: str                            # Message brut
     ack_payload: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    # PAM validation outcome
+    pam_validation_status: Optional[str] = None  # ok|warn|fail
+    pam_validation_issues: Optional[str] = None  # JSON-encoded array of issues
 
 # Enums pour modèles partagés
 class EndpointRole(str):
@@ -84,3 +87,8 @@ class SystemEndpoint(SQLModel, table=True):
     # Optional: force specific identifier system when emitting
     forced_identifier_system: Optional[str] = None
     forced_identifier_oid: Optional[str] = None
+
+    # IHE PAM validation configuration (for receivers)
+    pam_validate_enabled: bool = Field(default=False)
+    pam_validate_mode: Optional[str] = Field(default="warn")  # warn|reject
+    pam_profile: Optional[str] = Field(default="IHE_PAM_FR")

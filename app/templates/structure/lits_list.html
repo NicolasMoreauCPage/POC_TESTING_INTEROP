@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Lits{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
+  <div class="sm:flex sm:items-center sm:justify-between">
+    <div class="sm:flex-auto">
+      <h1 class="text-xl font-semibold text-slate-900">Lits</h1>
+      <p class="mt-2 text-sm text-slate-600">Liste des lits de l'établissement.</p>
+    </div>
+  </div>
+
+  <div class="grid gap-4 sm:grid-cols-3">
+    <div>
+      <label for="chambre_filter" class="block text-sm font-medium text-slate-700">Chambre</label>
+      <select id="chambre_filter" name="chambre_filter" onchange="applyFilters()"
+        class="mt-1 block w-full rounded-md border-slate-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+        <option value="">Toutes les chambres</option>
+        {% for chambre in chambres %}
+        <option value="{{ chambre.id }}" {% if selected_chambre_id == chambre.id %}selected{% endif %}>
+          {{ chambre.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="status_filter" class="block text-sm font-medium text-slate-700">Statut</label>
+      <select id="status_filter" name="status_filter" onchange="applyFilters()"
+        class="mt-1 block w-full rounded-md border-slate-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
+        <option value="">Tous les statuts</option>
+        {% for status in statuses %}
+        <option value="{{ status.value }}" {% if selected_status == status.value %}selected{% endif %}>
+          {{ status.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="text_filter" class="block text-sm font-medium text-slate-700">Recherche</label>
+      <input type="search" id="text_filter" name="text_filter" value="{{ search_term or '' }}"
+        placeholder="Nom ou identifiant"
+        class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();applyFilters();}">
+    </div>
+  </div>
+
+  <div class="-mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
+    <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+      <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+        <table class="min-w-full divide-y divide-slate-200">
+          <thead class="bg-slate-50">
+            <tr>
+              <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-900 sm:pl-6">Lit</th>
+              <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-slate-900">Chambre</th>
+              <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-slate-900">Statut</th>
+              <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-slate-900">État opérationnel</th>
+              <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                <span class="sr-only">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200 bg-white">
+            {% for lit in lits %}
+            <tr>
+              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6">
+                <div class="flex flex-col">
+                  <span>{{ lit.name }}</span>
+                  <span class="text-xs text-slate-500">{{ lit.identifier }}</span>
+                </div>
+              </td>
+              <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-500">
+                {{ chambre_map.get(lit.chambre_id, "—") }}
+              </td>
+              <td class="whitespace-nowrap px-3 py-4 text-sm">
+                <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 {{ 'bg-emerald-100 text-emerald-800' if lit.status == 'active' else 'bg-amber-100 text-amber-800' }}">
+                  {{ lit.status }}
+                </span>
+              </td>
+              <td class="whitespace-nowrap px-3 py-4 text-sm text-slate-500">
+                {{ lit.operational_status or "—" }}
+              </td>
+              <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                <a href="#" class="text-indigo-600 hover:text-indigo-900">Modifier</a>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="py-10 text-center text-sm text-slate-500">
+                Aucun lit trouvé.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function applyFilters() {
+  const chambreId = document.getElementById('chambre_filter').value;
+  const status = document.getElementById('status_filter').value;
+  const searchTerm = document.getElementById('text_filter').value.trim();
+
+  const params = new URLSearchParams();
+  if (chambreId) params.append('chambre_id', chambreId);
+  if (status) params.append('status', status);
+  if (searchTerm) params.append('q', searchTerm);
+
+  const query = params.toString();
+  window.location.href = query ? `/structure/lits?${query}` : '/structure/lits';
+}
+</script>
+{% endblock %}

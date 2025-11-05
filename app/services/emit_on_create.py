@@ -10,9 +10,16 @@ from app.models_identifiers import Identifier, IdentifierType
 from app.services.fhir import generate_fhir_bundle_for_dossier
 from app.services.fhir_transport import post_fhir_bundle as send_fhir
 from app.services.mllp import send_mllp
+from app.services.pam_validation import validate_pam
+import json
 
 
-def build_pid3_identifiers(patient: Patient, session: Session, forced_system: str = None) -> str:
+def build_pid3_identifiers(
+    patient: Patient,
+    session: Session,
+    forced_system: str | None = None,
+    forced_oid: str | None = None,
+) -> str:
     """
     Construit PID-3 avec TOUS les identifiants du patient (répétitions avec ~).
     
@@ -35,12 +42,17 @@ def build_pid3_identifiers(patient: Patient, session: Session, forced_system: st
     Exemple:
         "1001^^^HOSP^PI~EXT123^^^EXTERNAL_SYS^PI~1234567890123^^^INS-NIR^NH"
     """
+    def _auth(system: str | None, oid: str | None) -> str:
+        system = (system or "").strip()
+        oid = (oid or "").strip()
+        return f"{system}&{oid}&ISO" if system and oid else system
+
     identifiers = []
     
     # 1. IPP (patient_seq) - TOUJOURS en premier si présent
     if patient.patient_seq:
         system = forced_system or "HOSP"
-        identifiers.append(f"{patient.patient_seq}^^^{system}^PI")
+        identifiers.append(f"{patient.patient_seq}^^^{_auth(system, forced_oid)}^PI")
     
     # 2. External ID si présent - chercher dans Identifier pour avoir system/oid
     if patient.external_id:
@@ -53,11 +65,13 @@ def build_pid3_identifiers(patient: Patient, session: Session, forced_system: st
         ).first()
         
         if ext_ident:
-            # Utiliser system/oid de l'Identifier
-            identifiers.append(f"{ext_ident.value}^^^{ext_ident.system}^{ext_ident.type}")
+            # Utiliser system/oid/type de l'Identifier
+            identifiers.append(
+                f"{ext_ident.value}^^^{_auth(ext_ident.system, ext_ident.oid)}^{getattr(ext_ident.type, 'value', ext_ident.type)}"
+            )
         else:
             # Fallback: external_id sans système connu
-            identifiers.append(f"{patient.external_id}^^^EXTERNAL^PI")
+            identifiers.append(f"{patient.external_id}^^^{_auth('EXTERNAL', None)}^PI")
     
     # 3. NIR (Sécurité sociale) si présent
     if patient.nir:
@@ -84,7 +98,9 @@ def build_pid3_identifiers(patient: Patient, session: Session, forced_system: st
         if ident.status == "active" and ident.value not in already_added_values:
             # Format: value^^^system^type
             # Si OID présent, on pourrait l'ajouter: value^^^system&OID&ISO^type
-            identifiers.append(f"{ident.value}^^^{ident.system}^{ident.type}")
+            identifiers.append(
+                f"{ident.value}^^^{_auth(ident.system, ident.oid)}^{getattr(ident.type, 'value', ident.type)}"
+            )
             already_added_values.add(ident.value)
     
     # Joindre avec ~ (répétition HL7)
@@ -120,7 +136,12 @@ def generate_pam_hl7(
         
         # PID segment - avec identifiants multiples et PID-32
         # PID-3: Identifiants patient (répétitions ~)
-        pid3 = build_pid3_identifiers(entity, session, forced_identifier_oid or forced_identifier_system)
+        pid3 = build_pid3_identifiers(
+            entity,
+            session,
+            forced_system=forced_identifier_system,
+            forced_oid=forced_identifier_oid,
+        )
         
         # PID-5: Noms du patient (XPN, multi-valué)
         # Répétition 1 : nom usuel, Répétition 2 : nom de naissance (si différent)
@@ -148,24 +169,30 @@ def generate_pam_hl7(
         # PID-11: Adresses du patient (XAD, multi-valué)
         addresses = []
         # Adresse d'habitation
+        # XAD components: street^other^city^state^zip^country^type
+        # HL7 Table 0190 for type (H=Home, B=Business, M=Mailing, P=Permanent...).
+        # We set main address as Home (H).
         addr1 = [
             getattr(entity, "address", "") or "",
             "",  # other designation
             getattr(entity, "city", "") or "",
             getattr(entity, "state", "") or "",
             getattr(entity, "postal_code", "") or "",
-            getattr(entity, "country", "") or ""
+            getattr(entity, "country", "") or "",
+            "H",  # address type
         ]
         addresses.append("^".join(addr1))
         # Adresse de naissance (si présente)
         if getattr(entity, "birth_address", None) or getattr(entity, "birth_city", None):
+            # Not a standard HL7 address type exists for "birth"; use a custom mnemonic BIR.
             addr2 = [
                 getattr(entity, "birth_address", "") or "",
                 "",  # other designation
                 getattr(entity, "birth_city", "") or "",
                 getattr(entity, "birth_state", "") or "",
                 getattr(entity, "birth_postal_code", "") or "",
-                getattr(entity, "birth_country", "") or ""
+                getattr(entity, "birth_country", "") or "",
+                "BIR",  # custom type for birth address
             ]
             addresses.append("^".join(addr2))
         # TODO: Ajouter d'autres adresses si besoin
@@ -206,7 +233,8 @@ def generate_pam_hl7(
         
     if entity_type == "dossier":
         # ADT^A01 (Admit patient) - new admission created
-        assigning = forced_identifier_oid or forced_identifier_system or "HOSP"
+        assigning_system = forced_identifier_system or "HOSP"
+        assigning_oid = forced_identifier_oid
         
         # Get patient info
         patient = entity.patient if hasattr(entity, 'patient') else None
@@ -223,7 +251,8 @@ def generate_pam_hl7(
             birth_date = ""
             gender = ""
         
-        pid3 = f"{patient_id}^^^{assigning}^PI"
+        authority = f"{assigning_system}&{assigning_oid}&ISO" if assigning_oid else assigning_system
+        pid3 = f"{patient_id}^^^{authority}^PI"
         
         # Build timestamp
         admit_time = entity.admit_time.strftime("%Y%m%d%H%M%S") if entity.admit_time else ""
@@ -243,7 +272,7 @@ def generate_pam_hl7(
         location = entity.uf_responsabilite or ""
         pv1 = f"PV1|1|{patient_class}|{location}|||||||||||||{control_id}|||||||||||||||||||{location}||||||{admit_time}"
         
-        return "\r".join([msh, evn, pid, pv1])
+    return "\r".join([msh, evn, pid, pv1])
     if entity_type == "venue":
         return (
             f"MSH|^~\\&|POC|HOSP|EXT|HOSP|{entity.start_time or ''}||Z99^Z99|{entity.id}|P|2.5\n"
@@ -271,16 +300,22 @@ def generate_pam_hl7(
         
         # Build PID segment if we have patient info
         if patient:
-            assigning = forced_identifier_oid or forced_identifier_system or "HOSP"
+            assigning_system = forced_identifier_system or "HOSP"
+            assigning_oid = forced_identifier_oid
             patient_id = patient.identifier or patient.external_id or str(patient.id)
-            pid3 = f"{patient_id}^^^{assigning}^PI"
+            authority = f"{assigning_system}&{assigning_oid}&ISO" if assigning_oid else assigning_system
+            pid3 = f"{patient_id}^^^{authority}^PI"
             family = patient.family or ""
             given = patient.given or ""
             birth_date = patient.birth_date or ""
             gender = patient.gender or ""
             pid = f"PID|1||{pid3}||{family}^{given}||{birth_date}|{gender}"
         else:
-            pid = f"PID|1||UNKNOWN^^^{forced_identifier_oid or 'HOSP'}^PI||UNKNOWN^UNKNOWN||||"
+            # If only OID is provided without system, fallback to HOSP system
+            authority = (
+                f"HOSP&{forced_identifier_oid}&ISO" if forced_identifier_oid else "HOSP"
+            )
+            pid = f"PID|1||UNKNOWN^^^{authority}^PI||UNKNOWN^UNKNOWN||||"
         
         # Build PV1 segment
         patient_class = "I"  # Inpatient by default
@@ -443,6 +478,14 @@ async def emit_to_senders_async(
         if endpoint.kind == "MLLP":
             status = "generated"
             ack_payload = ""
+            # Run PAM validation for outbound HL7 and store on log
+            try:
+                val = validate_pam(hl7_message, direction="out")
+                pam_status = val.level
+                pam_issues = json.dumps([i.__dict__ for i in val.issues], ensure_ascii=False)
+            except Exception:
+                pam_status = "warn"
+                pam_issues = json.dumps([{"code": "VALIDATOR_ERROR", "message": "Erreur interne du validateur", "severity": "warn"}], ensure_ascii=False)
             try:
                 if not endpoint.host or not endpoint.port:
                     raise ValueError("Endpoint MLLP host/port non configuré")
@@ -459,6 +502,8 @@ async def emit_to_senders_async(
                     payload=hl7_message,
                     ack_payload=ack_payload or "",
                     status=status,
+                    pam_validation_status=pam_status,
+                    pam_validation_issues=pam_issues,
                 )
             )
             continue
@@ -507,6 +552,14 @@ async def emit_to_senders_async(
     if not endpoints:
         # No sender configured: store generated payloads for audit trail.
         hl7_message = generate_pam_hl7(entity, entity_type, session)
+        # Validate PAM for audit
+        try:
+            val = validate_pam(hl7_message, direction="out")
+            pam_status = val.level
+            pam_issues = json.dumps([i.__dict__ for i in val.issues], ensure_ascii=False)
+        except Exception:
+            pam_status = "warn"
+            pam_issues = json.dumps([{"code": "VALIDATOR_ERROR", "message": "Erreur interne du validateur", "severity": "warn"}], ensure_ascii=False)
         fhir_payload = generate_fhir(entity, entity_type, session)
         sent_logs.append(
             MessageLog(
@@ -516,6 +569,8 @@ async def emit_to_senders_async(
                 payload=hl7_message,
                 ack_payload="",
                 status="generated",
+                pam_validation_status=pam_status,
+                pam_validation_issues=pam_issues,
             )
         )
         sent_logs.append(

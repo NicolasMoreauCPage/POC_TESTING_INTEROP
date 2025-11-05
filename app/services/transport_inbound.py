@@ -22,6 +22,8 @@ from sqlmodel import Session, select
 
 from app.models_endpoints import MessageLog
 from app.services.mllp import parse_msh_fields, build_ack
+from app.services.pam_validation import validate_pam
+import json
 from app.models import Patient, Dossier, Venue, Mouvement
 from app.models_identifiers import Identifier, IdentifierType
 from app.db import get_next_sequence
@@ -588,6 +590,27 @@ async def on_message_inbound_async(msg: str, session, endpoint) -> str:
             )
             session.add(log)
 
+            # PAM validation (configurable per endpoint)
+            try:
+                val = validate_pam(msg, direction="in", profile=(getattr(endpoint, "pam_profile", None) or "IHE_PAM_FR"))
+                log.pam_validation_status = val.level
+                log.pam_validation_issues = json.dumps(val.to_dict().get("issues", []), ensure_ascii=False)
+                # Enforce rejection if configured and validation failed
+                if endpoint and getattr(endpoint, "pam_validate_enabled", False) and (getattr(endpoint, "pam_validate_mode", "warn") == "reject"):
+                    if val.level == "fail":
+                        log.status = "rejected"
+                        first_issue = (val.issues[0].message if val.issues else "Règles IHE PAM non respectées")
+                        ack = build_ack(msg, ack_code="AE", text=f"Validation IHE PAM échouée: {first_issue}")
+                        log.ack_payload = ack
+                        return ack
+            except Exception:
+                # Never block processing due to validator errors; log as warn-level issue
+                try:
+                    log.pam_validation_status = "warn"
+                    log.pam_validation_issues = json.dumps([{"code": "VALIDATOR_ERROR", "message": "Erreur interne du validateur", "severity": "warn"}], ensure_ascii=False)
+                except Exception:
+                    pass
+
             if trigger == "Z99":
                 try:
                     _handle_z99_updates(msg, session)
@@ -645,24 +668,28 @@ async def on_message_inbound_async(msg: str, session, endpoint) -> str:
                             if last_mouvement and hasattr(last_mouvement, 'trigger_event'):
                                 previous_event = last_mouvement.trigger_event
             
-            # Valider la transition (lève ValueError si invalide)
-            try:
-                assert_transition(previous_event, trigger)
-            except ValueError as ve:
-                # Transition invalide : rejeter avec ACK AE
-                log.status = "rejected"
-                error_text = str(ve)
-                ack = build_ack(msg, ack_code="AE", text=error_text)
-                log.ack_payload = ack
-                logger.warning(
-                    "Transition IHE PAM invalide rejetée",
-                    extra={
-                        "trigger": trigger,
-                        "previous_event": previous_event,
-                        "error": error_text
-                    }
-                )
-                return ack
+            # Valider la transition (lève ValueError si invalide),
+            # sauf pour les messages d'identité purs (A28/A31/A40/A47) qui
+            # ne font pas partie du workflow de venue IHE PAM.
+            identity_only_triggers = {"A28", "A31", "A40", "A47"}
+            if trigger not in identity_only_triggers:
+                try:
+                    assert_transition(previous_event, trigger)
+                except ValueError as ve:
+                    # Transition invalide : rejeter avec ACK AE
+                    log.status = "rejected"
+                    error_text = str(ve)
+                    ack = build_ack(msg, ack_code="AE", text=error_text)
+                    log.ack_payload = ack
+                    logger.warning(
+                        "Transition IHE PAM invalide rejetée",
+                        extra={
+                            "trigger": trigger,
+                            "previous_event": previous_event,
+                            "error": error_text
+                        }
+                    )
+                    return ack
             
             logger.info(
                 "Routing ADT message",

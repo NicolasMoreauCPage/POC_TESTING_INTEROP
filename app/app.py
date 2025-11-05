@@ -28,7 +28,7 @@ from app.middleware.ght_context import GHTContextMiddleware
 
 from app.db import init_db, engine, get_session
 from app.models import Patient, Dossier, Venue, Mouvement
-from app.models_structure_fhir import IdentifierNamespace
+from app.models_structure_fhir import IdentifierNamespace, GHTContext, EntiteJuridique
 from app.models_endpoints import SystemEndpoint, MessageLog
 from app import models_scenarios  # ensure scenario models are registered
 from app.models_structure import (
@@ -39,6 +39,7 @@ from app.db_session_factory import session_factory
 from app.services.transport_inbound import on_message_inbound
 from app.services.mllp_manager import MLLPManager
 from app.services.entity_events import register_entity_events
+from app.services.scheduler import start_scheduler, stop_scheduler
 
 from app.routers import (
     home, patients, dossiers, venues, mouvements, structure_hl7,
@@ -83,11 +84,18 @@ async def lifespan(app: FastAPI):
             await mllp_manager.reload_all(sess)
         finally:
             sess.close()
+        
+        # Démarrer le scheduler pour le polling des endpoints FILE
+        # Par défaut: 60 secondes (1 minute). Configurable via FILE_POLL_INTERVAL
+        poll_interval = int(os.getenv("FILE_POLL_INTERVAL", "60"))
+        await start_scheduler(poll_interval)
+        logging.info(f"File endpoint polling started (interval: {poll_interval}s)")
 
     try:
         yield
     finally:
         if not testing:
+            await stop_scheduler()
             await mllp_manager.stop_all()
 
 # Admin auto (CRUD) via SQLAdmin
@@ -115,7 +123,8 @@ class SystemEndpointAdmin(ModelView, model=SystemEndpoint):
     column_list = [
         SystemEndpoint.id, SystemEndpoint.name, SystemEndpoint.role,
         SystemEndpoint.is_enabled, SystemEndpoint.created_at,
-        SystemEndpoint.forced_identifier_system, SystemEndpoint.forced_identifier_oid
+        SystemEndpoint.forced_identifier_system, SystemEndpoint.forced_identifier_oid,
+        SystemEndpoint.pam_validate_enabled, SystemEndpoint.pam_validate_mode, SystemEndpoint.pam_profile
     ]
     column_searchable_list = [SystemEndpoint.name, SystemEndpoint.forced_identifier_system]
     column_sortable_list = [SystemEndpoint.id, SystemEndpoint.name, SystemEndpoint.is_enabled]
@@ -141,56 +150,91 @@ class NamespaceAdmin(ModelView, model=IdentifierNamespace):
     icon = "fa-solid fa-tag"
     column_list = [
         IdentifierNamespace.id, IdentifierNamespace.name, IdentifierNamespace.system, IdentifierNamespace.type,
-        IdentifierNamespace.is_active, IdentifierNamespace.ght_context_id
+        IdentifierNamespace.is_active, IdentifierNamespace.ght_context_id, IdentifierNamespace.entite_juridique_id
     ]
     column_searchable_list = [IdentifierNamespace.name, IdentifierNamespace.system, IdentifierNamespace.type]
     column_sortable_list = [IdentifierNamespace.id, IdentifierNamespace.name, IdentifierNamespace.is_active]
     can_delete = False
-    # Afficher payload / ack en lecture (onglets "Detail")
-    details_template = None  # on garde le template par défaut
+
+# Admin pour les contextes GHT et EJ
+class GHTContextAdmin(ModelView, model=GHTContext):
+    name = "Contexte GHT"
+    name_plural = "Contextes GHT"
+    icon = "fa-solid fa-network-wired"
+    column_list = [GHTContext.id, GHTContext.name, GHTContext.code, GHTContext.is_active, GHTContext.created_at]
+    column_searchable_list = [GHTContext.name, GHTContext.code]
+    column_sortable_list = [GHTContext.id, GHTContext.name, GHTContext.is_active]
+
+class EntiteJuridiqueAdmin(ModelView, model=EntiteJuridique):
+    name = "Entité Juridique"
+    name_plural = "Entités Juridiques"
+    icon = "fa-solid fa-building"
+    column_list = [
+        EntiteJuridique.id, EntiteJuridique.name, EntiteJuridique.finess_ej, 
+        EntiteJuridique.siren, EntiteJuridique.is_active, EntiteJuridique.ght_context_id
+    ]
+    column_searchable_list = [EntiteJuridique.name, EntiteJuridique.finess_ej, EntiteJuridique.siren]
+    column_sortable_list = [EntiteJuridique.id, EntiteJuridique.name, EntiteJuridique.is_active]
 
     # Admin pour la structure
 class EntiteGeographiqueAdmin(ModelView, model=EntiteGeographique):
     name = "Entité Géographique"
     name_plural = "Entités Géographiques"
     icon = "fa-solid fa-hospital"
-    column_list = [EntiteGeographique.id, EntiteGeographique.name, EntiteGeographique.finess]
+    column_list = [
+        EntiteGeographique.id, EntiteGeographique.name, EntiteGeographique.finess, 
+        EntiteGeographique.entite_juridique_id
+    ]
+    column_searchable_list = [EntiteGeographique.name, EntiteGeographique.finess]
+    column_sortable_list = [EntiteGeographique.id, EntiteGeographique.name]
 
 class PoleAdmin(ModelView, model=Pole):
     name = "Pôle"
     name_plural = "Pôles"
     icon = "fa-solid fa-sitemap"
-    column_list = [Pole.id, Pole.name, Pole.identifier]
+    column_list = [Pole.id, Pole.name, Pole.identifier, Pole.entite_geo_id]
+    column_searchable_list = [Pole.name, Pole.identifier]
+    column_sortable_list = [Pole.id, Pole.name]
 
 class ServiceAdmin(ModelView, model=Service):
     name = "Service"
     name_plural = "Services"
     icon = "fa-solid fa-building"
-    column_list = [Service.id, Service.name, Service.identifier, Service.service_type]
+    column_list = [Service.id, Service.name, Service.identifier, Service.service_type, Service.pole_id]
+    column_searchable_list = [Service.name, Service.identifier]
+    column_sortable_list = [Service.id, Service.name]
 
 class UniteFonctionnelleAdmin(ModelView, model=UniteFonctionnelle):
     name = "Unité Fonctionnelle"
     name_plural = "Unités Fonctionnelles"
     icon = "fa-solid fa-folder"
     column_list = [UniteFonctionnelle.id, UniteFonctionnelle.name, UniteFonctionnelle.identifier, UniteFonctionnelle.service_id]
+    column_searchable_list = [UniteFonctionnelle.name, UniteFonctionnelle.identifier]
+    column_sortable_list = [UniteFonctionnelle.id, UniteFonctionnelle.name]
 
 class UniteHebergementAdmin(ModelView, model=UniteHebergement):
     name = "Unité d'Hébergement"
     name_plural = "Unités d'Hébergement"
     icon = "fa-solid fa-bed"
-    column_list = [UniteHebergement.id, UniteHebergement.name, UniteHebergement.identifier]
+    column_list = [UniteHebergement.id, UniteHebergement.name, UniteHebergement.identifier, UniteHebergement.unite_fonctionnelle_id]
+    column_searchable_list = [UniteHebergement.name, UniteHebergement.identifier]
+    column_sortable_list = [UniteHebergement.id, UniteHebergement.name]
 
 class ChambreAdmin(ModelView, model=Chambre):
     name = "Chambre"
     name_plural = "Chambres"
     icon = "fa-solid fa-door-open"
-    column_list = [Chambre.id, Chambre.name, Chambre.identifier]
+    column_list = [Chambre.id, Chambre.name, Chambre.identifier, Chambre.unite_hebergement_id]
+    column_searchable_list = [Chambre.name, Chambre.identifier]
+    column_sortable_list = [Chambre.id, Chambre.name]
 
 class LitAdmin(ModelView, model=Lit):
     name = "Lit"
     name_plural = "Lits"
     icon = "fa-solid fa-bed"
-    column_list = [Lit.id, Lit.name, Lit.identifier, Lit.status, Lit.operational_status]
+    column_list = [Lit.id, Lit.name, Lit.identifier, Lit.status, Lit.operational_status, Lit.chambre_id]
+    column_searchable_list = [Lit.name, Lit.identifier]
+    column_sortable_list = [Lit.id, Lit.name]
 
 def create_app() -> FastAPI:
     app = FastAPI(
@@ -329,6 +373,10 @@ def create_app() -> FastAPI:
         # Mount SQLAdmin under /sqladmin to avoid conflict with our admin pages.
         admin = Admin(app, engine, base_url="/sqladmin")
 
+        # Contextes
+        admin.add_view(GHTContextAdmin)
+        admin.add_view(EntiteJuridiqueAdmin)
+        
         # Entités de base
         admin.add_view(PatientAdmin)
         admin.add_view(DossierAdmin)

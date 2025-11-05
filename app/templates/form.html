@@ -44,7 +44,12 @@
         {% set field_id = 'field_' ~ field.name %}
         {% set help_id = field_id ~ '_help' %}
         {% set error_id = field_id ~ '_error' %}
-        <div class="space-y-2">
+        {# If a field is marked hidden, render only a hidden input with its value #}
+        {% if field.hidden %}
+          <input type="hidden" name="{{ field.name }}" value="{{ field.value or '' }}" />
+          {# Also optionally show a compact read-only hint if requested later #}
+          {% else %}
+            <div class="space-y-2">
           <label for="{{ field_id }}" class="block text-sm text-slate-600 dark:text-slate-300">
             <span>{{ field.label or field.name }}</span>
             {% if field.required or field.name in ['family','given'] %}
@@ -122,6 +127,7 @@
             </p>
           {% endif %}
         </div>
+          {% endif %}
       {% endfor %}
     </div>
 
