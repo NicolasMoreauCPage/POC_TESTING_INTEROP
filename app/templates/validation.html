@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white px-6 py-4">
+            <h1 class="text-2xl font-bold">Validation Messages HL7 v2.5</h1>
+            <p class="text-blue-100 mt-1">Validez vos messages HL7 hors contexte GHT</p>
+        </div>
+
+        <!-- Formulaire de validation -->
+        <div class="p-6">
+            <form method="post" action="/validation/validate" class="space-y-4">
+                <!-- Textarea pour le message -->
+                <div>
+                    <label for="hl7_message" class="block text-sm font-medium text-gray-700 mb-2">
+                        Message HL7 v2.5
+                        <span class="text-gray-500 text-xs ml-2">(Collez votre message ici)</span>
+                    </label>
+                    <textarea 
+                        id="hl7_message" 
+                        name="hl7_message" 
+                        rows="12" 
+                        required
+                        placeholder="MSH|^~\&|SendingApp|SendFac|ReceivingApp|RecvFac|20240101120000||ADT^A01^ADT_A01|MSG001|P|2.5
+EVN|A01|20240101120000
+PID|1||123456^^^HOSP||DOE^JOHN||19800101
+PV1|1|I|WARD^101^A|||DOC123^SMITH^JANE"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                    >{% if hl7_message %}{{ hl7_message }}{% endif %}</textarea>
+                </div>
+
+                <!-- Options de validation -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="direction" class="block text-sm font-medium text-gray-700 mb-2">
+                            Direction
+                        </label>
+                        <select 
+                            id="direction" 
+                            name="direction"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <option value="inbound" {% if direction == "inbound" %}selected{% endif %}>Inbound (réception)</option>
+                            <option value="outbound" {% if direction == "outbound" %}selected{% endif %}>Outbound (émission)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="profile" class="block text-sm font-medium text-gray-700 mb-2">
+                            Profil de validation
+                        </label>
+                        <select 
+                            id="profile" 
+                            name="profile"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <option value="IHE_PAM_FR" {% if profile == "IHE_PAM_FR" %}selected{% endif %}>IHE PAM France</option>
+                            <option value="IHE_PAM" {% if profile == "IHE_PAM" %}selected{% endif %}>IHE PAM International</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Bouton de validation -->
+                <div class="flex justify-end">
+                    <button 
+                        type="submit"
+                        class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                    >
+                        <svg class="inline-block w-5 h-5 mr-2 -mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Valider le message
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {% if validation_done %}
+        <!-- Résultats de validation -->
+        <div class="border-t border-gray-200 px-6 py-6 bg-gray-50">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Résultats de la validation</h2>
+
+            <!-- Résumé global -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <!-- Statut global -->
+                <div class="bg-white rounded-lg shadow p-4 border-l-4 {% if result.level == 'ok' %}border-green-500{% elif result.level == 'warn' %}border-yellow-500{% else %}border-red-500{% endif %}">
+                    <div class="text-sm font-medium text-gray-600">Statut</div>
+                    <div class="text-2xl font-bold {% if result.level == 'ok' %}text-green-600{% elif result.level == 'warn' %}text-yellow-600{% else %}text-red-600{% endif %}">
+                        {% if result.level == 'ok' %}✓ OK{% elif result.level == 'warn' %}⚠ Warning{% else %}✗ Fail{% endif %}
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">
+                        {% if result.is_valid %}Message valide{% else %}Message invalide{% endif %}
+                    </div>
+                </div>
+
+                <!-- Erreurs -->
+                <div class="bg-white rounded-lg shadow p-4">
+                    <div class="text-sm font-medium text-gray-600">Erreurs</div>
+                    <div class="text-2xl font-bold text-red-600">{{ errors|length }}</div>
+                    <div class="text-xs text-gray-500 mt-1">Violations critiques</div>
+                </div>
+
+                <!-- Warnings -->
+                <div class="bg-white rounded-lg shadow p-4">
+                    <div class="text-sm font-medium text-gray-600">Warnings</div>
+                    <div class="text-2xl font-bold text-yellow-600">{{ warnings|length }}</div>
+                    <div class="text-xs text-gray-500 mt-1">À corriger</div>
+                </div>
+
+                <!-- Infos -->
+                <div class="bg-white rounded-lg shadow p-4">
+                    <div class="text-sm font-medium text-gray-600">Infos</div>
+                    <div class="text-2xl font-bold text-blue-600">{{ infos|length }}</div>
+                    <div class="text-xs text-gray-500 mt-1">Informations</div>
+                </div>
+            </div>
+
+            <!-- Métadonnées du message -->
+            <div class="bg-white rounded-lg shadow p-4 mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">Message analysé</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                        <span class="text-gray-600">Type:</span>
+                        <span class="ml-2 font-mono font-semibold">{{ result.message_type }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Event:</span>
+                        <span class="ml-2 font-mono font-semibold">{{ result.event }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Direction:</span>
+                        <span class="ml-2 font-semibold">{{ direction }}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Profil:</span>
+                        <span class="ml-2 font-semibold">{{ profile }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Issues par couche de validation -->
+            {% if result.issues %}
+            <div class="space-y-4">
+                <!-- Couche 1: IHE PAM -->
+                {% if ihe_pam %}
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div class="bg-purple-100 px-4 py-3 border-b border-purple-200">
+                        <h3 class="text-lg font-semibold text-purple-800">
+                            Couche 1: IHE PAM ({{ ihe_pam|length }})
+                        </h3>
+                        <p class="text-sm text-purple-600">Règles métier IHE Patient Administration Management</p>
+                    </div>
+                    <div class="p-4">
+                        {% for issue in ihe_pam %}
+                        <div class="mb-3 pb-3 {% if not loop.last %}border-b border-gray-200{% endif %}">
+                            <div class="flex items-start">
+                                <span class="px-2 py-1 rounded text-xs font-semibold mr-3
+                                    {% if issue.severity == 'error' %}bg-red-100 text-red-800
+                                    {% elif issue.severity == 'warn' %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                    {{ issue.severity|upper }}
+                                </span>
+                                <div class="flex-1">
+                                    <div class="font-mono text-sm font-semibold text-gray-800">{{ issue.code }}</div>
+                                    <div class="text-sm text-gray-600 mt-1">{{ issue.message }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Couche 2: HAPI Structures -->
+                {% if hapi or segment_order %}
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div class="bg-indigo-100 px-4 py-3 border-b border-indigo-200">
+                        <h3 class="text-lg font-semibold text-indigo-800">
+                            Couche 2: HAPI Structures ({{ (hapi|length) + (segment_order|length) }})
+                        </h3>
+                        <p class="text-sm text-indigo-600">Structure et ordre des segments selon HAPI</p>
+                    </div>
+                    <div class="p-4">
+                        {% for issue in hapi + segment_order %}
+                        <div class="mb-3 pb-3 {% if not loop.last %}border-b border-gray-200{% endif %}">
+                            <div class="flex items-start">
+                                <span class="px-2 py-1 rounded text-xs font-semibold mr-3
+                                    {% if issue.severity == 'error' %}bg-red-100 text-red-800
+                                    {% elif issue.severity == 'warn' %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                    {{ issue.severity|upper }}
+                                </span>
+                                <div class="flex-1">
+                                    <div class="font-mono text-sm font-semibold text-gray-800">{{ issue.code }}</div>
+                                    <div class="text-sm text-gray-600 mt-1">{{ issue.message }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Couche 3: HL7 v2.5 Base -->
+                {% if hl7_base %}
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div class="bg-green-100 px-4 py-3 border-b border-green-200">
+                        <h3 class="text-lg font-semibold text-green-800">
+                            Couche 3: HL7 v2.5 Base ({{ hl7_base|length }})
+                        </h3>
+                        <p class="text-sm text-green-600">Validation segments MSH, EVN, PID obligatoires</p>
+                    </div>
+                    <div class="p-4">
+                        {% for issue in hl7_base %}
+                        <div class="mb-3 pb-3 {% if not loop.last %}border-b border-gray-200{% endif %}">
+                            <div class="flex items-start">
+                                <span class="px-2 py-1 rounded text-xs font-semibold mr-3
+                                    {% if issue.severity == 'error' %}bg-red-100 text-red-800
+                                    {% elif issue.severity == 'warn' %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                    {{ issue.severity|upper }}
+                                </span>
+                                <div class="flex-1">
+                                    <div class="font-mono text-sm font-semibold text-gray-800">{{ issue.code }}</div>
+                                    <div class="text-sm text-gray-600 mt-1">{{ issue.message }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Couche 4: Types de Données Complexes -->
+                {% if datatypes %}
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div class="bg-orange-100 px-4 py-3 border-b border-orange-200">
+                        <h3 class="text-lg font-semibold text-orange-800">
+                            Couche 4: Types de Données Complexes ({{ datatypes|length }})
+                        </h3>
+                        <p class="text-sm text-orange-600">Validation CX, XPN, XAD, XTN, TS, PL, XCN</p>
+                    </div>
+                    <div class="p-4">
+                        {% for issue in datatypes %}
+                        <div class="mb-3 pb-3 {% if not loop.last %}border-b border-gray-200{% endif %}">
+                            <div class="flex items-start">
+                                <span class="px-2 py-1 rounded text-xs font-semibold mr-3
+                                    {% if issue.severity == 'error' %}bg-red-100 text-red-800
+                                    {% elif issue.severity == 'warn' %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                    {{ issue.severity|upper }}
+                                </span>
+                                <div class="flex-1">
+                                    <div class="font-mono text-sm font-semibold text-gray-800">{{ issue.code }}</div>
+                                    <div class="text-sm text-gray-600 mt-1">{{ issue.message }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <!-- Aucune issue -->
+            <div class="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+                <svg class="w-16 h-16 mx-auto text-green-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <h3 class="text-xl font-bold text-green-800 mb-2">Message parfaitement valide !</h3>
+                <p class="text-green-600">Aucun problème détecté sur aucune des 4 couches de validation.</p>
+            </div>
+            {% endif %}
+
+            <!-- Bouton nouvelle validation -->
+            <div class="mt-6 text-center">
+                <a href="/validation" class="inline-block px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
+                    Nouvelle validation
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Aide -->
+    <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 class="text-lg font-semibold text-blue-800 mb-2">💡 Aide</h3>
+        <div class="text-sm text-blue-700 space-y-2">
+            <p><strong>4 couches de validation :</strong></p>
+            <ul class="list-disc list-inside ml-4 space-y-1">
+                <li><strong>Couche 1 (IHE PAM)</strong> : Règles métier IHE Patient Administration Management</li>
+                <li><strong>Couche 2 (HAPI)</strong> : Structure et ordre des segments selon HAPI (18 triggers)</li>
+                <li><strong>Couche 3 (HL7 v2.5)</strong> : Validation segments MSH, EVN, PID obligatoires</li>
+                <li><strong>Couche 4 (Datatypes)</strong> : Types de données complexes (CX, XPN, XAD, XTN, TS, PL, XCN)</li>
+            </ul>
+            <p class="mt-3"><strong>Sévérités :</strong> <span class="font-mono text-xs bg-red-100 text-red-800 px-1 py-0.5 rounded">ERROR</span> = critique, <span class="font-mono text-xs bg-yellow-100 text-yellow-800 px-1 py-0.5 rounded">WARN</span> = recommandé, <span class="font-mono text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded">INFO</span> = information</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

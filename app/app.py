@@ -45,7 +45,7 @@ from app.routers import (
     home, patients, dossiers, venues, mouvements, structure_hl7,
     endpoints, transport, transport_views, fhir_inbox, messages, interop,
     generate, structure, workflow, fhir_structure, vocabularies, ght, namespaces,
-    health, scenarios, guide, docs, ihe, dossier_type, structure_select
+    health, scenarios, guide, docs, ihe, dossier_type, structure_select, validation
 )
 
 logging.basicConfig(
@@ -336,6 +336,8 @@ def create_app() -> FastAPI:
     app.include_router(generate.router)
     app.include_router(interop.router)
     app.include_router(vocabularies.router)
+    app.include_router(validation.router)  # Validation hors contexte
+    print(" - Validation router mounted")
     # Context management (patient/dossier quick set/clear)
     try:
         from app.routers import context
