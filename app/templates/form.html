@@ -72,7 +72,7 @@
                 {% for option in field.options or [] %}
                   {% set opt_value = option.value if option is mapping else option %}
                   {% set opt_label = option.label if option is mapping else option %}
-                  <option value="{{ opt_value }}" {% if field.value == opt_value %}selected{% endif %}>{{ opt_label }}</option>
+                  <option value="{{ opt_value }}"{% if option is mapping and option.requires_location %} data-requires-location="1"{% endif %} {% if field.value == opt_value %}selected{% endif %}>{{ opt_label }}</option>
                 {% endfor %}
               </select>
               <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-700" aria-hidden="true">
@@ -226,6 +226,77 @@
             }
           });
         }, true);
+      } catch (e) { /* ignore */ }
+    })();
+  </script>
+
+  <!-- Mouvements UX: rendre 'Localisation' obligatoire selon le type ADT sélectionné -->
+  <script>
+    (function(){
+      try {
+        const form = document.querySelector('form[role="form"]');
+        if (!form) return;
+        const typeSelect = form.querySelector('select[name="type"]');
+        const locationInput = form.querySelector('input[name="location"]');
+        const fromInput = form.querySelector('input[name="from_location"]');
+        const toInput = form.querySelector('input[name="to_location"]');
+        const whenInput = form.querySelector('input[name="when"][type="datetime-local"]');
+
+        if (!typeSelect || !locationInput) return; // not a mouvements form
+
+        const wrapperOf = (el) => {
+          try { return el.closest('.space-y-2') || el.parentElement; } catch(_) { return el && el.parentElement; }
+        };
+        const fromWrap = fromInput ? wrapperOf(fromInput) : null;
+        const toWrap = toInput ? wrapperOf(toInput) : null;
+        const locationWrap = wrapperOf(locationInput);
+
+        const getEventCode = (val) => {
+          if (!val) return null; const p = String(val).split('^'); return p.length > 1 ? p[1] : p[0];
+        };
+
+        const setRequired = (el, req) => {
+          try {
+            if (!el) return; if (req) { el.setAttribute('required','true'); el.setAttribute('aria-required','true'); el.dataset.required = 'true'; }
+            else { el.removeAttribute('required'); el.removeAttribute('aria-required'); delete el.dataset.required; }
+          } catch(_){}
+        };
+
+        const setHidden = (wrap, hidden) => {
+          try { if (!wrap) return; wrap.classList.toggle('hidden', !!hidden); } catch(_){}
+        };
+
+        const refresh = () => {
+          const val = typeSelect.value;
+          const code = getEventCode(val);
+          const selected = typeSelect.options[typeSelect.selectedIndex];
+          const requiresLocation = !!(selected && selected.dataset && selected.dataset.requiresLocation);
+
+          // Location required depending on event
+          setRequired(locationInput, requiresLocation);
+
+          // Default visibility for extra fields
+          setHidden(fromWrap, true);
+          setHidden(toWrap, true);
+
+          // Show destination for transfers/returns
+          if (code === 'A02' || code === 'A22') {
+            setHidden(toWrap, false);
+          }
+
+          // Ensure placeholder hints
+          try {
+            if (requiresLocation) {
+              locationInput.placeholder = locationInput.placeholder || 'Ex: SERV-A^UH-12^CH-101^LIT-01';
+            }
+          } catch(_){}
+
+          // If date empty, set now (safety)
+          try { if (whenInput && !whenInput.value) { const d = new Date(); d.setSeconds(0,0); const pad=n=>String(n).padStart(2,'0'); whenInput.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; } } catch(_){}
+        };
+
+        typeSelect.addEventListener('change', refresh);
+        refresh();
       } catch (e) { /* ignore */ }
     })();
   </script>

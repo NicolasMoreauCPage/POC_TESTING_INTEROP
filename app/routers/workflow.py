@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 from datetime import datetime
 
-from app.db import get_session
+from app.db import get_session, get_next_sequence
 from app.models import Dossier, Venue, Mouvement, DossierType
 from app.utils.dossier_helpers import sync_dossier_class
 from app.models_structure import (
@@ -110,6 +110,7 @@ async def workflow_view(
     session: Session = Depends(get_session),
 ):
     from app.state_transitions import ALLOWED_TRANSITIONS, INITIAL_EVENTS
+    from datetime import timedelta
     
     data = _collect_workflow_context(venue_id, session)
     
@@ -118,10 +119,15 @@ async def workflow_view(
     if mouvements:
         last_event = mouvements[-1].type.split('^')[-1] if mouvements[-1].type else None
         allowed_events = ALLOWED_TRANSITIONS.get(last_event, set())
+        # Calculer une date par défaut : 1 minute après le dernier mouvement
+        last_movement_time = mouvements[-1].when
+        default_datetime = (last_movement_time + timedelta(minutes=1)).strftime('%Y-%m-%dT%H:%M')
     else:
         # Pas de mouvements = état initial "no_current"
         # On évite d'exposer A38 (annulation de pré-admission) en IHM initiale
         allowed_events = {e for e in INITIAL_EVENTS if e != "A38"}
+        # Date par défaut : maintenant
+        default_datetime = datetime.now().strftime('%Y-%m-%dT%H:%M')
     
     # Filtrer les événements du catalogue pour ne garder que ceux autorisés
     filtered_catalog = {
@@ -137,6 +143,7 @@ async def workflow_view(
             "graph": WORKFLOW_GRAPH,
             "event_catalog": filtered_catalog,
             "all_events": SUPPORTED_WORKFLOW_EVENTS,
+            "default_datetime": default_datetime,
         },
     )
 
@@ -144,6 +151,7 @@ async def workflow_view(
 async def create_mouvement(
     venue_id: int,
     event_code: str = Form(...),
+    movement_datetime: str = Form(None),
     location: str = Form(None),
     reason: str = Form(None),
     performer: str = Form(None),
@@ -165,6 +173,9 @@ async def create_mouvement(
         "A05": ("preadmission", False),
         "A06": ("class_change", True),  # Location requise pour urgence->hospi
         "A07": ("from_consult", True),
+        "A11": ("cancel_admission", False),
+        "A12": ("cancel_transfer", False),
+        "A13": ("cancel_discharge", False),
         "A21": ("temporary_leave", False),
         "A22": ("return", True),
         "A38": ("cancel_preadmission", False),
@@ -193,11 +204,24 @@ async def create_mouvement(
     # Déterminer le type ADT en fonction du type de mouvement
     adt_type = f"ADT^{event_code}"
     
+    # Générer le numéro de séquence pour le mouvement
+    seq = get_next_sequence(session, "mouvement")
+    
+    # Parser la date/heure du mouvement
+    if movement_datetime:
+        try:
+            movement_when = datetime.fromisoformat(movement_datetime)
+        except ValueError:
+            movement_when = datetime.now()
+    else:
+        movement_when = datetime.now()
+    
     # Créer le mouvement
     mouvement = Mouvement(
+        mouvement_seq=seq,
         venue_id=venue_id,
         type=adt_type,
-        when=datetime.now(),
+        when=movement_when,
         location=location,
         reason=reason,
         performer=performer,

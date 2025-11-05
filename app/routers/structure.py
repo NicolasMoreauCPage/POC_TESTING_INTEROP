@@ -15,6 +15,7 @@ from app.services.structure_schedule import (
     form_datetime_to_hl7,
     hl7_to_form_datetime,
 )
+from app.services.mfn_importer import import_mfn
 from app.dependencies.ght import require_ght_context
 
 logger = logging.getLogger(__name__)
@@ -214,6 +215,35 @@ async def structure_dashboard(
         context["filtered_egs"] = [eg.id for eg in egs]
     
     return templates.TemplateResponse("structure_new.html", context)
+
+@router.post("/import/hl7")
+async def import_structure_hl7(
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    """Importe un message HL7 MFN^M05 (text/plain) dans le GHT courant.
+
+    - Le GHT est déterminé via le middleware de contexte (request.state.ght_context).
+    - Retourne un JSON de synthèse: nombre d'EJ, d'EG et de services créés/mis à jour.
+    """
+    # Vérifier contexte GHT
+    ght = getattr(request.state, "ght_context", None)
+    if not ght:
+        raise HTTPException(status_code=400, detail="Contexte GHT manquant")
+
+    try:
+        body = await request.body()
+        text = body.decode("utf-8", errors="ignore")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Impossible de lire le payload text/plain")
+
+    if not text or "MSH" not in text or "MFN^M05" not in text:
+        # On reste permissif: certains extracts peuvent ne pas inclure ^M05
+        if not text:
+            raise HTTPException(status_code=400, detail="Payload vide")
+
+    summary = import_mfn(text, session, ght)
+    return {"status": "ok", "created": summary}
 
 # --- Entité Géographique ---
 @router.get("/eg", response_model=List[EntiteGeographique])
@@ -985,3 +1015,51 @@ async def get_structure_tree(
         result.append(tree)
     
     return result
+
+
+@router.get("/{type}/{id}/map", response_class=HTMLResponse)
+async def view_structure_map(
+    type: str,
+    id: int,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Affiche une carte/plan de l'entité de structure.
+    Cette fonctionnalité est en cours de développement.
+    """
+    # Mapping des types vers les modèles
+    model_map = {
+        "eg": EntiteGeographique,
+        "pole": Pole,
+        "service": Service,
+        "uf": UniteFonctionnelle,
+        "uh": UniteHebergement,
+        "chambre": Chambre,
+        "lit": Lit
+    }
+    
+    model = model_map.get(type)
+    if not model:
+        raise HTTPException(status_code=404, detail=f"Type de structure '{type}' non reconnu")
+    
+    # Récupérer l'entité
+    entity = session.get(model, id)
+    if not entity:
+        raise HTTPException(status_code=404, detail=f"{type.upper()} #{id} non trouvé")
+    
+    # Pour l'instant, retourner une page simple indiquant que cette fonctionnalité arrive bientôt
+    return templates.TemplateResponse("structure_map_placeholder.html", {
+        "request": request,
+        "entity": entity,
+        "type": type,
+        "type_label": {
+            "eg": "Entité Géographique",
+            "pole": "Pôle",
+            "service": "Service",
+            "uf": "Unité Fonctionnelle",
+            "uh": "Unité d'Hébergement",
+            "chambre": "Chambre",
+            "lit": "Lit"
+        }.get(type, type.upper())
+    })

@@ -212,7 +212,7 @@
           </div>
         </li>
         <li>
-          <a href="/admin" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 hover:text-blue-700 transition">
+          <a href="/sqladmin" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:border-blue-300 hover:text-blue-700 transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c1.657 0 3-1.343 3-3S13.657 2 12 2s-3 1.343-3 3 1.343 3 3 3zm0 2c-2.761 0-5 2.239-5 5v7h10v-7c0-2.761-2.239-5-5-5z" />
             </svg>
@@ -295,7 +295,7 @@
           <a href="/standards-docs" class="block rounded-xl px-3 py-2 hover:bg-blue-50">Documentation IHE</a>
           <a href="/api-docs" class="block rounded-xl px-3 py-2 hover:bg-blue-50">API Reference</a>
         </div>
-        <a href="/admin" class="block rounded-xl px-3 py-2 bg-slate-900 text-white text-center">Administration</a>
+        <a href="/sqladmin" class="block rounded-xl px-3 py-2 bg-slate-900 text-white text-center">Administration</a>
       </div>
     </div>
 
@@ -357,7 +357,7 @@
           <div>MedData Bridge • FastAPI + Tailwind</div>
           <div class="flex gap-4">
             <a href="/api-docs" class="hover:text-slate-700">Documentation API</a>
-            <a href="/admin" class="hover:text-slate-700">Administration</a>
+            <a href="/sqladmin" class="hover:text-slate-700">Administration</a>
           </div>
         </div>
       </div>
@@ -372,7 +372,7 @@
     document.addEventListener('keydown', (e) => {
       // Alt+A -> Admin
       if (e.altKey && e.key === 'a') {
-        window.location.href = '/admin';
+        window.location.href = '/sqladmin';
       }
       // Alt+D -> Documentation
       if (e.altKey && e.key === 'd') {

@@ -68,6 +68,7 @@ class EntiteJuridique(SQLModel, table=True):
     ght_context_id: int = Field(foreign_key="ghtcontext.id")
     ght_context: GHTContext = Relationship(back_populates="entites_juridiques")
     entites_geographiques: List["EntiteGeographique"] = Relationship(back_populates="entite_juridique")
+    endpoints: List["SystemEndpoint"] = Relationship(back_populates="entite_juridique")
 
 class EntiteGeographique(SQLModel, table=True):
     """Structure géographique (ES_GEOGRAPHIQUE) - niveau 2"""

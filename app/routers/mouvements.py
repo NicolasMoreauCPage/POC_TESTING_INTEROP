@@ -8,6 +8,7 @@ from app.db import get_session, get_next_sequence, peek_next_sequence
 from app.models import Mouvement, Venue, Dossier
 from app.services.emit_on_create import emit_to_senders
 from app.dependencies.ght import require_ght_context
+from app.state_transitions import ALLOWED_TRANSITIONS, INITIAL_EVENTS, SUPPORTED_WORKFLOW_EVENTS
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(
@@ -409,7 +410,35 @@ def new_mouvement(
         prefill_venue_id = venues[0].id  # Première venue par défaut
     
     next_seq = peek_next_sequence(session, "mouvement")
-    now_str = datetime.now().strftime("%Y-%m-%dT%H:%M")
+
+    # Déterminer le dernier événement et la date par défaut en fonction de la venue présélectionnée
+    # ainsi que la liste des événements autorisés à proposer dans le sélecteur
+    allowed_events_codes = None
+    default_when_str = None
+    try:
+        if prefill_venue_id:
+            last = session.exec(
+                select(Mouvement)
+                .where(Mouvement.venue_id == prefill_venue_id)
+                .order_by(Mouvement.when)
+            ).all()
+            if last:
+                last_event = last[-1].type.split('^')[-1] if last[-1].type else None
+                allowed_events_codes = ALLOWED_TRANSITIONS.get(last_event, set())
+                # 1 minute après le dernier mouvement
+                from datetime import timedelta
+                default_when_str = (last[-1].when + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M")
+            else:
+                # État initial
+                allowed_events_codes = {e for e in INITIAL_EVENTS if e != "A38"}
+                default_when_str = datetime.now().strftime("%Y-%m-%dT%H:%M")
+        else:
+            # Si pas de venue présélectionnée, ne filtre pas (l'utilisateur choisira une venue)
+            default_when_str = datetime.now().strftime("%Y-%m-%dT%H:%M")
+    except Exception:
+        # En cas de problème, fallback raisonnable
+        allowed_events_codes = None
+        default_when_str = datetime.now().strftime("%Y-%m-%dT%H:%M")
     
     # Préparer la liste déroulante des venues
     venue_options = []
@@ -433,6 +462,52 @@ def new_mouvement(
     except Exception:
         # En cas d'erreur de lecture, on laisse la liste vide
         uf_options = []
+    # Construire les options de type en filtrant par transitions autorisées si connues
+    from app.form_config import MovementType
+    all_type_options = MovementType.choices()
+    # Mapping aligné avec le workflow pour déterminer les exigences de localisation
+    event_mapping = {
+        "A01": ("admission", True),
+        "A02": ("transfer", True),
+        "A03": ("discharge", False),
+        "A04": ("consultation_out", False),
+        "A05": ("preadmission", False),
+        "A06": ("class_change", True),
+        "A07": ("from_consult", True),
+        "A11": ("cancel_admission", False),
+        "A12": ("cancel_transfer", False),
+        "A13": ("cancel_discharge", False),
+        "A21": ("temporary_leave", False),
+        "A22": ("return", True),
+        "A38": ("cancel_preadmission", False),
+    }
+
+    if allowed_events_codes:
+        def _opt_allowed(opt):
+            try:
+                code = str(opt.get("value"))
+                # opt like "ADT^A01" -> keep if trailing code in allowed
+                event = code.split("^")[-1]
+                return event in allowed_events_codes
+            except Exception:
+                return True
+        filtered = [opt for opt in all_type_options if _opt_allowed(opt)]
+    else:
+        filtered = all_type_options
+
+    # Ajouter un indicateur requires_location aux options (pour pilotage JS en template générique)
+    type_options = []
+    for opt in filtered:
+        if isinstance(opt, dict):
+            code = str(opt.get("value", ""))
+            evt = code.split("^")[-1] if "^" in code else code
+            requires = bool(event_mapping.get(evt, (None, False))[1])
+            enriched = {**opt, "requires_location": requires}
+            type_options.append(enriched)
+        else:
+            # fallback, should not happen with MovementType.choices
+            type_options.append(opt)
+
     fields = [
         {
             "label": "Venue (Séjour) *",
@@ -447,15 +522,15 @@ def new_mouvement(
             "label": "Type de mouvement *",
             "name": "type",
             "type": "select",
-            "options": MovementType.choices(),
+            "options": type_options,
             "required": True,
-            "help": "Type d'événement ADT selon la norme IHE PAM"
+            "help": "Options filtrées selon l'état actuel de la venue"
         },
         {
             "label": "Date et heure *",
             "name": "when",
             "type": "datetime-local",
-            "value": now_str,
+            "value": default_when_str,
             "required": True,
             "help": "Date et heure du mouvement"
         },
@@ -590,14 +665,54 @@ def create_mouvement(
     performer_role: str = Form(None),
     session=Depends(get_session),
 ):
+    # Parse date/time
     when_dt = datetime.fromisoformat(when)
-    seq = mouvement_seq or get_next_sequence(session, "mouvement")
-    # Extract trigger event from HL7 message type (e.g., "ADT^A01" -> "A01")
+    # Determine event code (A01, A02, ...)
     trigger_event = None
     if type:
         parts = type.split("^", 1)
         if len(parts) == 2:
             trigger_event = parts[1]
+
+    # Server-side validation: ensure transition is allowed from current state
+    if venue_id and trigger_event:
+        last = session.exec(
+            select(Mouvement)
+            .where(Mouvement.venue_id == venue_id)
+            .order_by(Mouvement.when)
+        ).all()
+        last_event = last[-1].type.split('^')[-1] if last else None
+        allowed = (ALLOWED_TRANSITIONS.get(last_event, set()) if last_event else {e for e in INITIAL_EVENTS if e != "A38"})
+        if trigger_event not in allowed:
+            raise HTTPException(status_code=400, detail=f"L'événement {trigger_event} n'est pas autorisé dans l'état actuel")
+
+    # Map movement_type for downstream systems (align with workflow router)
+    event_mapping = {
+        "A01": ("admission", True),
+        "A02": ("transfer", True),
+        "A03": ("discharge", False),
+        "A04": ("consultation_out", False),
+        "A05": ("preadmission", False),
+        "A06": ("class_change", True),
+        "A07": ("from_consult", True),
+        "A11": ("cancel_admission", False),
+        "A12": ("cancel_transfer", False),
+        "A13": ("cancel_discharge", False),
+        "A21": ("temporary_leave", False),
+        "A22": ("return", True),
+        "A38": ("cancel_preadmission", False),
+    }
+
+    # Enforce location requirement according to mapping (kept consistent with workflow router)
+    requires_location = bool(event_mapping.get(trigger_event, (None, False))[1])
+    if requires_location and not location:
+        raise HTTPException(status_code=400, detail="La localisation est obligatoire pour ce type de mouvement")
+
+    # Sequence generation (fallback when not provided)
+    seq = mouvement_seq or get_next_sequence(session, "mouvement")
+    mapped_movement_type = movement_type
+    if trigger_event in event_mapping:
+        mapped_movement_type = event_mapping[trigger_event][0]
     m = Mouvement(
         venue_id=venue_id,
         type=type,
@@ -610,7 +725,7 @@ def create_mouvement(
         status=status,
         note=note,
         mouvement_seq=seq,
-        movement_type=movement_type,
+        movement_type=mapped_movement_type,
         movement_reason=movement_reason,
         performer_role=performer_role,
         trigger_event=trigger_event,

@@ -70,7 +70,7 @@
               <option value="{{ event_code }}">{{ metadata.label }}</option>
               {% endfor %}
             </select>
-            <p class="text-xs text-slate-500">Événements selon le modèle IHM (intégration hospitalière)</p>
+            <p class="text-xs text-slate-500">Seuls les événements autorisés depuis l'état actuel sont affichés</p>
           </div>
 
           <div id="event-description" class="hidden rounded-xl bg-blue-50 border-2 border-blue-200 p-4">
@@ -78,20 +78,32 @@
             <p id="event-description-text" class="text-sm text-slate-700"></p>
           </div>
 
+          <div class="space-y-2">
+            <label class="block text-sm font-semibold text-slate-700">
+              Date et heure du mouvement <span class="text-red-500">*</span>
+            </label>
+            <input type="datetime-local" name="movement_datetime" id="movement_datetime" 
+                   value="{{ default_datetime }}" required
+                   class="block w-full rounded-xl border-2 border-slate-300 px-4 py-3 text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors">
+            <p class="text-xs text-slate-500">La date doit être postérieure au dernier mouvement</p>
+          </div>
+
           <div id="location-field" class="space-y-2 hidden">
             <label class="block text-sm font-semibold text-slate-700">
               Nouvelle localisation <span class="text-red-500">*</span>
             </label>
-            <select name="location" 
+            <select name="location" id="location-select"
                     class="block w-full rounded-xl border-2 border-slate-300 px-4 py-3 text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors">
               <option value="">— Sélectionner un lit —</option>
               {% for service in structure.values() %}
-                <optgroup label="{{ service.name }}">
+                <optgroup label="🏥 {{ service.name }}">
                   {% for uf in service.ufs.values() %}
                     {% for uh in uf.unites_hebergement.values() %}
                       {% for chambre in uh.chambres.values() %}
                         {% for lit in chambre.lits %}
-                          <option value="{{ lit.name }}">{{ uf.name }} / {{ uh.name }} / {{ chambre.name }} / {{ lit.name }}</option>
+                          <option value="{{ lit.name }}" data-full-path="{{ service.name }} > {{ uf.name }} > {{ uh.name }} > {{ chambre.name }}">
+                            🛏️ {{ lit.name }} ({{ chambre.name }})
+                          </option>
                         {% endfor %}
                       {% endfor %}
                     {% endfor %}
@@ -99,6 +111,7 @@
                 </optgroup>
               {% endfor %}
             </select>
+            <p class="text-xs text-slate-500" id="location-path"></p>
           </div>
         </div>
 
@@ -223,10 +236,28 @@
   
   const eventSelect = document.getElementById('event_code_field');
   const locationField = document.getElementById('location-field');
+  const locationSelect = document.getElementById('location-select');
+  const locationPath = document.getElementById('location-path');
   const reasonField = document.querySelector('[name="reason"]');
   const submitButton = document.getElementById('submit-button');
   const eventDescription = document.getElementById('event-description');
   const eventDescriptionText = document.getElementById('event-description-text');
+  const movementDateTime = document.getElementById('movement_datetime');
+  
+  // Afficher le chemin complet de la localisation sélectionnée
+  if (locationSelect) {
+    locationSelect.addEventListener('change', function() {
+      const selectedOption = this.options[this.selectedIndex];
+      const fullPath = selectedOption.getAttribute('data-full-path');
+      if (fullPath && locationPath) {
+        locationPath.textContent = '📍 ' + fullPath;
+        locationPath.classList.remove('text-slate-500');
+        locationPath.classList.add('text-blue-600', 'font-medium');
+      } else if (locationPath) {
+        locationPath.textContent = '';
+      }
+    });
+  }
   
   // Quand on change l'événement
   eventSelect.addEventListener('change', function() {
@@ -253,10 +284,12 @@
     // Afficher/masquer le champ localisation
     if (metadata.requires_location) {
       locationField.classList.remove('hidden');
-      locationField.querySelector('select').required = true;
+      locationSelect.required = true;
     } else {
       locationField.classList.add('hidden');
-      locationField.querySelector('select').required = false;
+      locationSelect.required = false;
+      locationSelect.value = '';
+      if (locationPath) locationPath.textContent = '';
     }
     
     // Placeholder du commentaire
@@ -276,10 +309,21 @@
     
     const metadata = eventCatalog[eventCode];
     if (metadata && metadata.requires_location) {
-      const location = locationField.querySelector('select').value;
+      const location = locationSelect.value;
       submitButton.disabled = !location;
     } else {
       submitButton.disabled = false;
+    }
+  });
+  
+  // Validation avant soumission
+  document.getElementById('movement-form').addEventListener('submit', function(e) {
+    const dateValue = movementDateTime.value;
+    if (!dateValue) {
+      e.preventDefault();
+      alert('⚠️ Veuillez saisir une date et heure pour le mouvement.');
+      movementDateTime.focus();
+      return false;
     }
   });
 })();

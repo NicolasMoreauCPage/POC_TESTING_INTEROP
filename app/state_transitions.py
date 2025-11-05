@@ -28,16 +28,16 @@ INITIAL_EVENTS: Set[str] = {
 # Transitions autorisées message -> message
 ALLOWED_TRANSITIONS: Dict[str, Set[str]] = {
     "A01": {
-        "A02",
-        "A03",
-        "A11",
-        "A21",
-        "A44",
-        "A52",
-        "A53",
-        "A54",
-        "A55",
-        "Z99",
+        "A02",  # Transfert
+        "A03",  # Sortie
+        "A11",  # Annulation admission
+        "A21",  # Permission
+        "A44",  # Déplacement compte
+        "A52",  # Annulation de permission
+        "A53",  # Annulation de retour de permission
+        "A54",  # Changement date prévue sortie
+        "A55",  # Annulation changement date
+        "Z99",  # Changement d'identité
     },
     "A04": {
         # Note: A03 (discharge/absence) NOT allowed from A04 (outpatient) per IHE PAM
@@ -55,16 +55,16 @@ ALLOWED_TRANSITIONS: Dict[str, Set[str]] = {
         "Z99",
     },
     "A02": {
-        "A02",
-        "A03",
-        "A12",
-        "A21",
-        "A44",
-        "A52",
-        "A53",
-        "A54",
-        "A55",
-        "Z99",
+        "A02",  # Nouveau transfert
+        "A03",  # Sortie
+        "A12",  # Annulation transfert
+        "A21",  # Permission
+        "A44",  # Déplacement compte
+        "A52",  # Annulation de permission
+        "A53",  # Annulation de retour de permission
+        "A54",  # Changement date prévue sortie
+        "A55",  # Annulation changement date
+        "Z99",  # Changement d'identité
     },
     "A06": {"A06", "A07", "A11", "A01", "Z99"},
     "A07": {"A06", "A07", "A11", "A01", "Z99"},
@@ -122,17 +122,12 @@ ALLOWED_TRANSITIONS: Dict[str, Set[str]] = {
     },
     "A31": {"A01", "A04", "A05", "A06", "A07", "A31", "A38", "Z99"},
     "A03": {
-        "A01",
-        "A03",
-        "A04",
-        "A05",
-        "A06",
-        "A12",
-        "A13",
-        "A21",
-        "A22",
-        "A31",
-        "Z99",
+        "A01",  # Nouvelle admission
+        "A04",  # Nouvelle consultation externe
+        "A05",  # Nouvelle pré-admission
+        "A13",  # Annulation de sortie (correction d'erreur)
+        "A31",  # Mise à jour (pour corrections)
+        "Z99",  # Changement d'identité
     },
     "A38": {"A05", "A01", "A04"},  # note 3
     "A40": {"A01", "A04", "A05"},
@@ -463,6 +458,24 @@ SUPPORTED_WORKFLOW_EVENTS: Dict[str, Dict[str, object]] = {
         "description": "Fin d'une absence temporaire (permission).",
         "requires_location": True,
         "group": "change_state",
+    },
+    "A11": {
+        "label": "Annuler admission",
+        "description": "Annule l'admission en cours (correction d'erreur).",
+        "requires_location": False,
+        "group": "cancellation",
+    },
+    "A12": {
+        "label": "Annuler transfert",
+        "description": "Annule le dernier transfert (correction d'erreur).",
+        "requires_location": False,
+        "group": "cancellation",
+    },
+    "A13": {
+        "label": "Annuler sortie",
+        "description": "Annule la sortie (correction d'erreur - le patient n'est finalement pas sorti).",
+        "requires_location": False,
+        "group": "cancellation",
     },
     "A38": {
         "label": "Annuler pré-admission",

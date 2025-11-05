@@ -14,7 +14,10 @@ from app.models_context import (
     EndpointContext, PatientContextMapping, DossierContextMapping,
     VenueContextMapping, MouvementContextMapping
 )
+from app.models_structure_fhir import GHTContext, EntiteJuridique
 from app.runners import registry
+from sqlmodel.sql.expression import select as sqlmodel_select
+from sqlalchemy.orm import selectinload
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(prefix="/endpoints", tags=["endpoints"])
@@ -27,20 +30,98 @@ def _bool_from_str(v: str | None, default: bool = False) -> bool:
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 def list_endpoints(request: Request, session=Depends(get_session)):
-    eps = session.exec(select(SystemEndpoint)).all()
-    running_ids = set(registry.running_ids())  # ⬅️ méthode utilitaire
-    rows = []
+    # Load endpoints with GHT context and EJ
+    stmt = (
+        sqlmodel_select(SystemEndpoint)
+        .options(
+            selectinload(SystemEndpoint.ght_context).selectinload(GHTContext.entites_juridiques),
+            selectinload(SystemEndpoint.entite_juridique)
+        )
+    )
+    eps = session.exec(stmt).unique().all()
+    running_ids = set(registry.running_ids())
+    
+    # Group endpoints by GHT and EJ
+    ght_groups = {}
+    no_ght_endpoints = []
+    
     for e in eps:
+        if e.ght_context:
+            ght_id = e.ght_context.id
+            if ght_id not in ght_groups:
+                ght_groups[ght_id] = {
+                    "ght": e.ght_context,
+                    "ej_groups": {},
+                    "no_ej_endpoints": []
+                }
+            
+            # Group by EJ if endpoint has one
+            if e.entite_juridique:
+                ej_id = e.entite_juridique.id
+                if ej_id not in ght_groups[ght_id]["ej_groups"]:
+                    ght_groups[ght_id]["ej_groups"][ej_id] = {
+                        "ej": e.entite_juridique,
+                        "endpoints": []
+                    }
+                ght_groups[ght_id]["ej_groups"][ej_id]["endpoints"].append(e)
+            else:
+                ght_groups[ght_id]["no_ej_endpoints"].append(e)
+        else:
+            no_ght_endpoints.append(e)
+    
+    def _make_endpoint_row(e):
         runtime = "RUNNING" if e.id in running_ids else "STOPPED"
-        rows.append({
+        return {
             "cells": [e.id, e.name, e.kind, e.role, e.host or "-", e.port or "-", e.base_url or "-", "ON" if e.is_enabled else "OFF", runtime],
             "detail_url": f"/endpoints/{e.id}",
-            "context_url": f"/endpoints/{e.id}/context"  # Ajout du lien vers le contexte
+            "context_url": f"/endpoints/{e.id}/context"
+        }
+    
+    # Build hierarchical structure for template
+    hierarchy = []
+    
+    # GHT groups
+    for ght_id in sorted(ght_groups.keys()):
+        ght_data = ght_groups[ght_id]
+        ght_children = []
+        
+        # EJ subgroups
+        for ej_id in sorted(ght_data["ej_groups"].keys()):
+            ej_info = ght_data["ej_groups"][ej_id]
+            ej_endpoints = [_make_endpoint_row(e) for e in ej_info["endpoints"]]
+            ght_children.append({
+                "type": "ej",
+                "ej": ej_info["ej"],
+                "endpoints": ej_endpoints
+            })
+        
+        # Endpoints without EJ in this GHT
+        for e in ght_data["no_ej_endpoints"]:
+            ght_children.append({
+                "type": "endpoint",
+                "endpoint": _make_endpoint_row(e)
+            })
+        
+        hierarchy.append({
+            "type": "ght",
+            "ght": ght_data["ght"],
+            "children": ght_children
         })
-    ctx = {"request": request, "title": "Systèmes (Paramétrage)",
-        "headers": ["ID","Nom","Type","Rôle","Host","Port","FHIR URL","Actif","Runtime"],
-        "rows": rows, "new_url": "/endpoints/new"}
-    return templates.TemplateResponse(request, "list.html", ctx)
+    
+    # Endpoints without GHT
+    if no_ght_endpoints:
+        hierarchy.append({
+            "type": "no_ght",
+            "endpoints": [_make_endpoint_row(e) for e in no_ght_endpoints]
+        })
+    
+    ctx = {
+        "request": request,
+        "title": "Systèmes (Paramétrage)",
+        "hierarchy": hierarchy,
+        "new_url": "/endpoints/new"
+    }
+    return templates.TemplateResponse(request, "endpoints_hierarchical.html", ctx)
 
 @router.get("/new", response_class=HTMLResponse)
 def new_endpoint(request: Request):

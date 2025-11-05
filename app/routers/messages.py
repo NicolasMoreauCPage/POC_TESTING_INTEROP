@@ -141,6 +141,25 @@ async def send_message(request: Request):
     return templates.TemplateResponse(request, "send_message.html", {"request": request, "error": "Kind non supporté", "endpoints": []})
 
 
+@router.post("/scan")
+def scan_file_endpoints(request: Request, session: Session = Depends(get_session)):
+    """Manually trigger scanning of all file-based endpoints"""
+    from app.services.file_poller import scan_file_endpoints
+    
+    try:
+        stats = scan_file_endpoints(session)
+        return {
+            "success": True,
+            "stats": stats,
+            "message": f"Scanned {stats['endpoints_scanned']} endpoints, processed {stats['files_processed']} files"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
 @router.get("/{message_id}", response_class=HTMLResponse)
 def message_detail(message_id: int, request: Request, session: Session = Depends(get_session)):
     m = session.get(MessageLog, message_id)

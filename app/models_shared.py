@@ -5,7 +5,7 @@ from sqlmodel import SQLModel, Field, Relationship
 
 # Forward-declare types for static analysis without creating import cycles
 if TYPE_CHECKING:  # pragma: no cover - import only for type checkers
-    from app.models_structure_fhir import GHTContext
+    from app.models_structure_fhir import GHTContext, EntiteJuridique
     from app.models_endpoints import MLLPConfig, FHIRConfig
 
 class MessageLog(SQLModel, table=True):
@@ -32,6 +32,7 @@ class EndpointRole(str):
 class EndpointKind(str):
     MLLP = "MLLP"
     FHIR = "FHIR"
+    FILE = "FILE"
 
 class SystemEndpoint(SQLModel, table=True):
     """Représente un point d'intégration système (serveur FHIR, endpoint MLLP)"""
@@ -44,6 +45,9 @@ class SystemEndpoint(SQLModel, table=True):
     # Configuration commune
     ght_context_id: Optional[int] = Field(foreign_key="ghtcontext.id", nullable=True)
     ght_context: Optional["GHTContext"] = Relationship(back_populates="endpoints")
+    
+    entite_juridique_id: Optional[int] = Field(foreign_key="entitejuridique.id", nullable=True)
+    entite_juridique: Optional["EntiteJuridique"] = Relationship(back_populates="endpoints")
 
     # Relations vers configurations
     mllp_configs: Optional[List["MLLPConfig"]] = Relationship(
@@ -65,6 +69,13 @@ class SystemEndpoint(SQLModel, table=True):
     base_url: Optional[str] = None  # Ex: https://fhir.example.com/fhir
     auth_kind: Optional[str] = None  # none, basic, bearer
     auth_token: Optional[str] = None
+
+    # Pour FILE
+    inbox_path: Optional[str] = None  # Directory to scan for incoming messages
+    outbox_path: Optional[str] = None  # Directory to write outgoing messages
+    archive_path: Optional[str] = None  # Directory for processed messages
+    error_path: Optional[str] = None  # Directory for failed messages
+    file_extensions: Optional[str] = None  # Comma-separated list (e.g., ".hl7,.txt")
 
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
