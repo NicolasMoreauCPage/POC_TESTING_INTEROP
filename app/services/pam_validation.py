@@ -663,6 +663,48 @@ def validate_pam(msg: str, direction: str = "in", profile: str = "IHE_PAM_FR") -
         if trigger in IDENTITY_ONLY and pv1:
             issues.append(ValidationIssue("PV1_UNEXPECTED", f"PV1 is generally not expected for identity-only event {trigger}", severity="info"))
     
+    # Validation ZBE-9 (Mode de traitement) - règle IHE PAM CPage
+    zbe = _get_first_segment(msg, "ZBE")
+    if zbe:
+        zbe_parts = zbe.split("|")
+        zbe_9 = _field(zbe_parts, 9)  # ZBE-9: Mode de traitement
+        zbe_6 = _field(zbe_parts, 6)  # ZBE-6: Type d'événement original (pour Z99)
+        
+        # Règle IHE PAM CPage: La valeur "C" (Correction) ne peut être utilisée
+        # que dans les messages Z99 (modification de mouvement) pour corriger
+        # un changement de statut sur des mouvements d'admission/préadmission (A01, A04, A05).
+        # Ref: INT_CPAGE_FORMAT_IHE_PAM_2.11.txt, page 118
+        if zbe_9 and zbe_9.upper() == "C":
+            if trigger != "Z99":
+                issues.append(ValidationIssue(
+                    "ZBE9_C_NOT_Z99",
+                    f"ZBE-9 valeur 'C' (Correction) ne peut être utilisée que dans les messages Z99 (modification de mouvement), pas dans {trigger}",
+                    severity="error"
+                ))
+            else:
+                # Dans un Z99, vérifier que ZBE-6 indique un événement d'admission/préadmission
+                valid_correction_events = {"A01", "A04", "A05"}
+                if zbe_6 and zbe_6 not in valid_correction_events:
+                    issues.append(ValidationIssue(
+                        "ZBE9_C_INVALID_EVENT",
+                        f"ZBE-9='C' (Correction de statut) autorisé uniquement pour Z99 sur A01, A04 ou A05. ZBE-6='{zbe_6}' n'est pas autorisé",
+                        severity="error"
+                    ))
+                elif zbe_6 in valid_correction_events:
+                    # Correction valide
+                    issues.append(ValidationIssue(
+                        "ZBE9_C_STATUS_CORRECTION",
+                        f"ZBE-9='C' détecté: Correction de changement de statut sur {zbe_6} sans création de nouveau mouvement (conforme IHE PAM)",
+                        severity="info"
+                    ))
+                else:
+                    # ZBE-6 manquant dans Z99 avec C
+                    issues.append(ValidationIssue(
+                        "ZBE6_MISSING_WITH_C",
+                        "ZBE-6 (Type d'événement original) requis dans Z99 avec ZBE-9='C' pour valider l'événement corrigé",
+                        severity="warn"
+                    ))
+    
     # Validation des champs PV1 (types de données complexes) si présent
     pv1 = _get_first_segment(msg, "PV1")
     if pv1:

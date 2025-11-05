@@ -13,6 +13,10 @@ venv/
 *.log
 *.sqlite3
 
+# Base de données SQLite (garder uniquement poc.db en production)
+*.db
+!poc.db  # Décommenter pour inclure poc.db dans git si besoin
+
 # Configuration locale
 .env
 .DS_Store

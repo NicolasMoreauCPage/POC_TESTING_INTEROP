@@ -344,6 +344,42 @@ def _parse_pv1(message: str) -> dict:
     return out
 
 
+def _parse_zbe(message: str) -> dict:
+    """Parse segment ZBE (extension IHE PAM France).
+    
+    Retourne:
+        dict avec clés: movement_id (ZBE-1), movement_datetime (ZBE-2), 
+        original_trigger (ZBE-6), movement_indicator (ZBE-9)
+    """
+    out = {
+        "movement_id": None,
+        "movement_datetime": None,
+        "original_trigger": None,
+        "movement_indicator": None,
+    }
+    try:
+        lines = re.split(r"\r|\n", message)
+        zbe = next((l for l in lines if l.startswith("ZBE")), None)
+        if not zbe:
+            return out
+        parts = zbe.split("|")
+        # ZBE-1: Identifiant du mouvement
+        if len(parts) > 1 and parts[1]:
+            out["movement_id"] = parts[1]
+        # ZBE-2: Date/heure du mouvement
+        if len(parts) > 2 and parts[2]:
+            out["movement_datetime"] = _parse_hl7_datetime(parts[2])
+        # ZBE-6: Type d'événement original (pour Z99)
+        if len(parts) > 6 and parts[6]:
+            out["original_trigger"] = parts[6]
+        # ZBE-9: Mode de traitement / Indicateur de mouvement
+        if len(parts) > 9 and parts[9]:
+            out["movement_indicator"] = parts[9].strip().upper()
+    except Exception:
+        pass
+    return out
+
+
 def _handle_z99_updates(message: str, session: Session) -> None:
     """Apply Z99 partial updates received over HL7.
 
@@ -625,6 +661,58 @@ async def on_message_inbound_async(msg: str, session, endpoint) -> str:
 
             pid_data = _parse_pid(msg)
             pv1_data = _parse_pv1(msg)
+            zbe_data = _parse_zbe(msg)
+            
+            # Contrôle additionnel pour ZBE-9="C" : vérifier l'état du dossier
+            # La correction de statut sans création de nouveau mouvement (valeur C)
+            # ne peut être utilisée que si la venue est en état d'admission ou préadmission
+            if zbe_data.get("movement_indicator") == "C":
+                if trigger == "Z99":
+                    # Récupérer la venue via PV1-19
+                    visit_num_str = pv1_data.get("visit_number")
+                    if visit_num_str:
+                        try:
+                            venue_seq = int(visit_num_str.split("^")[0]) if "^" in visit_num_str else int(visit_num_str)
+                            venue = session.exec(
+                                select(Venue).where(Venue.venue_seq == venue_seq)
+                            ).first()
+                            if venue:
+                                # Vérifier que l'état opérationnel est "planned" (préadmission) ou "active" (admission)
+                                if venue.operational_status not in {"planned", "active"}:
+                                    log.status = "rejected"
+                                    error_text = f"ZBE-9='C' (correction de statut) non autorisé: la venue {venue_seq} n'est pas en état d'admission ou préadmission (état actuel: {venue.operational_status or 'non défini'})"
+                                    ack = build_ack(msg, ack_code="AE", text=error_text)
+                                    log.ack_payload = ack
+                                    logger.warning(
+                                        "Message Z99 avec ZBE-9='C' rejeté: état de venue invalide",
+                                        extra={
+                                            "venue_seq": venue_seq,
+                                            "operational_status": venue.operational_status,
+                                            "trigger": trigger
+                                        }
+                                    )
+                                    return ack
+                            else:
+                                # Venue non trouvée
+                                log.status = "rejected"
+                                error_text = f"ZBE-9='C': venue {venue_seq} non trouvée"
+                                ack = build_ack(msg, ack_code="AE", text=error_text)
+                                log.ack_payload = ack
+                                return ack
+                        except (ValueError, IndexError) as e:
+                            # Numéro de venue invalide
+                            log.status = "rejected"
+                            error_text = f"ZBE-9='C': numéro de venue invalide dans PV1-19 ({visit_num_str})"
+                            ack = build_ack(msg, ack_code="AE", text=error_text)
+                            log.ack_payload = ack
+                            return ack
+                    else:
+                        # PV1-19 manquant pour un Z99 avec C
+                        log.status = "rejected"
+                        error_text = "ZBE-9='C' requiert un numéro de venue (PV1-19) pour valider l'état d'admission"
+                        ack = build_ack(msg, ack_code="AE", text=error_text)
+                        log.ack_payload = ack
+                        return ack
             
             # Validation des transitions IHE PAM
             # Récupérer le dernier événement du dossier/venue si applicable

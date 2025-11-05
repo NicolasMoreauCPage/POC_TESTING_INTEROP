@@ -1,0 +1,428 @@
+{% extends "base.html" %}
+
+{% block title %}Documentation - MedData Bridge{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<style>
+    .doc-layout {
+        display: flex;
+        min-height: calc(100vh - 64px);
+    }
+    
+    .doc-sidebar {
+        width: 280px;
+        background: linear-gradient(to bottom, #f8f9fa 0%, #e9ecef 100%);
+        border-right: 1px solid #dee2e6;
+        padding: 1.5rem 0;
+        position: sticky;
+        top: 64px;
+        height: calc(100vh - 64px);
+        overflow-y: auto;
+    }
+    
+    .doc-sidebar::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .doc-sidebar::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    
+    .doc-sidebar::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 3px;
+    }
+    
+    .doc-category {
+        margin-bottom: 1.5rem;
+    }
+    
+    .doc-category-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #6c757d;
+        padding: 0.5rem 1.5rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .doc-category-icon {
+        font-size: 1rem;
+    }
+    
+    .doc-file-link {
+        display: block;
+        padding: 0.5rem 1.5rem 0.5rem 3rem;
+        color: #495057;
+        text-decoration: none;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+        border-left: 3px solid transparent;
+    }
+    
+    .doc-file-link:hover {
+        background-color: rgba(0, 123, 255, 0.1);
+        color: #007bff;
+        border-left-color: #007bff;
+    }
+    
+    .doc-file-link.active {
+        background-color: rgba(0, 123, 255, 0.15);
+        color: #0056b3;
+        font-weight: 600;
+        border-left-color: #0056b3;
+    }
+    
+    .doc-content {
+        flex: 1;
+        padding: 2rem 3rem;
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+    }
+    
+    .doc-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .doc-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #212529;
+        margin-bottom: 0.5rem;
+    }
+    
+    .doc-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+    
+    .doc-breadcrumb a {
+        color: #007bff;
+        text-decoration: none;
+    }
+    
+    .doc-breadcrumb a:hover {
+        text-decoration: underline;
+    }
+    
+    /* Markdown styling */
+    .markdown-content h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .markdown-content h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .markdown-content h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-top: 1.25rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .markdown-content p {
+        line-height: 1.6;
+        margin-bottom: 1rem;
+    }
+    
+    .markdown-content code {
+        background-color: #f8f9fa;
+        padding: 0.2rem 0.4rem;
+        border-radius: 3px;
+        font-size: 0.875em;
+        font-family: 'Courier New', monospace;
+    }
+    
+    .markdown-content pre {
+        background-color: #f6f8fa;
+        border: 1px solid #e1e4e8;
+        border-radius: 6px;
+        padding: 1rem;
+        overflow-x: auto;
+        margin-bottom: 1rem;
+    }
+    
+    .markdown-content pre code {
+        background: none;
+        padding: 0;
+        border-radius: 0;
+        font-size: 0.875rem;
+    }
+    
+    .markdown-content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1rem;
+    }
+    
+    .markdown-content table th,
+    .markdown-content table td {
+        border: 1px solid #dee2e6;
+        padding: 0.75rem;
+        text-align: left;
+    }
+    
+    .markdown-content table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+    
+    .markdown-content table tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+    
+    .markdown-content ul,
+    .markdown-content ol {
+        margin-bottom: 1rem;
+        padding-left: 2rem;
+    }
+    
+    .markdown-content li {
+        margin-bottom: 0.5rem;
+    }
+    
+    .markdown-content blockquote {
+        border-left: 4px solid #007bff;
+        padding-left: 1rem;
+        margin-left: 0;
+        color: #6c757d;
+        font-style: italic;
+    }
+    
+    .markdown-content hr {
+        border: 0;
+        border-top: 2px solid #e9ecef;
+        margin: 2rem 0;
+    }
+    
+    .search-box {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #dee2e6;
+        background: white;
+    }
+    
+    .search-box input {
+        width: 100%;
+        padding: 0.5rem 1rem;
+        border: 1px solid #ced4da;
+        border-radius: 20px;
+        font-size: 0.875rem;
+    }
+    
+    .search-box input:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .search-results {
+        padding: 1rem 0;
+    }
+    
+    .search-result-item {
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        background: white;
+    }
+    
+    .search-result-item:hover {
+        border-color: #007bff;
+        box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
+    }
+    
+    .search-result-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .search-result-title a {
+        color: #007bff;
+        text-decoration: none;
+    }
+    
+    .search-result-title a:hover {
+        text-decoration: underline;
+    }
+    
+    .search-result-snippet {
+        font-size: 0.875rem;
+        color: #6c757d;
+        white-space: pre-wrap;
+        font-family: monospace;
+        background: #f8f9fa;
+        padding: 0.5rem;
+        border-radius: 4px;
+        overflow-x: auto;
+    }
+    
+    .badge-matches {
+        background-color: #28a745;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .no-results {
+        text-align: center;
+        padding: 3rem;
+        color: #6c757d;
+    }
+    
+    @media (max-width: 768px) {
+        .doc-layout {
+            flex-direction: column;
+        }
+        
+        .doc-sidebar {
+            width: 100%;
+            position: static;
+            height: auto;
+            max-height: 300px;
+        }
+        
+        .doc-content {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="doc-layout">
+    <!-- Sidebar -->
+    <div class="doc-sidebar">
+        <div class="search-box">
+            <form action="/documentation/search" method="get">
+                <input type="text" name="q" placeholder="🔍 Rechercher..." value="{{ search_query or '' }}">
+            </form>
+        </div>
+        
+        {% for category_id, category_info in structure.items() %}
+        <div class="doc-category">
+            <div class="doc-category-title">
+                <span class="doc-category-icon">{{ category_info.icon }}</span>
+                <span>{{ category_info.title }}</span>
+            </div>
+            {% for filename in category_info.files %}
+            <a href="/documentation/{{ category_id }}/{{ filename }}" 
+               class="doc-file-link {% if current_doc and current_doc.category == category_id and current_doc.filename == filename %}active{% endif %}">
+                {{ filename.replace('.md', '').replace('_', ' ').replace('-', ' ') }}
+            </a>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Content -->
+    <div class="doc-content">
+        {% if error %}
+        <div class="alert alert-danger" role="alert">
+            <strong>Erreur :</strong> {{ error }}
+        </div>
+        {% elif search_results is defined %}
+        <div class="doc-header">
+            <h1 class="doc-title">🔍 Résultats de recherche</h1>
+            <p class="doc-breadcrumb">
+                <a href="/documentation">Documentation</a> › Recherche : "{{ search_query }}"
+            </p>
+        </div>
+        
+        {% if search_results %}
+        <p class="mb-4"><strong>{{ search_results|length }}</strong> résultat(s) trouvé(s)</p>
+        <div class="search-results">
+            {% for result in search_results %}
+            <div class="search-result-item">
+                <div class="search-result-title">
+                    <a href="/documentation/{{ result.category }}/{{ result.filename }}">
+                        {{ result.title }}
+                    </a>
+                    <span class="badge-matches">{{ result.matches }} match(es)</span>
+                </div>
+                <div class="text-muted mb-2" style="font-size: 0.75rem;">
+                    {{ result.category }} › {{ result.filename }}
+                </div>
+                {% if result.snippet %}
+                <div class="search-result-snippet">{{ result.snippet }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-results">
+            <p>Aucun résultat trouvé pour "{{ search_query }}"</p>
+            <p class="text-muted">Essayez avec d'autres mots-clés</p>
+        </div>
+        {% endif %}
+        
+        {% elif doc_content %}
+        <div class="doc-header">
+            <h1 class="doc-title">{{ doc_title }}</h1>
+            <p class="doc-breadcrumb">
+                <a href="/documentation">Documentation</a> › 
+                <a href="/documentation#{{ current_doc.category }}">{{ structure[current_doc.category].title }}</a> ›
+                {{ doc_title }}
+            </p>
+        </div>
+        <div class="markdown-content">
+            {{ doc_content|safe }}
+        </div>
+        {% else %}
+        <div class="doc-header">
+            <h1 class="doc-title">📚 Documentation MedData Bridge</h1>
+            <p class="doc-breadcrumb">Accueil</p>
+        </div>
+        <div class="markdown-content">
+            {{ index_content|safe }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Highlight code blocks
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('pre code').forEach((block) => {
+        hljs.highlightElement(block);
+    });
+    
+    // Smooth scroll to anchors
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
