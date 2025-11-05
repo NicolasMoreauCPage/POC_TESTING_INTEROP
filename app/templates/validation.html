@@ -30,7 +30,7 @@ EVN|A01|20240101120000
 PID|1||123456^^^HOSP||DOE^JOHN||19800101
 PV1|1|I|WARD^101^A|||DOC123^SMITH^JANE"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-                    >{% if hl7_message %}{{ hl7_message }}{% endif %}</textarea>
+                    >{{ hl7_message if hl7_message else '' }}</textarea>
                 </div>
 
                 <!-- Options de validation -->
@@ -77,6 +77,17 @@ PV1|1|I|WARD^101^A|||DOC123^SMITH^JANE"
                     </button>
                 </div>
             </form>
+        </div>
+
+        <!-- Debug: afficher toujours pour tester -->
+        <div class="p-6 bg-yellow-50 border-t border-yellow-200">
+            <p class="text-sm text-yellow-800">
+                <strong>Debug:</strong> validation_done = {{ validation_done }}
+                {% if validation_done %}
+                    | Result exists = {{ result is defined }}
+                    | Errors = {{ errors|length if errors is defined else 'N/A' }}
+                {% endif %}
+            </p>
         </div>
 
         {% if validation_done %}
@@ -301,4 +312,21 @@ PV1|1|I|WARD^101^A|||DOC123^SMITH^JANE"
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Scroll automatique vers les résultats après validation
+document.addEventListener('DOMContentLoaded', function() {
+    {% if validation_done %}
+    // Attendre que le DOM soit complètement chargé
+    setTimeout(function() {
+        const resultsSection = document.querySelector('.border-t.border-gray-200.px-6.py-6.bg-gray-50');
+        if (resultsSection) {
+            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 100);
+    {% endif %}
+});
+</script>
 {% endblock %}

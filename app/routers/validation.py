@@ -15,9 +15,17 @@ templates = Jinja2Templates(directory="app/templates")
 @router.get("/validation", response_class=HTMLResponse)
 async def validation_page(request: Request):
     """Page de validation de messages HL7."""
+    # Message exemple par défaut
+    example_message = """MSH|^~\\&|SENDING_APP|SEND_FAC|RECEIVING_APP|RECV_FAC|20251105120000||ADT^A01^ADT_A01|MSG001|P|2.5
+EVN|A01|20251105120000
+PID|1||123456^^^HOSP||DUPONT^JEAN||19800101|M
+PV1|1|I|CARDIO^101^1|||||||||||||||||1"""
+    
     return templates.TemplateResponse("validation.html", {
         "request": request,
-        "title": "Validation Messages HL7 v2.5"
+        "title": "Validation Messages HL7 v2.5",
+        "validation_done": False,
+        "hl7_message": example_message
     })
 
 
@@ -30,8 +38,12 @@ async def validate_message(
 ):
     """Valide un message HL7 et retourne le rapport."""
     
+    print(f"[VALIDATION] Received message of length: {len(hl7_message)}")
+    print(f"[VALIDATION] Direction: {direction}, Profile: {profile}")
+    
     # Validation du message
     result = validate_pam(hl7_message, direction, profile)
+    print(f"[VALIDATION] Result level: {result.level}, issues: {len(result.issues)}")
     
     # Classifier les issues par sévérité
     errors = [i for i in result.issues if i.severity == "error"]
