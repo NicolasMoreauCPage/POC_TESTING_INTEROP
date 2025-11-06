@@ -90,7 +90,7 @@ def get_doc_structure():
 
 
 def render_markdown(content: str) -> str:
-    """Convertit Markdown en HTML avec extensions."""
+    """Convertit Markdown en HTML avec extensions (sans exposer la ToC)."""
     md = markdown.Markdown(extensions=[
         TocExtension(baselevel=1, toc_depth=3),
         FencedCodeExtension(),
@@ -100,6 +100,24 @@ def render_markdown(content: str) -> str:
         'sane_lists'
     ])
     return md.convert(content)
+
+
+def render_markdown_with_toc(content: str) -> tuple[str, str]:
+    """Convertit Markdown en HTML et retourne aussi la Table des matières (HTML).
+
+    Retourne un tuple (html, toc_html).
+    """
+    md = markdown.Markdown(extensions=[
+        TocExtension(baselevel=1, toc_depth=3, permalink=True),
+        FencedCodeExtension(),
+        TableExtension(),
+        CodeHiliteExtension(css_class='highlight', linenums=False),
+        'nl2br',
+        'sane_lists'
+    ])
+    html = md.convert(content)
+    toc_html = getattr(md, 'toc', '') or ''
+    return html, toc_html
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -148,21 +166,62 @@ async def view_document(request: Request, category: str, filename: str):
             }
         )
     
-    # Lire et convertir le document
+    # Lire et convertir le document (avec ToC)
     with open(doc_path, 'r', encoding='utf-8') as f:
-        content = render_markdown(f.read())
+        content_html, toc_html = render_markdown_with_toc(f.read())
     
-    # Extraire le titre du premier h1
+    # Extraire le titre du premier h1 (fallback à partir du nom de fichier)
     title = filename.replace('.md', '').replace('_', ' ').replace('-', ' ').title()
+
+    # Calculer navigation prev/next
+    # Aplatir la structure dans l'ordre déclaré
+    flat_list = []
+    for cat_id, info in structure.items():
+        for fn in info.get("files", []):
+            flat_list.append({
+                "category": cat_id,
+                "filename": fn,
+                "title": fn.replace('.md', '').replace('_', ' ').replace('-', ' ').title(),
+            })
+    # Trouver l'index courant
+    current_idx = next((i for i, item in enumerate(flat_list) if item["category"] == category and item["filename"] == filename), None)
+    prev_doc = None
+    next_doc = None
+    if current_idx is not None:
+        if current_idx > 0:
+            p = flat_list[current_idx - 1]
+            prev_doc = {
+                "url": f"/documentation/{p['category']}/{p['filename']}",
+                "title": p["title"],
+            }
+        if current_idx < len(flat_list) - 1:
+            n = flat_list[current_idx + 1]
+            next_doc = {
+                "url": f"/documentation/{n['category']}/{n['filename']}",
+                "title": n["title"],
+            }
+
+    # Métadonnées
+    try:
+        stat = doc_path.stat()
+        last_updated = stat.st_mtime
+    except Exception:
+        last_updated = None
+    source_path = f"{category}/{filename}"
     
     return request.app.state.templates.TemplateResponse(
         "documentation.html",
         {
             "request": request,
             "structure": structure,
-            "doc_content": content,
+            "doc_content": content_html,
             "doc_title": title,
-            "current_doc": {"category": category, "filename": filename}
+            "current_doc": {"category": category, "filename": filename},
+            "doc_toc": toc_html,
+            "prev_doc": prev_doc,
+            "next_doc": next_doc,
+            "doc_last_updated": last_updated,
+            "doc_source_path": source_path,
         }
     )
 

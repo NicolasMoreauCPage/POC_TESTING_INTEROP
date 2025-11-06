@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Lit {{ lit.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-2xl font-bold text-gray-900">Lit: {{ lit.name }}</h2>
+    <div class="space-x-2">
+      <a href="/structure/lits/{{ lit.id }}/edit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Modifier</a>
+      <a href="/structure/chambres/{{ lit.chambre_id }}" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Retour Chambre</a>
+    </div>
+  </div>
+
+  <div class="bg-white shadow rounded-md p-4 mb-8">
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Identifiant</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ lit.identifier }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Statut</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ lit.status }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Statut opérationnel</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ lit.operational_status or '-' }}</dd>
+      </div>
+    </dl>
+  </div>
+
+</div>
+{% endblock %}

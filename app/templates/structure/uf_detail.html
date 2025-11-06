@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}UF {{ uf.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-2xl font-bold text-gray-900">Unité Fonctionnelle: {{ uf.name }}</h2>
+    <div class="space-x-2">
+      <a href="/structure/ufs/{{ uf.id }}/edit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Modifier</a>
+      <a href="/structure/ufs" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Retour</a>
+    </div>
+  </div>
+
+  <div class="bg-white shadow rounded-md p-4 mb-8">
+    <dl class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Identifiant</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ uf.identifier }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Service</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ uf.service.name if uf.service else '-' }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Type UF</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ uf.uf_type or '-' }}</dd>
+      </div>
+    </dl>
+  </div>
+
+  <h3 class="text-lg font-semibold mb-3">Unités d'Hébergement</h3>
+  <div class="bg-white shadow overflow-hidden sm:rounded-md">
+    <ul role="list" class="divide-y divide-gray-200">
+      {% for uh in uhs %}
+      <li>
+        <a href="/structure/uh/{{ uh.id }}" class="block hover:bg-gray-50 px-4 py-4">
+          <div class="flex items-center justify-between">
+            <p class="text-sm font-medium text-indigo-600">{{ uh.name }}</p>
+            <p class="text-sm text-gray-500">{{ uh.identifier }}</p>
+          </div>
+        </a>
+      </li>
+      {% else %}
+      <li class="px-4 py-6 text-sm text-gray-500">Aucune UH</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

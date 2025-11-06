@@ -193,7 +193,7 @@ def save_location(
         if loc_type == "M":  # Entité juridique
             entity = EntiteGeographique(
                 **base_props,
-                finess=characteristics.get("FNS", ""),
+                finess=characteristics.get("FNS") or "",  # Ensure empty string if missing
                 category_sae=characteristics.get("CTGR_S"),
                 city_insee_code=characteristics.get("INS"),
                 type=characteristics.get("TPLG"),
@@ -208,7 +208,7 @@ def save_location(
         elif loc_type == "ETBL_GRPQ":  # Établissement géographique
             entity = EntiteGeographique(
                 **base_props,
-                finess=characteristics.get("FNS", ""),
+                finess=characteristics.get("FNS") or "",  # Ensure empty string if missing
                 category_sae=characteristics.get("CTGR_S"),
                 type=characteristics.get("TPLG"),
             )

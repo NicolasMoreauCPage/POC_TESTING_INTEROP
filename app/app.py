@@ -39,6 +39,7 @@ from app.db_session_factory import session_factory
 from app.services.transport_inbound import on_message_inbound
 from app.services.mllp_manager import MLLPManager
 from app.services.entity_events import register_entity_events
+from app.services.entity_events_structure import register_structure_entity_events
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 from app.routers import (
@@ -71,8 +72,8 @@ async def lifespan(app: FastAPI):
         init_db()
         # Register entity event listeners for automatic message emission
         register_entity_events()
+        register_structure_entity_events()
         logging.info("Entity event listeners registered for automatic emission")
-        
         # Démarrage idempotent
         sess = next(get_session())
         try:
@@ -310,6 +311,7 @@ def create_app() -> FastAPI:
     print(" - Core entity routers mounted with their prefixes")
     
     # 3. Structure management
+    app.include_router(structure.redirect_router)  # Redirections singulier->pluriel (AVANT le router principal)
     app.include_router(structure.router)  # Has prefix /structure
     app.include_router(structure.api_router)  # Has prefix /api/structure
     app.include_router(structure_hl7.router)  # Has prefix /structure

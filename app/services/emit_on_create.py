@@ -272,10 +272,10 @@ def generate_pam_hl7(
         location = entity.uf_responsabilite or ""
         pv1 = f"PV1|1|{patient_class}|{location}|||||||||||||{control_id}|||||||||||||||||||{location}||||||{admit_time}"
         
-    return "\r".join([msh, evn, pid, pv1])
+        return "\r".join([msh, evn, pid, pv1])
     if entity_type == "venue":
         return (
-            f"MSH|^~\\&|POC|HOSP|EXT|HOSP|{entity.start_time or ''}||Z99^Z99|{entity.id}|P|2.5\n"
+            f"MSH|^~\\&|POC|HOSP|EXT|HOSP|{entity.start_time or ''}||Z99^Z99|{entity.id}|P|2.5\r"
             f"Z99|VENUE|{entity.venue_seq}|{entity.code}|{entity.label}"
         )
     if entity_type == "mouvement":

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier Lit{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+  <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight mb-8">
+    Modifier le lit {{ lit.name }}
+  </h2>
+
+  <form method="POST" action="/structure/lits/{{ lit.id }}" class="space-y-6">
+    <div>
+      <label for="name" class="block text-sm font-medium leading-6 text-gray-900">Nom</label>
+      <div class="mt-2">
+        <input type="text" name="name" id="name" required 
+          value="{{ lit.name }}"
+          class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+      </div>
+    </div>
+
+    <div>
+      <label for="identifier" class="block text-sm font-medium leading-6 text-gray-900">Identifiant</label>
+      <div class="mt-2">
+        <input type="text" name="identifier" id="identifier"
+          value="{{ lit.identifier }}"
+          class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+      </div>
+    </div>
+
+    <div>
+      <label for="chambre_id" class="block text-sm font-medium leading-6 text-gray-900">Chambre</label>
+      <div class="mt-2">
+        <select name="chambre_id" id="chambre_id" required
+          class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600">
+          {% for ch in chambres %}
+          <option value="{{ ch.id }}" {% if lit.chambre_id == ch.id %}selected{% endif %}>{{ ch.name }} ({{ ch.identifier }})</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <label for="status" class="block text-sm font-medium leading-6 text-gray-900">Statut</label>
+      <div class="mt-2">
+        <select name="status" id="status"
+          class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600">
+          {% for s in statuses %}
+          <option value="{{ s }}" {% if lit.status == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <label for="operational_status" class="block text-sm font-medium leading-6 text-gray-900">Statut opérationnel</label>
+      <div class="mt-2">
+        <input type="text" name="operational_status" id="operational_status"
+          value="{{ lit.operational_status or '' }}"
+          class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-x-3">
+      <a href="/structure/chambres/{{ lit.chambre_id }}" 
+         class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+        Annuler
+      </a>
+      <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+        Enregistrer
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

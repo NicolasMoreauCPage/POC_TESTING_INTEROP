@@ -64,8 +64,9 @@
                   {{ pole.status }}
                 </span>
               </td>
-              <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                <a href="/structure?ej={{ pole.entite_geo_id }}" class="text-indigo-600 hover:text-indigo-900">Voir structure</a>
+              <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 space-x-3">
+                <a href="/structure/poles/{{ pole.id }}" class="text-indigo-600 hover:text-indigo-900">Détails</a>
+                <a href="/structure/poles/{{ pole.id }}/edit" class="text-indigo-600 hover:text-indigo-900">Modifier</a>
               </td>
             </tr>
             {% else %}

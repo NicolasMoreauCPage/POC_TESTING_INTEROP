@@ -16,8 +16,8 @@ def test_hl7_pid3_override(session: Session):
     # Find PID line
     pid_line = next((l for l in hl7.splitlines() if l.startswith("PID")), "")
     assert pid_line, "PID segment missing"
-    # Expect CX value like 777^^^1.2.250.1.71.1.2.2^PI
-    assert re.search(rf"{patient.patient_seq}\^\^\^1\.2\.250\.1\.71\.1\.2\.2\^PI", pid_line)
+    # Expect CX value like 777^^^HOSP&1.2.250.1.71.1.2.2&ISO^PI (with assigning authority)
+    assert re.search(rf"{patient.patient_seq}\^\^\^[^&]+&1\.2\.250\.1\.71\.1\.2\.2&ISO\^PI", pid_line)
 
 
 def test_fhir_identifier_override(session: Session):

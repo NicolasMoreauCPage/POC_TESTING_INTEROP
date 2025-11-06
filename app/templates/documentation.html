@@ -3,357 +3,193 @@
 {% block title %}Documentation - MedData Bridge{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <style>
+    body {
+        background: #f5f7fa;
+    }
     .doc-layout {
         display: flex;
         min-height: calc(100vh - 64px);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
-    
     .doc-sidebar {
-        width: 280px;
-        background: linear-gradient(to bottom, #f8f9fa 0%, #e9ecef 100%);
-        border-right: 1px solid #dee2e6;
-        padding: 1.5rem 0;
+        width: 320px;
+        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+        padding: 0;
         position: sticky;
         top: 64px;
         height: calc(100vh - 64px);
         overflow-y: auto;
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
     }
-    
-    .doc-sidebar::-webkit-scrollbar {
-        width: 6px;
-    }
-    
-    .doc-sidebar::-webkit-scrollbar-track {
-        background: #f1f1f1;
-    }
-    
-    .doc-sidebar::-webkit-scrollbar-thumb {
-        background: #888;
-        border-radius: 3px;
-    }
-    
-    .doc-category {
-        margin-bottom: 1.5rem;
-    }
-    
-    .doc-category-title {
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        color: #6c757d;
-        padding: 0.5rem 1.5rem;
-        margin-bottom: 0.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .doc-category-icon {
-        font-size: 1rem;
-    }
-    
-    .doc-file-link {
-        display: block;
-        padding: 0.5rem 1.5rem 0.5rem 3rem;
-        color: #495057;
-        text-decoration: none;
-        font-size: 0.875rem;
-        transition: all 0.2s;
-        border-left: 3px solid transparent;
-    }
-    
-    .doc-file-link:hover {
-        background-color: rgba(0, 123, 255, 0.1);
-        color: #007bff;
-        border-left-color: #007bff;
-    }
-    
-    .doc-file-link.active {
-        background-color: rgba(0, 123, 255, 0.15);
-        color: #0056b3;
-        font-weight: 600;
-        border-left-color: #0056b3;
-    }
-    
-    .doc-content {
-        flex: 1;
-        padding: 2rem 3rem;
-        max-width: 1200px;
-        margin: 0 auto;
-        background: white;
-    }
-    
-    .doc-header {
-        margin-bottom: 2rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid #e9ecef;
-    }
-    
-    .doc-title {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #212529;
-        margin-bottom: 0.5rem;
-    }
-    
-    .doc-breadcrumb {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.875rem;
-        color: #6c757d;
-    }
-    
-    .doc-breadcrumb a {
-        color: #007bff;
-        text-decoration: none;
-    }
-    
-    .doc-breadcrumb a:hover {
-        text-decoration: underline;
-    }
-    
-    /* Markdown styling */
-    .markdown-content h1 {
-        font-size: 2rem;
-        font-weight: 700;
-        margin-top: 2rem;
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid #e9ecef;
-    }
-    
-    .markdown-content h2 {
-        font-size: 1.5rem;
-        font-weight: 600;
-        margin-top: 1.5rem;
-        margin-bottom: 0.75rem;
-    }
-    
-    .markdown-content h3 {
-        font-size: 1.25rem;
-        font-weight: 600;
-        margin-top: 1.25rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .markdown-content p {
-        line-height: 1.6;
-        margin-bottom: 1rem;
-    }
-    
-    .markdown-content code {
-        background-color: #f8f9fa;
-        padding: 0.2rem 0.4rem;
-        border-radius: 3px;
-        font-size: 0.875em;
-        font-family: 'Courier New', monospace;
-    }
-    
-    .markdown-content pre {
-        background-color: #f6f8fa;
-        border: 1px solid #e1e4e8;
-        border-radius: 6px;
-        padding: 1rem;
-        overflow-x: auto;
-        margin-bottom: 1rem;
-    }
-    
-    .markdown-content pre code {
-        background: none;
-        padding: 0;
-        border-radius: 0;
-        font-size: 0.875rem;
-    }
-    
-    .markdown-content table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 1rem;
-    }
-    
-    .markdown-content table th,
-    .markdown-content table td {
-        border: 1px solid #dee2e6;
-        padding: 0.75rem;
-        text-align: left;
-    }
-    
-    .markdown-content table th {
-        background-color: #f8f9fa;
-        font-weight: 600;
-    }
-    
-    .markdown-content table tr:nth-child(even) {
-        background-color: #f8f9fa;
-    }
-    
-    .markdown-content ul,
-    .markdown-content ol {
-        margin-bottom: 1rem;
-        padding-left: 2rem;
-    }
-    
-    .markdown-content li {
-        margin-bottom: 0.5rem;
-    }
-    
-    .markdown-content blockquote {
-        border-left: 4px solid #007bff;
-        padding-left: 1rem;
-        margin-left: 0;
-        color: #6c757d;
-        font-style: italic;
-    }
-    
-    .markdown-content hr {
-        border: 0;
-        border-top: 2px solid #e9ecef;
-        margin: 2rem 0;
-    }
-    
-    .search-box {
-        padding: 1rem 1.5rem;
-        border-bottom: 1px solid #dee2e6;
-        background: white;
-    }
-    
+    .doc-sidebar::-webkit-scrollbar { width: 8px; }
+    .doc-sidebar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+    .doc-sidebar::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.5); border-radius: 4px; }
+    .doc-sidebar::-webkit-scrollbar-thumb:hover { background: rgba(139,92,246,0.8); }
+    .search-box { padding: 1rem 1.25rem; border-bottom: 1px solid rgba(148,163,184,0.2); background: transparent; }
     .search-box input {
-        width: 100%;
-        padding: 0.5rem 1rem;
-        border: 1px solid #ced4da;
-        border-radius: 20px;
-        font-size: 0.875rem;
+        width: 100%; padding: 0.6rem 1rem; border: 1px solid rgba(148,163,184,0.3);
+        border-radius: 9999px; font-size: 0.9rem; color: #e2e8f0; background: rgba(2,6,23,0.4);
     }
-    
-    .search-box input:focus {
-        outline: none;
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    .search-box input::placeholder { color: #94a3b8; }
+    .search-box input:focus { outline: none; border-color: #8b5cf6; box-shadow: 0 0 0 3px rgba(139,92,246,0.25); }
+    .doc-category { margin-bottom: 0.5rem; padding: 0.5rem 0; }
+    .doc-category-title {
+        font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+        color: #94a3b8; padding: 0.75rem 1.5rem 0.5rem; display: flex; align-items: center; gap: 0.75rem;
+        background: linear-gradient(90deg, rgba(139,92,246,0.15) 0%, transparent 100%);
+        border-left: 3px solid #8b5cf6;
+        cursor: pointer;
+        user-select: none;
     }
-    
-    .search-results {
-        padding: 1rem 0;
+    .doc-category-summary { display: flex; align-items: center; gap: 0.75rem; list-style: none; }
+    .doc-category-toggle { margin-left: auto; color: #64748b; transition: transform .2s ease; }
+    details[open] > summary .doc-category-toggle { transform: rotate(90deg); }
+    .doc-category-icon { font-size: 1.1rem; filter: drop-shadow(0 0 4px rgba(139,92,246,0.6)); }
+    .doc-file-link {
+        display: block; padding: 0.65rem 1.5rem 0.65rem 3.5rem; color: #cbd5e1; text-decoration: none; font-size: 0.9rem;
+        font-weight: 500; transition: all 0.25s cubic-bezier(.4,0,.2,1); border-left: 3px solid transparent; position: relative;
     }
-    
-    .search-result-item {
-        padding: 1rem;
-        margin-bottom: 1rem;
-        border: 1px solid #dee2e6;
-        border-radius: 6px;
-        background: white;
+    .doc-file-link:hover { background: linear-gradient(90deg, rgba(139,92,246,0.25) 0%, transparent 100%); color: #e0e7ff; border-left-color: #8b5cf6; transform: translateX(4px); }
+    .doc-file-link.active { background: linear-gradient(90deg, rgba(139,92,246,0.4) 0%, rgba(139,92,246,0.1) 100%); color: #fff; font-weight: 700; border-left-color: #a78bfa; box-shadow: inset 0 0 20px rgba(139,92,246,0.3); }
+    .doc-content {
+        flex: 1; padding: 3rem 4rem; max-width: 1400px; margin: 24px 24px 24px 24px; background: white;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1); border-radius: 16px;
     }
-    
-    .search-result-item:hover {
-        border-color: #007bff;
-        box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
+    .doc-header {
+        margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 3px solid transparent;
+        background: linear-gradient(white,white) padding-box, linear-gradient(90deg,#667eea 0%,#764ba2 100%) border-box; border-width: 0 0 3px 0; border-style: solid;
     }
-    
-    .search-result-title {
-        font-size: 1.125rem;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-    }
-    
-    .search-result-title a {
-        color: #007bff;
-        text-decoration: none;
-    }
-    
-    .search-result-title a:hover {
-        text-decoration: underline;
-    }
-    
-    .search-result-snippet {
-        font-size: 0.875rem;
-        color: #6c757d;
-        white-space: pre-wrap;
-        font-family: monospace;
-        background: #f8f9fa;
-        padding: 0.5rem;
-        border-radius: 4px;
-        overflow-x: auto;
-    }
-    
-    .badge-matches {
-        background-color: #28a745;
-        color: white;
-        padding: 0.25rem 0.5rem;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-    
-    .no-results {
-        text-align: center;
-        padding: 3rem;
-        color: #6c757d;
-    }
-    
-    @media (max-width: 768px) {
-        .doc-layout {
-            flex-direction: column;
-        }
-        
-        .doc-sidebar {
-            width: 100%;
-            position: static;
-            height: auto;
-            max-height: 300px;
-        }
-        
-        .doc-content {
-            padding: 1rem;
-        }
+    .doc-title { font-size: 2.75rem; font-weight: 800; background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.75rem; letter-spacing: -0.02em; }
+    .doc-breadcrumb { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; color: #64748b; font-weight: 500; }
+    .doc-breadcrumb a { color: #8b5cf6; text-decoration: none; transition: all 0.2s; position: relative; }
+    .doc-breadcrumb a:hover { color: #6366f1; }
+    .doc-meta { margin-top: .5rem; color: #94a3b8; font-size: .85rem; }
+    .doc-meta code { background: #f1f5f9; color: #0f172a; padding: .15rem .4rem; border-radius: 4px; }
+    /* Markdown */
+    .markdown-content h1 { font-size: 2rem; font-weight: 800; margin-top: 2rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e9ecef; }
+    .markdown-content h2 { font-size: 1.6rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+    .markdown-content h3 { font-size: 1.25rem; font-weight: 600; margin-top: 1.25rem; margin-bottom: 0.5rem; }
+    .markdown-content p { line-height: 1.7; margin-bottom: 1rem; color: #1f2937; }
+    .markdown-content code { background-color: #0b1220; color: #e5e7eb; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.85em; }
+    .markdown-content pre { position: relative; background-color: #0b1220; border: 1px solid #0f172a; border-radius: 10px; padding: 1rem; overflow-x: auto; margin-bottom: 1rem; }
+    .markdown-content pre code { background: none; padding: 0; border-radius: 0; font-size: 0.9rem; }
+    .markdown-content table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+    .markdown-content table th, .markdown-content table td { border: 1px solid #e5e7eb; padding: 0.75rem; text-align: left; }
+    .markdown-content table th { background-color: #f8fafc; font-weight: 700; }
+    .markdown-content table tr:nth-child(even) { background-color: #f8fafc; }
+    .markdown-content ul, .markdown-content ol { margin-bottom: 1rem; padding-left: 2rem; }
+    .markdown-content li { margin-bottom: 0.5rem; }
+    .markdown-content blockquote { border-left: 4px solid #8b5cf6; padding-left: 1rem; margin-left: 0; color: #475569; font-style: italic; background: #f6f5ff; border-radius: 0 8px 8px 0; }
+    .markdown-content hr { border: 0; border-top: 2px solid #e9ecef; margin: 2rem 0; }
+    /* ToC */
+    .doc-body { display: grid; grid-template-columns: 1fr 280px; gap: 2rem; }
+    .doc-toc { position: sticky; top: 96px; align-self: start; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1rem; max-height: calc(100vh - 140px); overflow: auto; }
+    .doc-toc h2 { font-size: .9rem; text-transform: uppercase; letter-spacing: .06em; color: #64748b; font-weight: 800; margin: 0 0 .5rem 0; }
+    .doc-toc nav { font-size: .9rem; }
+    .doc-toc ul { list-style: none; padding-left: .5rem; }
+    .doc-toc a { color: #475569; text-decoration: none; display: block; padding: .25rem 0; }
+    .doc-toc a:hover { color: #0f172a; }
+    .doc-toc .toc ul { padding-left: 1rem; }
+    .doc-nav { display: flex; justify-content: space-between; gap: 1rem; margin-top: 2rem; }
+    .doc-nav a { flex: 1; display: inline-flex; align-items: center; gap: .5rem; padding: .75rem 1rem; border-radius: 10px; border: 1px solid #e5e7eb; text-decoration: none; background: #fafafa; color: #1f2937; }
+    .doc-nav a:hover { background: #f1f5f9; }
+    .copy-btn { position: absolute; top: 8px; right: 8px; background: #0ea5e9; border: none; color: white; font-size: .75rem; padding: .3rem .5rem; border-radius: 6px; cursor: pointer; opacity: .9; }
+    .copy-btn:hover { opacity: 1; filter: brightness(1.05); }
+    .copied { background: #22c55e !important; }
+    .search-results { padding: 1rem 0; }
+    .search-result-item { padding: 1rem; margin-bottom: 1rem; border: 1px solid #e5e7eb; border-radius: 10px; background: white; transition: box-shadow .2s ease, transform .2s ease; }
+    .search-result-item:hover { box-shadow: 0 10px 20px rgba(0,0,0,0.08); transform: translateY(-2px); }
+    .search-result-title { font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .search-result-title a { color: #4f46e5; text-decoration: none; }
+    .search-result-title a:hover { text-decoration: underline; }
+    .search-result-snippet { font-size: 0.875rem; color: #475569; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; background: #f8fafc; padding: 0.75rem; border-radius: 8px; overflow-x: auto; }
+    .badge-matches { background: linear-gradient(90deg,#22c55e,#16a34a); color: white; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 800; }
+    .no-results { text-align: center; padding: 3rem; color: #6b7280; }
+    /* New layout aligning with standards page */
+    .doc-hero { margin-top: 2.5rem; overflow: hidden; border-radius: 1.5rem; background: linear-gradient(90deg, #2563eb, #4f46e5, #7c3aed); color: white; box-shadow: 0 10px 30px rgba(2,6,23,0.15); }
+    .doc-card { border: 1px solid #e2e8f0; background: rgba(255,255,255,0.96); border-radius: 1rem; box-shadow: 0 6px 18px rgba(2,6,23,0.06); backdrop-filter: blur(2px); }
+    .doc-aside { position: sticky; top: 7rem; }
+    .search-input { width: 100%; padding: .6rem .9rem; border: 1px solid #e2e8f0; border-radius: .75rem; background: white; color: #0f172a; font-size: .9rem; }
+    .search-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
+    @media (max-width: 1024px) {
+        .doc-layout { flex-direction: column; }
+        .doc-sidebar { width: 100%; position: static; height: auto; max-height: 340px; border-radius: 0 0 16px 16px; }
+        .doc-content { padding: 1.25rem; margin: 12px; }
+        .doc-body { grid-template-columns: 1fr; }
+        .doc-toc { position: static; max-height: none; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="doc-layout">
-    <!-- Sidebar -->
-    <div class="doc-sidebar">
-        <div class="search-box">
-            <form action="/documentation/search" method="get">
-                <input type="text" name="q" placeholder="🔍 Rechercher..." value="{{ search_query or '' }}">
-            </form>
-        </div>
-        
-        {% for category_id, category_info in structure.items() %}
-        <div class="doc-category">
-            <div class="doc-category-title">
-                <span class="doc-category-icon">{{ category_info.icon }}</span>
-                <span>{{ category_info.title }}</span>
+<div class="mx-auto max-w-content px-4 pb-16 space-y-10">
+        <section class="doc-hero">
+            <div class="p-8 md:p-10 flex flex-col gap-3">
+                {% if search_results is defined %}
+                    <p class="text-sm uppercase tracking-[0.24em] text-blue-200 font-semibold">Documentation</p>
+                    <h1 class="text-3xl md:text-4xl font-bold leading-tight">Résultats de recherche</h1>
+                    <p class="text-sm text-blue-100">Requête: "{{ search_query }}"</p>
+                {% elif doc_content %}
+                    <p class="text-sm uppercase tracking-[0.24em] text-blue-200 font-semibold">Documentation</p>
+                    <h1 class="text-3xl md:text-4xl font-bold leading-tight">{{ doc_title }}</h1>
+                    <p class="text-sm text-blue-100">{{ structure[current_doc.category].title }} • <span class="doc-meta">Source: <code>{{ doc_source_path }}</code>{% if doc_last_updated %} • Dernière mise à jour: <span data-last-updated="{{ doc_last_updated }}"></span>{% endif %}</span></p>
+                {% else %}
+                    <p class="text-sm uppercase tracking-[0.24em] text-blue-200 font-semibold">Documentation</p>
+                    <h1 class="text-3xl md:text-4xl font-bold leading-tight">Documentation MedData Bridge</h1>
+                    <p class="text-sm text-blue-100">Index et navigation des guides</p>
+                {% endif %}
             </div>
-            {% for filename in category_info.files %}
-            <a href="/documentation/{{ category_id }}/{{ filename }}" 
-               class="doc-file-link {% if current_doc and current_doc.category == category_id and current_doc.filename == filename %}active{% endif %}">
-                {{ filename.replace('.md', '').replace('_', ' ').replace('-', ' ') }}
-            </a>
-            {% endfor %}
-        </div>
-        {% endfor %}
-    </div>
-    
-    <!-- Content -->
-    <div class="doc-content">
+        </section>
+
+        <div class="grid gap-8 md:grid-cols-12">
+            <aside class="md:col-span-4 lg:col-span-3 doc-aside space-y-4">
+                <div class="doc-card p-5">
+                    <form action="/documentation/search" method="get">
+                        <input class="search-input" type="text" name="q" placeholder="Rechercher dans les guides…" value="{{ search_query or '' }}" aria-label="Recherche dans la documentation">
+                    </form>
+                </div>
+                <nav class="doc-card p-5">
+                    <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Catégories</p>
+                    <div class="mt-3">
+                    {% for category_id, category_info in structure.items() %}
+                        <details class="doc-category mb-2" data-category="{{ category_id }}" id="{{ category_id }}" {% if current_doc and current_doc.category == category_id %}open{% endif %}>
+                            <summary class="doc-category-title doc-category-summary">
+                                <span class="doc-category-icon">{{ category_info.icon }}</span>
+                                <span class="text-sm font-semibold">{{ category_info.title }}</span>
+                                <span class="doc-category-toggle">▶</span>
+                            </summary>
+                            <div class="mt-1">
+                            {% for filename in category_info.files %}
+                                {% set is_active = current_doc and current_doc.category == category_id and current_doc.filename == filename %}
+                                <a href="/documentation/{{ category_id }}/{{ filename }}" class="block doc-file-link {{ 'active' if is_active }}">
+                                    {{ filename.replace('.md', '').replace('_', ' ').replace('-', ' ') }}
+                                </a>
+                            {% endfor %}
+                            </div>
+                        </details>
+                    {% endfor %}
+                    </div>
+                </nav>
+                {% if doc_content %}
+                <nav class="doc-card p-5">
+                    <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Sommaire</p>
+                    <div class="prose prose-sm max-w-none mt-2">{{ doc_toc|safe }}</div>
+                </nav>
+                {% endif %}
+            </aside>
+
+            <div class="md:col-span-8 lg:col-span-9">
+                <div class="doc-card p-6 md:p-8">
         {% if error %}
         <div class="alert alert-danger" role="alert">
             <strong>Erreur :</strong> {{ error }}
         </div>
         {% elif search_results is defined %}
-        <div class="doc-header">
-            <h1 class="doc-title">🔍 Résultats de recherche</h1>
-            <p class="doc-breadcrumb">
-                <a href="/documentation">Documentation</a> › Recherche : "{{ search_query }}"
-            </p>
-        </div>
-        
         {% if search_results %}
-        <p class="mb-4"><strong>{{ search_results|length }}</strong> résultat(s) trouvé(s)</p>
+                <p class="mb-4 text-slate-600"><strong>{{ search_results|length }}</strong> résultat(s) trouvé(s)</p>
         <div class="search-results">
             {% for result in search_results %}
             <div class="search-result-item">
@@ -380,28 +216,33 @@
         {% endif %}
         
         {% elif doc_content %}
-        <div class="doc-header">
-            <h1 class="doc-title">{{ doc_title }}</h1>
-            <p class="doc-breadcrumb">
-                <a href="/documentation">Documentation</a> › 
-                <a href="/documentation#{{ current_doc.category }}">{{ structure[current_doc.category].title }}</a> ›
-                {{ doc_title }}
-            </p>
-        </div>
         <div class="markdown-content">
+            <div class="text-sm text-slate-500 mb-3">
+              <a href="/documentation" class="text-indigo-600 hover:underline">Documentation</a> › 
+              <a href="/documentation#{{ current_doc.category }}" class="text-indigo-600 hover:underline">{{ structure[current_doc.category].title }}</a> ›
+              {{ doc_title }}
+            </div>
             {{ doc_content|safe }}
+            <div class="flex justify-between gap-3 mt-8">
+              {% if prev_doc %}
+              <a href="{{ prev_doc.url }}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">← {{ prev_doc.title }}</a>
+              {% else %}
+              <span></span>
+              {% endif %}
+              {% if next_doc %}
+              <a href="{{ next_doc.url }}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">{{ next_doc.title }} →</a>
+              {% endif %}
+            </div>
         </div>
         {% else %}
-        <div class="doc-header">
-            <h1 class="doc-title">📚 Documentation MedData Bridge</h1>
-            <p class="doc-breadcrumb">Accueil</p>
-        </div>
         <div class="markdown-content">
             {{ index_content|safe }}
         </div>
         {% endif %}
+        </div>
+      </div>
     </div>
-</div>
+    </div>
 
 <script>
 // Highlight code blocks
@@ -422,6 +263,50 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
         });
+    });
+
+    // Collapsible categories state persistence
+    document.querySelectorAll('details[data-category]').forEach((detailsEl) => {
+        const cat = detailsEl.getAttribute('data-category');
+        const key = `doccat:${cat}`;
+        const saved = localStorage.getItem(key);
+        if (saved === 'open') detailsEl.setAttribute('open', 'open');
+        if (saved === 'closed') detailsEl.removeAttribute('open');
+        detailsEl.addEventListener('toggle', () => {
+            localStorage.setItem(key, detailsEl.open ? 'open' : 'closed');
+        });
+    });
+
+    // Add copy buttons to code blocks
+    document.querySelectorAll('.markdown-content pre').forEach((pre) => {
+        const code = pre.querySelector('code');
+        if (!code) return;
+        const btn = document.createElement('button');
+        btn.className = 'copy-btn';
+        btn.type = 'button';
+        btn.textContent = 'Copier';
+        btn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(code.innerText);
+                const old = btn.textContent;
+                btn.textContent = 'Copié';
+                btn.classList.add('copied');
+                setTimeout(() => { btn.textContent = old; btn.classList.remove('copied'); }, 1200);
+            } catch (e) {
+                console.error('Copy failed', e);
+            }
+        });
+        pre.appendChild(btn);
+    });
+
+    // Format last updated timestamp
+    document.querySelectorAll('[data-last-updated]').forEach((el) => {
+        const ts = parseFloat(el.getAttribute('data-last-updated')) * 1000;
+        if (!isNaN(ts)) {
+            const d = new Date(ts);
+            const fmt = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
+            el.textContent = fmt.format(d);
+        }
     });
 });
 </script>

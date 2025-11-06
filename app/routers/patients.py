@@ -12,6 +12,8 @@ Principes clés
 - Les événements d'enregistrement déclenchent `emit_to_senders` pour publier
     vers les transports configurés (HL7/FHIR sortants si activés).
 """
+import random
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi import Request
@@ -25,6 +27,105 @@ from app.dependencies.ght import require_ght_context
 def get_templates(request: Request):
     # Récupère l'instance de templates enrichie (avec filtres globaux)
     return request.app.state.templates
+
+
+def generate_sample_patient_data():
+    """Génère des données de patient réalistes pour pré-remplir le formulaire."""
+    # Listes de noms et prénoms français
+    family_names = [
+        "MARTIN", "BERNARD", "DUBOIS", "THOMAS", "ROBERT", "RICHARD", "PETIT", "DURAND",
+        "LEROY", "MOREAU", "SIMON", "LAURENT", "LEFEBVRE", "MICHEL", "GARCIA", "DAVID",
+        "BERTRAND", "ROUX", "VINCENT", "FOURNIER", "MOREL", "GIRARD", "ANDRE", "MERCIER"
+    ]
+    
+    given_names_m = [
+        "Jean", "Pierre", "Michel", "André", "Philippe", "Alain", "Jacques", "Bernard",
+        "François", "Claude", "Louis", "Paul", "Nicolas", "Julien", "Thomas", "Alexandre"
+    ]
+    
+    given_names_f = [
+        "Marie", "Nathalie", "Isabelle", "Sylvie", "Catherine", "Françoise", "Sophie",
+        "Monique", "Martine", "Christine", "Jacqueline", "Annie", "Claire", "Emma", "Julie"
+    ]
+    
+    middle_names = ["Marie", "Jean", "Paul", "Pierre", "Anne", "Louis", "René", "Claude"]
+    
+    cities = [
+        "Paris", "Lyon", "Marseille", "Toulouse", "Nice", "Nantes", "Strasbourg",
+        "Montpellier", "Bordeaux", "Lille", "Rennes", "Reims", "Le Havre", "Saint-Étienne"
+    ]
+    
+    streets = [
+        "Rue de la République", "Avenue des Champs", "Boulevard Victor Hugo",
+        "Rue du Commerce", "Place de la Liberté", "Rue Jean Jaurès", "Avenue de la Paix",
+        "Rue Pasteur", "Boulevard Gambetta", "Rue Voltaire"
+    ]
+    
+    # Génération aléatoire
+    gender = random.choice(["M", "F", "U"])
+    
+    if gender == "M":
+        given = random.choice(given_names_m)
+        prefix = "M."
+    elif gender == "F":
+        given = random.choice(given_names_f)
+        prefix = random.choice(["Mme", "Mlle"])
+    else:
+        given = random.choice(given_names_m + given_names_f)
+        prefix = ""
+    
+    family = random.choice(family_names)
+    middle = random.choice([None, None, random.choice(middle_names)])  # 33% chance
+    
+    # Date de naissance (entre 18 et 95 ans)
+    age_days = random.randint(18*365, 95*365)
+    birth_date = (datetime.now() - timedelta(days=age_days)).strftime("%Y-%m-%d")
+    
+    # Adresse
+    street_number = random.randint(1, 200)
+    street = random.choice(streets)
+    city = random.choice(cities)
+    postal_code = f"{random.randint(1, 95):05d}"
+    
+    # Téléphone
+    phone = f"0{random.randint(1, 5)} {random.randint(10, 99)} {random.randint(10, 99)} {random.randint(10, 99)} {random.randint(10, 99)}"
+    mobile = f"0{random.randint(6, 7)} {random.randint(10, 99)} {random.randint(10, 99)} {random.randint(10, 99)} {random.randint(10, 99)}"
+    
+    # Email
+    email = f"{given.lower()}.{family.lower()}@example.fr"
+    
+    # NIR (fake mais format valide)
+    gender_code = "1" if gender == "M" else "2"
+    year = birth_date[2:4]
+    month = birth_date[5:7]
+    dept = f"{random.randint(1, 95):02d}"
+    commune = f"{random.randint(1, 999):03d}"
+    ordre = f"{random.randint(1, 999):03d}"
+    nir = f"{gender_code} {year} {month} {dept} {commune} {ordre}"
+    
+    # Statut marital
+    marital_status = random.choice(["S", "M", "D", "W", ""])
+    
+    return {
+        "prefix": prefix,
+        "family": family,
+        "given": given,
+        "middle": middle or "",
+        "birth_date": birth_date,
+        "gender": gender,
+        "address": f"{street_number} {street}",
+        "city": city,
+        "postal_code": postal_code,
+        "country": "FRA",
+        "phone": phone,
+        "mobile": mobile,
+        "email": email,
+        "nir": nir,
+        "marital_status": marital_status,
+        "nationality": "FRA"
+    }
+
+
 router = APIRouter(
     prefix="/patients",
     tags=["patients"],
@@ -253,12 +354,17 @@ def new_patient_form(request: Request, session=Depends(get_session)):
     """Affiche le formulaire de création patient (conforme RGPD France)."""
     templates = get_templates(request)
     next_seq = peek_next_sequence(session, "patient")
+    
+    # Générer des données de démonstration pré-remplies
+    sample_data = generate_sample_patient_data()
+    
     return templates.TemplateResponse(request, "patient_form.html", {
         "request": request,
         "title": "Nouveau patient",
         "patient": None,
         "next_seq": next_seq,
-        "action_url": "/patients/new"
+        "action_url": "/patients/new",
+        "sample_data": sample_data
     })
 
 @router.post("/new")

@@ -23,3 +23,11 @@ classifiers = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+# Ignorer les scripts de test manuels à la racine
+addopts = "--ignore=test_api_structure.py --ignore=test_endpoint_detail.py --ignore=test_file_polling.py --ignore=test_service_hierarchy.py --ignore=test_service_uf_link.py --ignore=test_template_render.py --ignore=tools/test_injection_complete.py"

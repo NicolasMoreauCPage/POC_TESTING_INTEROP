@@ -720,9 +720,17 @@ async def on_message_inbound_async(msg: str, session, endpoint) -> str:
             if pv1_data.get("visit_number"):
                 # Rechercher la venue existante pour connaître le dernier événement
                 visit_num_str = pv1_data["visit_number"]
-                venue = session.exec(
-                    select(Venue).where(Venue.venue_seq == int(visit_num_str))
-                ).first()
+                # Extract ID part if CX format (ID^^^system^type)
+                visit_num_id = visit_num_str.split("^^^")[0] if "^^^" in visit_num_str else visit_num_str
+                try:
+                    venue = session.exec(
+                        select(Venue).where(Venue.venue_seq == int(visit_num_id))
+                    ).first()
+                except ValueError:
+                    # If not numeric, try as string identifier
+                    venue = session.exec(
+                        select(Venue).where(Venue.code == visit_num_id)
+                    ).first()
                 if venue:
                     # Récupérer le dernier mouvement pour connaître le dernier événement
                     last_mouvement = session.exec(

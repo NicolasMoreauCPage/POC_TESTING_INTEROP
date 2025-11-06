@@ -80,7 +80,9 @@
                   {{ service.status }}
                 </span>
               </td>
-              <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+              <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 space-x-3">
+                <a href="/structure/services/{{ service.id }}" class="text-indigo-600 hover:text-indigo-900">Détails</a>
+                <a href="/structure/services/{{ service.id }}/edit" class="text-indigo-600 hover:text-indigo-900">Modifier</a>
                 <a href="/structure/ufs?service_id={{ service.id }}" class="text-indigo-600 hover:text-indigo-900">Voir UF</a>
               </td>
             </tr>

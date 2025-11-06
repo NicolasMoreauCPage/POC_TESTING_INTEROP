@@ -1,7 +1,7 @@
 import logging
 from typing import List, Optional
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
@@ -39,7 +39,24 @@ api_router = APIRouter(
     dependencies=[Depends(require_ght_context)],
 )
 
+# Router pour les redirections (sans dépendance GHT pour permettre la redirection)
+redirect_router = APIRouter(
+    prefix="/structure",
+    tags=["structure_redirects"],
+)
+
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+
+
+# ============================================================================
+# REDIRECTIONS SINGULIER → PLURIEL
+# Pour éviter les erreurs 404 quand on tape l'URL au singulier
+# Ces routes doivent être définies APRÈS les routes spécifiques pour ne pas
+# interférer avec la résolution des routes
+# ============================================================================
+
+# Note: Ces redirections seront ajoutées à la fin du fichier pour éviter
+# de capturer les routes valides
 
 
 @api_router.get("/tree")
@@ -268,6 +285,11 @@ async def list_entites_geographiques(
     q: Optional[str] = Query(None, alias="q"),
 ):
     query = select(EntiteGeographique)
+    
+    # Filtrer par contexte EJ si présent
+    if hasattr(request.state, 'ej_context') and request.state.ej_context:
+        query = query.where(EntiteGeographique.entite_juridique_id == request.state.ej_context.id)
+    
     if q:
         like = f"%{q}%"
         query = query.where(
@@ -304,38 +326,85 @@ async def create_entite_geographique(
     session.commit()
     session.refresh(eg)
     
-    # Convertir en FHIR et envoyer aux destinataires
-    fhir_location = entity_to_fhir_location(eg, session)
+    return eg
+
+@router.get("/eg/{eg_id}", response_class=HTMLResponse)
+async def view_entite_geographique(
+    request: Request,
+    eg_id: int,
+    session: Session = Depends(get_session)
+):
+    eg = session.get(EntiteGeographique, eg_id)
+    if not eg:
+        raise HTTPException(status_code=404, detail="Entité géographique non trouvée")
     
-    # Recherche des endpoints FHIR actifs
-    fhir_endpoints = session.exec(
-        select(SystemEndpoint)
-        .where(SystemEndpoint.kind == "fhir")
-        .where(SystemEndpoint.is_enabled == True)
+    # Charger les pôles associés
+    poles = session.exec(
+        select(Pole).where(Pole.entite_geo_id == eg_id).order_by(Pole.name)
     ).all()
     
-    # Création et envoi du bundle
-    if fhir_endpoints:
-        bundle = {
-            "resourceType": "Bundle",
-            "type": "transaction",
-            "entry": [{
-                "resource": fhir_location,
-                "request": {
-                    "method": "PUT",
-                    "url": f"Location/{eg.id}"
-                }
-            }]
-        }
-        
-        # Envoi à chaque endpoint
-        for endpoint in fhir_endpoints:
-            try:
-                await post_fhir_bundle(endpoint, bundle)
-            except Exception as e:
-                logger.error(f"Erreur lors de l'envoi FHIR à {endpoint.name}: {e}")
+    return templates.TemplateResponse(
+        "structure/eg_detail.html",
+        {
+            "request": request,
+            "eg": eg,
+            "poles": poles,
+        },
+    )
+
+@router.get("/eg/{eg_id}/edit", response_class=HTMLResponse)
+async def edit_entite_geographique_form(
+    request: Request,
+    eg_id: int,
+    session: Session = Depends(get_session)
+):
+    eg = session.get(EntiteGeographique, eg_id)
+    if not eg:
+        raise HTTPException(status_code=404, detail="Entité géographique non trouvée")
     
-    return eg
+    return templates.TemplateResponse(
+        "structure/eg_edit.html",
+        {
+            "request": request,
+            "eg": eg,
+        },
+    )
+
+@router.post("/eg/{eg_id}")
+async def update_entite_geographique(
+    eg_id: int,
+    name: str = Form(...),
+    identifier: Optional[str] = Form(None),
+    finess: Optional[str] = Form(None),
+    session: Session = Depends(get_session)
+):
+    eg = session.get(EntiteGeographique, eg_id)
+    if not eg:
+        raise HTTPException(status_code=404, detail="Entité géographique non trouvée")
+    
+    eg.name = name
+    if identifier is not None:
+        eg.identifier = identifier
+    if finess is not None:
+        eg.finess = finess
+    
+    session.add(eg)
+    session.commit()
+    session.refresh(eg)
+    return RedirectResponse(url=f"/structure/eg/{eg_id}", status_code=303)
+
+@router.post("/eg/{eg_id}/delete")
+async def delete_entite_geographique(
+    eg_id: int,
+    session: Session = Depends(get_session)
+):
+    eg = session.get(EntiteGeographique, eg_id)
+    if not eg:
+        raise HTTPException(status_code=404, detail="Entité géographique non trouvée")
+    
+    session.delete(eg)
+    session.commit()
+    return RedirectResponse(url="/structure/eg", status_code=303)
 
 # --- Pôles ---
 @router.get("/poles", response_class=HTMLResponse)
@@ -397,6 +466,69 @@ async def create_pole(
     session.commit()
     session.refresh(pole)
     return pole
+
+@router.get("/poles/{pole_id}", response_class=HTMLResponse)
+async def view_pole(
+    request: Request,
+    pole_id: int,
+    session: Session = Depends(get_session)
+):
+    pole = session.get(Pole, pole_id)
+    if not pole:
+        raise HTTPException(status_code=404, detail="Pôle non trouvé")
+    services = session.exec(select(Service).where(Service.pole_id == pole_id).order_by(Service.name)).all()
+    return templates.TemplateResponse(
+        "structure/pole_detail.html",
+        {"request": request, "pole": pole, "services": services},
+    )
+
+@router.get("/poles/{pole_id}/edit", response_class=HTMLResponse)
+async def edit_pole_form(
+    request: Request,
+    pole_id: int,
+    session: Session = Depends(get_session)
+):
+    pole = session.get(Pole, pole_id)
+    if not pole:
+        raise HTTPException(status_code=404, detail="Pôle non trouvé")
+    egs = session.exec(select(EntiteGeographique).order_by(EntiteGeographique.name)).all()
+    return templates.TemplateResponse(
+        "structure/pole_form.html",
+        {"request": request, "pole": pole, "entites_geographiques": egs},
+    )
+
+@router.post("/poles/{pole_id}")
+async def update_pole(
+    pole_id: int,
+    name: str = Form(...),
+    identifier: Optional[str] = Form(None),
+    entite_geo_id: Optional[int] = Form(None),
+    session: Session = Depends(get_session),
+):
+    pole = session.get(Pole, pole_id)
+    if not pole:
+        raise HTTPException(status_code=404, detail="Pôle non trouvé")
+    pole.name = name
+    if identifier is not None:
+        pole.identifier = identifier
+    if entite_geo_id:
+        pole.entite_geo_id = int(entite_geo_id)
+    apply_scheduled_status([pole])
+    session.add(pole)
+    session.commit()
+    return RedirectResponse(url=f"/structure/poles/{pole_id}", status_code=303)
+
+@router.post("/poles/{pole_id}/delete")
+async def delete_pole(
+    pole_id: int,
+    session: Session = Depends(get_session)
+):
+    pole = session.get(Pole, pole_id)
+    if not pole:
+        raise HTTPException(status_code=404, detail="Pôle non trouvé")
+    session.delete(pole)
+    session.commit()
+    return RedirectResponse(url="/structure/poles", status_code=303)
 
 # --- Services ---
 @router.get("/services", response_class=HTMLResponse)
@@ -466,6 +598,72 @@ async def create_service(
     session.commit()
     session.refresh(service)
     return service
+
+@router.get("/services/{service_id}", response_class=HTMLResponse)
+async def view_service(
+    request: Request,
+    service_id: int,
+    session: Session = Depends(get_session)
+):
+    service = session.get(Service, service_id)
+    if not service:
+        raise HTTPException(status_code=404, detail="Service non trouvé")
+    ufs = session.exec(select(UniteFonctionnelle).where(UniteFonctionnelle.service_id == service_id).order_by(UniteFonctionnelle.name)).all()
+    return templates.TemplateResponse(
+        "structure/service_detail.html",
+        {"request": request, "service": service, "ufs": ufs, "service_types": LocationServiceType},
+    )
+
+@router.get("/services/{service_id}/edit", response_class=HTMLResponse)
+async def edit_service_form(
+    request: Request,
+    service_id: int,
+    session: Session = Depends(get_session)
+):
+    service = session.get(Service, service_id)
+    if not service:
+        raise HTTPException(status_code=404, detail="Service non trouvé")
+    poles = session.exec(select(Pole).order_by(Pole.name)).all()
+    return templates.TemplateResponse(
+        "structure/service_form.html",
+        {"request": request, "service": service, "poles": poles, "service_types": [t.value for t in LocationServiceType]},
+    )
+
+@router.post("/services/{service_id}")
+async def update_service(
+    service_id: int,
+    name: str = Form(...),
+    identifier: Optional[str] = Form(None),
+    pole_id: Optional[int] = Form(None),
+    service_type: Optional[str] = Form(None),
+    session: Session = Depends(get_session)
+):
+    service = session.get(Service, service_id)
+    if not service:
+        raise HTTPException(status_code=404, detail="Service non trouvé")
+    service.name = name
+    if identifier is not None:
+        service.identifier = identifier
+    if pole_id:
+        service.pole_id = int(pole_id)
+    if service_type:
+        service.service_type = LocationServiceType(service_type)
+    apply_scheduled_status([service])
+    session.add(service)
+    session.commit()
+    return RedirectResponse(url=f"/structure/services/{service_id}", status_code=303)
+
+@router.post("/services/{service_id}/delete")
+async def delete_service(
+    service_id: int,
+    session: Session = Depends(get_session)
+):
+    service = session.get(Service, service_id)
+    if not service:
+        raise HTTPException(status_code=404, detail="Service non trouvé")
+    session.delete(service)
+    session.commit()
+    return RedirectResponse(url="/structure/services", status_code=303)
 
 # --- Unités Fonctionnelles ---
 @router.get("/ufs", response_class=HTMLResponse)
@@ -542,6 +740,75 @@ async def create_unite_fonctionnelle(
     session.commit()
     session.refresh(uf)
     return uf
+
+@router.get("/ufs/{uf_id}", response_class=HTMLResponse)
+async def view_unite_fonctionnelle(
+    request: Request,
+    uf_id: int,
+    session: Session = Depends(get_session)
+):
+    uf = session.get(UniteFonctionnelle, uf_id)
+    if not uf:
+        raise HTTPException(status_code=404, detail="UF non trouvée")
+    uhs = session.exec(select(UniteHebergement).where(UniteHebergement.unite_fonctionnelle_id == uf_id).order_by(UniteHebergement.name)).all()
+    return templates.TemplateResponse(
+        "structure/uf_detail.html",
+        {"request": request, "uf": uf, "uhs": uhs},
+    )
+
+@router.get("/ufs/{uf_id}/edit", response_class=HTMLResponse)
+async def edit_unite_fonctionnelle_form(
+    request: Request,
+    uf_id: int,
+    session: Session = Depends(get_session)
+):
+    uf = session.get(UniteFonctionnelle, uf_id)
+    if not uf:
+        raise HTTPException(status_code=404, detail="UF non trouvée")
+    services = session.exec(select(Service).order_by(Service.name)).all()
+    return templates.TemplateResponse(
+        "structure/uf_form.html",
+        {"request": request, "uf": uf, "services": services},
+    )
+
+@router.post("/ufs/{uf_id}")
+async def update_unite_fonctionnelle(
+    uf_id: int,
+    name: str = Form(...),
+    identifier: Optional[str] = Form(None),
+    service_id: Optional[int] = Form(None),
+    uf_type: Optional[str] = Form(None),
+    um_code: Optional[str] = Form(None),
+    session: Session = Depends(get_session)
+):
+    uf = session.get(UniteFonctionnelle, uf_id)
+    if not uf:
+        raise HTTPException(status_code=404, detail="UF non trouvée")
+    uf.name = name
+    if identifier is not None:
+        uf.identifier = identifier
+    if service_id:
+        uf.service_id = int(service_id)
+    if uf_type is not None:
+        uf.uf_type = uf_type
+    if um_code is not None:
+        uf.um_code = um_code
+    apply_scheduled_status([uf])
+    session.add(uf)
+    session.commit()
+    return RedirectResponse(url=f"/structure/ufs/{uf_id}", status_code=303)
+
+@router.post("/ufs/{uf_id}/delete")
+async def delete_unite_fonctionnelle(
+    uf_id: int,
+    session: Session = Depends(get_session)
+):
+    uf = session.get(UniteFonctionnelle, uf_id)
+    if not uf:
+        raise HTTPException(status_code=404, detail="UF non trouvée")
+    session.delete(uf)
+    session.commit()
+    return RedirectResponse(url="/structure/ufs", status_code=303)
 
 # --- Unités d'Hébergement ---
 @router.get("/uh", response_class=HTMLResponse)
@@ -839,6 +1106,69 @@ async def new_chambre_form(
         }
     )
 
+@router.get("/chambres/{chambre_id}", response_class=HTMLResponse)
+async def view_chambre(
+    request: Request,
+    chambre_id: int,
+    session: Session = Depends(get_session)
+):
+    chambre = session.get(Chambre, chambre_id)
+    if not chambre:
+        raise HTTPException(status_code=404, detail="Chambre non trouvée")
+    lits = session.exec(select(Lit).where(Lit.chambre_id == chambre_id).order_by(Lit.name)).all()
+    return templates.TemplateResponse(
+        "structure/chambre_detail.html",
+        {"request": request, "chambre": chambre, "lits": lits},
+    )
+
+@router.get("/chambres/{chambre_id}/edit", response_class=HTMLResponse)
+async def edit_chambre_form(
+    request: Request,
+    chambre_id: int,
+    session: Session = Depends(get_session)
+):
+    chambre = session.get(Chambre, chambre_id)
+    if not chambre:
+        raise HTTPException(status_code=404, detail="Chambre non trouvée")
+    return templates.TemplateResponse(
+        "structure/chambre_form.html",
+        {
+            "request": request,
+            "chambre": chambre,
+            "unite_hebergement": chambre.unite_hebergement,
+            "physical_types": [type.value for type in LocationPhysicalType],
+            "statuses": [status.value for status in LocationStatus],
+            "activation_date_value": hl7_to_form_datetime(getattr(chambre, "activation_date", None)),
+            "deactivation_date_value": hl7_to_form_datetime(getattr(chambre, "deactivation_date", None)),
+        },
+    )
+
+@router.post("/chambres/{chambre_id}")
+async def update_chambre(
+    request: Request,
+    chambre_id: int,
+    session: Session = Depends(get_session)
+):
+    chambre = session.get(Chambre, chambre_id)
+    if not chambre:
+        raise HTTPException(status_code=404, detail="Chambre non trouvée")
+    form = await request.form()
+    chambre.name = form.get("name", chambre.name)
+    chambre.identifier = form.get("identifier", chambre.identifier)
+    # physical_type may change, keep provided or current
+    pt = form.get("physical_type")
+    if pt:
+        chambre.physical_type = LocationPhysicalType(pt)
+    st = form.get("status")
+    if st:
+        chambre.status = LocationStatus(st)
+    chambre.activation_date = form_datetime_to_hl7(form.get("activation_date"))
+    chambre.deactivation_date = form_datetime_to_hl7(form.get("deactivation_date"))
+    apply_scheduled_status([chambre])
+    session.add(chambre)
+    session.commit()
+    return RedirectResponse(url=f"/structure/uh/{chambre.unite_hebergement_id}", status_code=303)
+
 @router.post("/chambres/{chambre_id}/delete")
 async def delete_chambre(
     chambre_id: int,
@@ -989,6 +1319,67 @@ async def create_lit(
     session.commit()
     session.refresh(lit)
     return lit
+
+@router.get("/lits/{lit_id}", response_class=HTMLResponse)
+async def view_lit(
+    request: Request,
+    lit_id: int,
+    session: Session = Depends(get_session)
+):
+    lit = session.get(Lit, lit_id)
+    if not lit:
+        raise HTTPException(status_code=404, detail="Lit non trouvé")
+    return templates.TemplateResponse(
+        "structure/lit_detail.html",
+        {"request": request, "lit": lit},
+    )
+
+@router.get("/lits/{lit_id}/edit", response_class=HTMLResponse)
+async def edit_lit_form(
+    request: Request,
+    lit_id: int,
+    session: Session = Depends(get_session)
+):
+    lit = session.get(Lit, lit_id)
+    if not lit:
+        raise HTTPException(status_code=404, detail="Lit non trouvé")
+    chambres = session.exec(select(Chambre).order_by(Chambre.name)).all()
+    return templates.TemplateResponse(
+        "structure/lit_form.html",
+        {
+            "request": request,
+            "lit": lit,
+            "chambres": chambres,
+            "statuses": [s.value for s in LocationStatus],
+        },
+    )
+
+@router.post("/lits/{lit_id}")
+async def update_lit(
+    lit_id: int,
+    name: str = Form(...),
+    identifier: Optional[str] = Form(None),
+    chambre_id: Optional[int] = Form(None),
+    status: Optional[str] = Form(None),
+    operational_status: Optional[str] = Form(None),
+    session: Session = Depends(get_session)
+):
+    lit = session.get(Lit, lit_id)
+    if not lit:
+        raise HTTPException(status_code=404, detail="Lit non trouvé")
+    lit.name = name
+    if identifier is not None:
+        lit.identifier = identifier
+    if chambre_id:
+        lit.chambre_id = int(chambre_id)
+    if status:
+        lit.status = LocationStatus(status)
+    if operational_status is not None:
+        lit.operational_status = operational_status
+    apply_scheduled_status([lit])
+    session.add(lit)
+    session.commit()
+    return RedirectResponse(url=f"/structure/chambres/{lit.chambre_id}", status_code=303)
 
 
 @router.get("/search", response_class=HTMLResponse)
@@ -1158,3 +1549,59 @@ async def view_structure_map(
             "lit": "Lit"
         }.get(type, type.upper())
     })
+
+
+# ============================================================================
+# REDIRECTIONS SINGULIER → PLURIEL (à la fin pour ne pas capturer les routes)
+# Utilise redirect_router sans dépendance GHT pour permettre la redirection
+# ============================================================================
+
+@redirect_router.get("/pole/{rest:path}")
+async def redirect_pole_singular_get(rest: str):
+    """Redirection GET de /pole/* vers /poles/*"""
+    return RedirectResponse(url=f"/structure/poles/{rest}", status_code=301)
+
+@redirect_router.post("/pole/{rest:path}")
+async def redirect_pole_singular_post(rest: str):
+    """Redirection POST de /pole/* vers /poles/*"""
+    return RedirectResponse(url=f"/structure/poles/{rest}", status_code=308)
+
+@redirect_router.get("/service/{rest:path}")
+async def redirect_service_singular_get(rest: str):
+    """Redirection GET de /service/* vers /services/*"""
+    return RedirectResponse(url=f"/structure/services/{rest}", status_code=301)
+
+@redirect_router.post("/service/{rest:path}")
+async def redirect_service_singular_post(rest: str):
+    """Redirection POST de /service/* vers /services/*"""
+    return RedirectResponse(url=f"/structure/services/{rest}", status_code=308)
+
+@redirect_router.get("/uf/{rest:path}")
+async def redirect_uf_singular_get(rest: str):
+    """Redirection GET de /uf/* vers /ufs/*"""
+    return RedirectResponse(url=f"/structure/ufs/{rest}", status_code=301)
+
+@redirect_router.post("/uf/{rest:path}")
+async def redirect_uf_singular_post(rest: str):
+    """Redirection POST de /uf/* vers /ufs/*"""
+    return RedirectResponse(url=f"/structure/ufs/{rest}", status_code=308)
+
+@redirect_router.get("/chambre/{rest:path}")
+async def redirect_chambre_singular_get(rest: str):
+    """Redirection GET de /chambre/* vers /chambres/*"""
+    return RedirectResponse(url=f"/structure/chambres/{rest}", status_code=301)
+
+@redirect_router.post("/chambre/{rest:path}")
+async def redirect_chambre_singular_post(rest: str):
+    """Redirection POST de /chambre/* vers /chambres/*"""
+    return RedirectResponse(url=f"/structure/chambres/{rest}", status_code=308)
+
+@redirect_router.get("/lit/{rest:path}")
+async def redirect_lit_singular_get(rest: str):
+    """Redirection GET de /lit/* vers /lits/*"""
+    return RedirectResponse(url=f"/structure/lits/{rest}", status_code=301)
+
+@redirect_router.post("/lit/{rest:path}")
+async def redirect_lit_singular_post(rest: str):
+    """Redirection POST de /lit/* vers /lits/*"""
+    return RedirectResponse(url=f"/structure/lits/{rest}", status_code=308)
