@@ -1,0 +1,229 @@
+{% macro validation_report(issues, show_summary=True) %}
+{# 
+  Macro pour afficher un rapport de validation IHE PAM
+  
+  Paramètres:
+    - issues: Array/liste d'issues (déjà parsé depuis JSON)
+    - show_summary: Afficher les statistiques (défaut: True)
+#}
+
+{% if issues and issues | length > 0 %}
+    {# Calcul des statistiques #}
+    {% set errors = issues | selectattr('severity', 'equalto', 'error') | list %}
+    {% set warnings = issues | selectattr('severity', 'equalto', 'warn') | list %}
+    {% set infos = issues | rejectattr('severity', 'in', ['error', 'warn']) | list %}
+    
+    {# Grouper par layer #}
+    {% set ihe_pam = issues | selectattr('layer', 'equalto', 'ihe_pam') | list %}
+    {% set hapi = issues | selectattr('layer', 'equalto', 'hapi_structure') | list %}
+    {% set segment_order = issues | selectattr('layer', 'equalto', 'segment_order') | list %}
+    {% set hl7_base = issues | selectattr('layer', 'equalto', 'hl7_base') | list %}
+    {% set datatypes = issues | selectattr('layer', 'equalto', 'datatypes') | list %}
+    
+    {# Statistiques globales #}
+    {% if show_summary %}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+        <div class="text-sm font-medium text-gray-600">Erreurs</div>
+        <div class="text-2xl font-bold text-red-600">{{ errors | length }}</div>
+        <div class="text-xs text-gray-500 mt-1">Violations critiques</div>
+      </div>
+      
+      <div class="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+        <div class="text-sm font-medium text-gray-600">Warnings</div>
+        <div class="text-2xl font-bold text-yellow-600">{{ warnings | length }}</div>
+        <div class="text-xs text-gray-500 mt-1">À corriger</div>
+      </div>
+      
+      <div class="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+        <div class="text-sm font-medium text-gray-600">Infos</div>
+        <div class="text-2xl font-bold text-blue-600">{{ infos | length }}</div>
+        <div class="text-xs text-gray-500 mt-1">Informations</div>
+      </div>
+    </div>
+    {% endif %}
+    
+    {# Issues par couche #}
+    <div class="space-y-4">
+      {# Couche 1: IHE PAM #}
+      {% if ihe_pam %}
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="bg-purple-100 px-4 py-3 border-b border-purple-200">
+          <h3 class="text-lg font-semibold text-purple-800">
+            Couche 1: IHE PAM ({{ ihe_pam | length }})
+          </h3>
+          <p class="text-sm text-purple-600">Règles métier IHE Patient Administration Management</p>
+        </div>
+        <div class="p-4">
+          {% for issue in ihe_pam %}
+          <div class="mb-3 pb-3 {% if not loop.last %}border-b border-gray-200{% endif %}">
+            <div class="flex items-start">
+              <span class="px-2 py-1 rounded text-xs font-semibold mr-3
+                {% if issue.severity == 'error' %}bg-red-100 text-red-800
+                {% elif issue.severity == 'warn' %}bg-yellow-100 text-yellow-800
+                {% else %}bg-blue-100 text-blue-800{% endif %}">
+                {{ issue.severity | upper }}
+              </span>
+              <div class="flex-1">
+                <div class="font-mono text-sm font-semibold text-gray-800">{{ issue.code }}</div>
+                <div class="text-sm text-gray-600 mt-1">{{ issue.message }}</div>
+                {% if issue.location %}
+                <div class="text-xs text-gray-500 mt-1">📍 {{ issue.location }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      
+      {# Couche 2: HAPI Structures #}
+      {% if hapi or segment_order %}
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="bg-indigo-100 px-4 py-3 border-b border-indigo-200">
+          <h3 class="text-lg font-semibold text-indigo-800">
+            Couche 2: HAPI Structures ({{ (hapi | length) + (segment_order | length) }})
+          </h3>
+          <p class="text-sm text-indigo-600">Structure et ordre des segments selon HAPI</p>
+        </div>
+        <div class="p-4">
+          {% for issue in hapi + segment_order %}
+          <div class="mb-3 pb-3 {% if not loop.last %}border-b border-gray-200{% endif %}">
+            <div class="flex items-start">
+              <span class="px-2 py-1 rounded text-xs font-semibold mr-3
+                {% if issue.severity == 'error' %}bg-red-100 text-red-800
+                {% elif issue.severity == 'warn' %}bg-yellow-100 text-yellow-800
+                {% else %}bg-blue-100 text-blue-800{% endif %}">
+                {{ issue.severity | upper }}
+              </span>
+              <div class="flex-1">
+                <div class="font-mono text-sm font-semibold text-gray-800">{{ issue.code }}</div>
+                <div class="text-sm text-gray-600 mt-1">{{ issue.message }}</div>
+                {% if issue.location %}
+                <div class="text-xs text-gray-500 mt-1">📍 {{ issue.location }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      
+      {# Couche 3: HL7 v2.5 Base #}
+      {% if hl7_base %}
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="bg-green-100 px-4 py-3 border-b border-green-200">
+          <h3 class="text-lg font-semibold text-green-800">
+            Couche 3: HL7 v2.5 Base ({{ hl7_base | length }})
+          </h3>
+          <p class="text-sm text-green-600">Validation segments MSH, EVN, PID obligatoires</p>
+        </div>
+        <div class="p-4">
+          {% for issue in hl7_base %}
+          <div class="mb-3 pb-3 {% if not loop.last %}border-b border-gray-200{% endif %}">
+            <div class="flex items-start">
+              <span class="px-2 py-1 rounded text-xs font-semibold mr-3
+                {% if issue.severity == 'error' %}bg-red-100 text-red-800
+                {% elif issue.severity == 'warn' %}bg-yellow-100 text-yellow-800
+                {% else %}bg-blue-100 text-blue-800{% endif %}">
+                {{ issue.severity | upper }}
+              </span>
+              <div class="flex-1">
+                <div class="font-mono text-sm font-semibold text-gray-800">{{ issue.code }}</div>
+                <div class="text-sm text-gray-600 mt-1">{{ issue.message }}</div>
+                {% if issue.location %}
+                <div class="text-xs text-gray-500 mt-1">📍 {{ issue.location }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      
+      {# Couche 4: Datatypes #}
+      {% if datatypes %}
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="bg-amber-100 px-4 py-3 border-b border-amber-200">
+          <h3 class="text-lg font-semibold text-amber-800">
+            Couche 4: Datatypes ({{ datatypes | length }})
+          </h3>
+          <p class="text-sm text-amber-600">Validation des types de données HL7</p>
+        </div>
+        <div class="p-4">
+          {% for issue in datatypes %}
+          <div class="mb-3 pb-3 {% if not loop.last %}border-b border-gray-200{% endif %}">
+            <div class="flex items-start">
+              <span class="px-2 py-1 rounded text-xs font-semibold mr-3
+                {% if issue.severity == 'error' %}bg-red-100 text-red-800
+                {% elif issue.severity == 'warn' %}bg-yellow-100 text-yellow-800
+                {% else %}bg-blue-100 text-blue-800{% endif %}">
+                {{ issue.severity | upper }}
+              </span>
+              <div class="flex-1">
+                <div class="font-mono text-sm font-semibold text-gray-800">{{ issue.code }}</div>
+                <div class="text-sm text-gray-600 mt-1">{{ issue.message }}</div>
+                {% if issue.location %}
+                <div class="text-xs text-gray-500 mt-1">📍 {{ issue.location }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      
+      {# Issues non classées #}
+      {% set uncategorized = issues | rejectattr('layer', 'in', ['ihe_pam', 'hapi_structure', 'segment_order', 'hl7_base', 'datatypes']) | list %}
+      {% if uncategorized %}
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="bg-gray-100 px-4 py-3 border-b border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-800">
+            Autres issues ({{ uncategorized | length }})
+          </h3>
+        </div>
+        <div class="p-4">
+          {% for issue in uncategorized %}
+          <div class="mb-3 pb-3 {% if not loop.last %}border-b border-gray-200{% endif %}">
+            <div class="flex items-start">
+              <span class="px-2 py-1 rounded text-xs font-semibold mr-3
+                {% if issue.severity == 'error' %}bg-red-100 text-red-800
+                {% elif issue.severity == 'warn' %}bg-yellow-100 text-yellow-800
+                {% else %}bg-blue-100 text-blue-800{% endif %}">
+                {{ issue.severity | upper }}
+              </span>
+              <div class="flex-1">
+                <div class="font-mono text-sm font-semibold text-gray-800">{{ issue.code if issue.code else 'UNKNOWN' }}</div>
+                <div class="text-sm text-gray-600 mt-1">{{ issue.message }}</div>
+                {% if issue.location %}
+                <div class="text-xs text-gray-500 mt-1">📍 {{ issue.location }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+{% else %}
+  <div class="bg-green-50 border-l-4 border-green-400 p-4">
+    <div class="flex">
+      <div class="flex-shrink-0">
+        <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+        </svg>
+      </div>
+      <div class="ml-3">
+        <p class="text-sm text-green-700">
+          ✓ Aucune erreur ou warning détecté lors de la validation IHE PAM.
+        </p>
+      </div>
+    </div>
+  </div>
+{% endif %}
+{% endmacro %}

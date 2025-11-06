@@ -901,6 +901,10 @@ async def new_entite_juridique_form(
     session: Session = Depends(get_session),
 ):
     context = _get_context_or_404(session, context_id)
+    # Injecter le contexte dans request.state pour que le template base.html l'affiche
+    request.state.ght_context = context
+    # Définir le contexte dans la session
+    request.session["ght_context_id"] = context.id
     return templates.TemplateResponse(
         "ej_form.html",
         {"request": request, "context": context, "entite": None},

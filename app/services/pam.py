@@ -821,8 +821,43 @@ async def handle_admission_message(
         
         # Déterminer l'UF responsabilité : priorité ZBE-7, puis PV1-10
         uf_resp = dossier.uf_responsabilite
+        uf_code_from_zbe = None
         if zbe_data and zbe_data.get("uf_responsable"):
-            uf_resp = zbe_data["uf_responsable"]
+            uf_code_from_zbe = zbe_data["uf_responsable"]
+            uf_resp = uf_code_from_zbe
+            
+            # Vérifier que l'UF existe dans la structure associée à l'EJ
+            # Récupérer l'EJ depuis le patient (via un identifiant de type système)
+            try:
+                from sqlmodel import select
+                from app.models_structure import UniteFonctionnelle
+                from app.models_structure_fhir import EntiteJuridique
+                
+                # Chercher l'UF dans la structure
+                uf_found = session.exec(
+                    select(UniteFonctionnelle)
+                    .where(UniteFonctionnelle.identifier == uf_code_from_zbe)
+                ).first()
+                
+                if not uf_found:
+                    error_msg = (
+                        f"UF Responsable '{uf_code_from_zbe}' (ZBE-7) introuvable dans la structure. "
+                        f"L'UF doit être préalablement importée via MFN^M05 avant d'être référencée dans les messages PAM."
+                    )
+                    logger.error(f"[pam][admission] {error_msg}")
+                    return False, error_msg
+                
+                logger.info(f"[pam][admission] UF Responsable '{uf_code_from_zbe}' validée: {uf_found.name}")
+                
+            except Exception as e:
+                logger.error(f"[pam][admission] Erreur validation UF: {e}", exc_info=True)
+                return False, f"Erreur validation UF Responsable: {str(e)}"
+        
+        # Mettre à jour l'UF responsabilité du dossier et de la venue
+        dossier.uf_responsabilite = uf_resp
+        venue.uf_responsabilite = uf_resp
+        session.add(dossier)
+        session.add(venue)
         
         m_seq = get_next_sequence(session, "mouvement")
         mouvement = Mouvement(
@@ -835,11 +870,15 @@ async def handle_admission_message(
             trigger_event=trigger,  # Pour validation des transitions IHE PAM
             from_location=previous_location,
             to_location=location_value,
-            location=location_value,
+            location=location_value,  # PV1-3: Localisation actuelle
         )
         session.add(mouvement)
         session.flush()
-        print(f"[pam] Created mouvement mouv_seq={mouvement.mouvement_seq} venue_id={mouvement.venue_id} movement_type={mouvement.movement_type} when={mouvement.when}")
+        logger.info(
+            f"[pam] Created mouvement mouv_seq={mouvement.mouvement_seq} venue_id={mouvement.venue_id} "
+            f"movement_type={mouvement.movement_type} when={mouvement.when} "
+            f"location={mouvement.location} uf_responsable={uf_resp}"
+        )
 
         # Note: Message emission is now automatic via entity_events.py listeners
 

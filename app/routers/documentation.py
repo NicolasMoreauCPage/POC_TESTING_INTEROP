@@ -123,6 +123,19 @@ def render_markdown_with_toc(content: str) -> tuple[str, str]:
 @router.get("/", response_class=HTMLResponse)
 async def documentation_home(request: Request):
     """Page d'accueil de la documentation."""
+    # Utiliser la nouvelle page d'index simplifiée
+    return request.app.state.templates.TemplateResponse(
+        "documentation_index.html",
+        {
+            "request": request,
+            "title": "Documentation"
+        }
+    )
+
+
+@router.get("/guide/{filename:path}", response_class=HTMLResponse)
+async def documentation_guide_legacy(request: Request, filename: str):
+    """Page d'accueil de la documentation (ancienne version avec structure complète)."""
     structure = get_doc_structure()
     
     # Lire INDEX.md

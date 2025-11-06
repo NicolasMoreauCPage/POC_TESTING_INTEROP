@@ -380,6 +380,39 @@ def _parse_zbe(message: str) -> dict:
     return out
 
 
+def _parse_mrg(message: str) -> dict:
+    """Parse segment MRG (Merge Patient Information) pour les messages A40/A47.
+    
+    Retourne:
+        dict avec clés: prior_patient_id (MRG-1), prior_patient_name (MRG-7)
+    """
+    out = {
+        "prior_patient_id": None,
+        "prior_patient_name": None,
+    }
+    try:
+        lines = re.split(r"\r|\n", message)
+        mrg = next((l for l in lines if l.startswith("MRG")), None)
+        if not mrg:
+            return out
+        parts = mrg.split("|")
+        # MRG-1: Prior Patient Identifier List
+        if len(parts) > 1 and parts[1]:
+            out["prior_patient_id"] = parts[1]
+        # MRG-7: Prior Patient Name
+        if len(parts) > 7 and parts[7]:
+            out["prior_patient_name"] = parts[7]
+    except Exception:
+        pass
+    return out
+
+
+def _has_segment(message: str, segment_name: str) -> bool:
+    """Vérifie si un segment est présent dans le message."""
+    lines = re.split(r"\r|\n", message)
+    return any(l.startswith(segment_name) for l in lines)
+
+
 def _handle_z99_updates(message: str, session: Session) -> None:
     """Apply Z99 partial updates received over HL7.
 
@@ -607,6 +640,29 @@ async def on_message_inbound_async(msg: str, session, endpoint) -> str:
             ack_code="AE",
             text=f"Unsupported message type: {msg_family} (only ADT supported)"
         )
+    
+    # 2.1. Validation des segments obligatoires selon le profil IHE PAM FR
+    # Messages de mouvement : ZBE obligatoire (sauf A28, A31, A40, A47 qui sont des messages d'identité)
+    movement_triggers = {"A01", "A02", "A03", "A04", "A05", "A06", "A07", "A08", 
+                        "A11", "A12", "A13", "A21", "A22", "A23", "A38", 
+                        "A52", "A53", "A54", "A55"}
+    
+    if trigger in movement_triggers:
+        if not _has_segment(msg, "ZBE"):
+            return build_ack(
+                msg,
+                ack_code="AE",
+                text=f"Segment ZBE obligatoire manquant pour le message ADT^{trigger}. Le profil IHE PAM France requiert le segment ZBE pour tous les messages de mouvement patient."
+            )
+    
+    # Messages A40 (fusion patients) et A47 (changement identifiant) : MRG obligatoire
+    if trigger in {"A40", "A47"}:
+        if not _has_segment(msg, "MRG"):
+            return build_ack(
+                msg,
+                ack_code="AE",
+                text=f"Segment MRG obligatoire manquant pour le message ADT^{trigger}. Le segment MRG contient les informations d'identification du patient source pour la fusion."
+            )
         
     # 3. Initialisation du traitement transactionnel
     try:

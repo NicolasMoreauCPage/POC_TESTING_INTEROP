@@ -24,12 +24,14 @@ from app.models_structure import (
     Chambre,
     Lit,
 )
+from app.models_structure_fhir import EntiteJuridique
 from app.services.structure_emit import emit_structure_change, emit_structure_delete
 
 logger = logging.getLogger(__name__)
 
 # Track pending emissions per SQLAlchemy Session
-_pending: Dict[int, Set[Tuple[str, int, str]]] = {}
+# Format: (model_name, entity_id, op, frozen_metadata)
+_pending: Dict[int, Set[Tuple[str, int, str, tuple]]] = {}
 
 # Re-entrancy guard for emissions
 _emitting_flag = threading.local()
@@ -42,14 +44,16 @@ def _sess_id(session: Session) -> int:
     return id(session)
 
 
-def _schedule(session: Session, model_name: str, entity_id: int, op: str) -> None:
+def _schedule(session: Session, model_name: str, entity_id: int, op: str, metadata: Dict[str, Any] = None) -> None:
     if getattr(_emitting_flag, "active", False):
         logger.debug("[structure_events] Skip during emission: %s id=%s op=%s", model_name, entity_id, op)
         return
     sid = _sess_id(session)
     if sid not in _pending:
         _pending[sid] = set()
-    key = (model_name, entity_id, op)
+    # Convert metadata dict to hashable tuple
+    frozen_metadata = tuple(sorted((metadata or {}).items()))
+    key = (model_name, entity_id, op, frozen_metadata)
     _pending[sid].add(key)
     logger.debug("[structure_events] Scheduled %s id=%s op=%s", model_name, entity_id, op)
 
@@ -67,11 +71,13 @@ def _after_commit(session: Session):
         # No loop available, skip (e.g., scripts without async loop)
         logger.warning("[structure_events] No event loop; skipping emissions")
         return
-    for model_name, entity_id, op in items:
-        loop.create_task(_emit_background(model_name, entity_id, op))
+    for model_name, entity_id, op, frozen_metadata in items:
+        # Convert frozen metadata back to dict
+        metadata = dict(frozen_metadata) if frozen_metadata else {}
+        loop.create_task(_emit_background(model_name, entity_id, op, metadata))
 
 
-async def _emit_background(model_name: str, entity_id: int, op: str):
+async def _emit_background(model_name: str, entity_id: int, op: str, metadata: Dict[str, Any]):
     from app.db import engine
     from sqlmodel import Session as SQLModelSession
     from app.models_structure import (
@@ -83,8 +89,10 @@ async def _emit_background(model_name: str, entity_id: int, op: str):
         Chambre,
         Lit,
     )
+    from app.models_structure_fhir import EntiteJuridique
 
     model_map = {
+        "EntiteJuridique": EntiteJuridique,
         "EntiteGeographique": EntiteGeographique,
         "Pole": Pole,
         "Service": Service,
@@ -103,8 +111,8 @@ async def _emit_background(model_name: str, entity_id: int, op: str):
         try:
             with SQLModelSession(engine) as s:
                 if op == "delete":
-                    # Entity is gone; emit delete using id
-                    await emit_structure_delete(entity_id, s)
+                    # Entity is gone; emit delete using id and metadata
+                    await emit_structure_delete(entity_id, s, entity_type=model_name, **metadata)
                 else:
                     entity = s.get(model, entity_id)
                     if not entity:
@@ -136,13 +144,18 @@ def _after_delete(mapper, connection, target):
     if not session:
         return
     # id is still available on target in after_delete
-    _schedule(session, type(target).__name__, target.id, "delete")
+    # For EntiteJuridique, capture finess_ej for delete emission
+    metadata = {}
+    from app.models_structure_fhir import EntiteJuridique
+    if isinstance(target, EntiteJuridique):
+        metadata["finess_ej"] = target.finess_ej
+    _schedule(session, type(target).__name__, target.id, "delete", metadata)
 
 
 def register_structure_entity_events() -> None:
     """Register SQLAlchemy listeners for structure models."""
-    for model in (EntiteGeographique, Pole, Service, UniteFonctionnelle, UniteHebergement, Chambre, Lit):
+    for model in (EntiteJuridique, EntiteGeographique, Pole, Service, UniteFonctionnelle, UniteHebergement, Chambre, Lit):
         event.listen(model, "after_insert", _after_insert)
         event.listen(model, "after_update", _after_update)
         event.listen(model, "after_delete", _after_delete)
-    logger.info("[structure_events] ✓ Listeners registered for structure models")
+    logger.info("[structure_events] ✓ Listeners registered for structure models (including EntiteJuridique)")

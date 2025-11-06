@@ -15,6 +15,7 @@ Ce script :
 from sqlmodel import Session, select, SQLModel
 from app.db import engine
 from app.models_structure_fhir import GHTContext, IdentifierNamespace
+from app.models_shared import SystemEndpoint
 # Ajout des imports manquants
 import argparse
 import sys
@@ -392,6 +393,116 @@ def init_ght_and_namespaces(session: Session, reset: bool = False) -> GHTContext
     
     return ght
 
+
+def init_demo_endpoints(session: Session, ght: GHTContext) -> None:
+    """Crée des endpoints de démonstration pour réception et émission.
+    
+    Endpoints créés:
+    - MLLP receiver: Pour réception de messages IHE PAM
+    - MLLP sender: Pour émission de messages HL7 (structure, mouvements)
+    - FHIR receiver: Pour réception de ressources FHIR
+    - FHIR sender: Pour émission de ressources FHIR (structure, identités, mouvements)
+    """
+    endpoints_config = [
+        {
+            "name": "MLLP Receiver Demo",
+            "kind": "mllp",
+            "role": "receiver",
+            "host": "127.0.0.1",
+            "port": 2575,
+            "sending_app": "EXTERNAL_SYS",
+            "sending_facility": "EXTERNAL_FACILITY",
+            "receiving_app": "MedBridge",
+            "receiving_facility": "GHT-DEMO",
+            "pam_validate_enabled": True,
+            "pam_validate_mode": "warn",
+            "pam_profile": "IHE_PAM_FR",
+            "description": "Endpoint MLLP pour réception de messages IHE PAM (ADT, mouvements)"
+        },
+        {
+            "name": "MLLP Sender Demo",
+            "kind": "mllp",
+            "role": "sender",
+            "host": "127.0.0.1",
+            "port": 2576,
+            "sending_app": "MedBridge",
+            "sending_facility": "GHT-DEMO",
+            "receiving_app": "TARGET_SYS",
+            "receiving_facility": "TARGET_FACILITY",
+            "description": "Endpoint MLLP pour émission de messages HL7 (MFN structure, ADT mouvements)"
+        },
+        {
+            "name": "FHIR Receiver Demo",
+            "kind": "fhir",
+            "role": "receiver",
+            "base_url": "http://127.0.0.1:8000/fhir",
+            "auth_kind": "none",
+            "description": "Endpoint FHIR pour réception de ressources (Patient, Encounter, Location, Organization)"
+        },
+        {
+            "name": "FHIR Sender Demo",
+            "kind": "fhir",
+            "role": "sender",
+            "base_url": "http://127.0.0.1:8080/fhir",
+            "auth_kind": "none",
+            "description": "Endpoint FHIR pour émission de ressources (Location, Organization, Patient, Encounter)"
+        }
+    ]
+    
+    created_count = 0
+    for ep_config in endpoints_config:
+        # Vérifier si l'endpoint existe déjà (par nom et GHT)
+        existing = session.exec(
+            select(SystemEndpoint).where(
+                SystemEndpoint.name == ep_config["name"],
+                SystemEndpoint.ght_context_id == ght.id
+            )
+        ).first()
+        
+        if existing:
+            print(f"  ✓ Endpoint '{ep_config['name']}' existe déjà")
+            continue
+        
+        # Créer l'endpoint
+        endpoint_data = {
+            "name": ep_config["name"],
+            "kind": ep_config["kind"],
+            "role": ep_config["role"],
+            "ght_context_id": ght.id,
+            "is_enabled": True,
+        }
+        
+        # Ajouter les champs spécifiques selon le type
+        if ep_config["kind"] == "mllp":
+            endpoint_data.update({
+                "host": ep_config.get("host"),
+                "port": ep_config.get("port"),
+                "sending_app": ep_config.get("sending_app"),
+                "sending_facility": ep_config.get("sending_facility"),
+                "receiving_app": ep_config.get("receiving_app"),
+                "receiving_facility": ep_config.get("receiving_facility"),
+                "pam_validate_enabled": ep_config.get("pam_validate_enabled", False),
+                "pam_validate_mode": ep_config.get("pam_validate_mode", "warn"),
+                "pam_profile": ep_config.get("pam_profile", "IHE_PAM_FR"),
+            })
+        elif ep_config["kind"] == "fhir":
+            endpoint_data.update({
+                "base_url": ep_config.get("base_url"),
+                "auth_kind": ep_config.get("auth_kind", "none"),
+                "auth_token": ep_config.get("auth_token"),
+            })
+        
+        endpoint = SystemEndpoint(**endpoint_data)
+        session.add(endpoint)
+        created_count += 1
+        print(f"  • Création endpoint '{ep_config['name']}' ({ep_config['kind']} {ep_config['role']})")
+    
+    if created_count > 0:
+        session.commit()
+        print(f"✓ {created_count} nouveaux endpoints créés")
+    
+    return None
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -423,6 +534,16 @@ def main():
         # Étape 2: Créer le GHT et les namespaces
         print("\n[2/5] Initialisation du GHT et des namespaces...")
         ght = init_ght_and_namespaces(session, reset=args.reset)
+        
+        # Étape 2.5: Créer les endpoints de démonstration
+        print("\n[2.5/5] Initialisation des endpoints de démonstration...")
+        try:
+            init_demo_endpoints(session, ght)
+        except Exception as e:
+            print(f"  ⚠️  Erreur lors de la création des endpoints: {e}")
+            import traceback
+            traceback.print_exc()
+        
         # Conserver l'identifiant avant la fermeture de la session pour éviter
         # DetachedInstanceError lors de l'affichage final
         ght_id = ght.id

@@ -258,12 +258,35 @@ def generate_adt_message(
     
     Returns:
         Message HL7 PAM complet
+        
+    Raises:
+        ValueError: Si les segments obligatoires selon le profil IHE PAM FR ne peuvent pas être générés
     """
     if timestamp is None:
         timestamp = datetime.utcnow()
     
     if control_id is None:
         control_id = f"MSG{timestamp.strftime('%Y%m%d%H%M%S')}"
+    
+    # Validation des segments obligatoires selon le profil IHE PAM FR
+    movement_triggers = {"A01", "A02", "A03", "A04", "A05", "A06", "A07", "A08", 
+                        "A11", "A12", "A13", "A21", "A22", "A23", "A38", 
+                        "A52", "A53", "A54", "A55"}
+    
+    # Les messages de mouvement requièrent le segment ZBE (sauf A28, A31, A40, A47 qui sont des messages d'identité)
+    if trigger_event in movement_triggers and movement is None:
+        raise ValueError(
+            f"Le segment ZBE est obligatoire pour le message ADT^{trigger_event} selon le profil IHE PAM France. "
+            f"Un objet Mouvement doit être fourni pour générer le segment ZBE."
+        )
+    
+    # Messages A40 (fusion) et A47 (changement identifiant) ne sont pas encore supportés
+    # car ils nécessitent le segment MRG
+    if trigger_event in {"A40", "A47"}:
+        raise NotImplementedError(
+            f"Le message ADT^{trigger_event} n'est pas encore supporté par le générateur. "
+            f"Ce type de message requiert le segment MRG (Merge Patient Information) qui n'est pas encore implémenté."
+        )
     
     # Segments obligatoires
     segments = [

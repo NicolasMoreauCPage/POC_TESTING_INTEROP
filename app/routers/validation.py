@@ -1,11 +1,12 @@
 """
 Router pour l'interface de validation de messages HL7 v2.5
-Permet de valider un message HL7 en dehors du contexte GHT
+Permet de valider un message HL7 en dehors du contexte GHT (unitaire ou scénario)
 """
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from app.services.pam_validation import validate_pam
+from app.services.scenario_validation import validate_scenario
 import json
 
 router = APIRouter()
@@ -25,7 +26,8 @@ PV1|1|I|CARDIO^101^1|||||||||||||||||1"""
         "request": request,
         "title": "Validation Messages HL7 v2.5",
         "validation_done": False,
-        "hl7_message": example_message
+        "hl7_message": example_message,
+        "scenario_result": None
     })
 
 
@@ -88,4 +90,36 @@ async def validate_message(
         "hl7_base": hl7_base,
         "datatypes": datatypes,
         "segment_order": segment_order,
+        "scenario_result": None
+    })
+
+
+@router.post("/validation/validate-scenario", response_class=HTMLResponse)
+async def validate_scenario_route(
+    request: Request,
+    scenario_messages: str = Form(...),
+    direction: str = Form(default="inbound"),
+    profile: str = Form(default="IHE_PAM_FR")
+):
+    """Valide un scénario de plusieurs messages HL7 et retourne le rapport."""
+    
+    print(f"[SCENARIO VALIDATION] Received scenario of length: {len(scenario_messages)}")
+    print(f"[SCENARIO VALIDATION] Direction: {direction}, Profile: {profile}")
+    
+    # Validation du scénario
+    result = validate_scenario(scenario_messages, direction, profile)
+    print(f"[SCENARIO VALIDATION] Result level: {result.level}, "
+          f"messages: {result.total_messages}, "
+          f"valid: {result.valid_messages}, "
+          f"workflow issues: {len(result.workflow_issues)}, "
+          f"coherence issues: {len(result.coherence_issues)}")
+    
+    return templates.TemplateResponse("validation.html", {
+        "request": request,
+        "title": "Validation Scénario HL7 v2.5",
+        "validation_done": False,
+        "scenario_result": result,
+        "scenario_messages": scenario_messages,
+        "direction": direction,
+        "profile": profile,
     })

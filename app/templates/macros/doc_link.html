@@ -1,0 +1,47 @@
+{% macro doc_link(current_path="") %}
+{# Mapping des pages vers leur documentation #}
+{% set doc_map = {
+    "/validation": {"url": "/documentation#validation", "title": "Documentation: Validation HL7"},
+    "/messages": {"url": "/documentation#messages", "title": "Documentation: Supervision des messages"},
+    "/messages/validate-dossier": {"url": "/documentation#validation-dossier", "title": "Documentation: Validation de dossier"},
+    "/endpoints": {"url": "/documentation#endpoints", "title": "Documentation: Configuration des endpoints"},
+    "/scenarios": {"url": "/documentation#scenarios", "title": "Documentation: Scénarios IHE PAM"},
+    "/patients": {"url": "/documentation#patients", "title": "Documentation: Gestion des patients"},
+    "/dossiers": {"url": "/documentation#dossiers", "title": "Documentation: Dossiers"},
+    "/structure": {"url": "/documentation#structure", "title": "Documentation: Structure organisationnelle"},
+    "/structure/eg": {"url": "/documentation#structure", "title": "Documentation: Structure organisationnelle"},
+    "/structure/poles": {"url": "/documentation#structure", "title": "Documentation: Structure organisationnelle"},
+    "/structure/services": {"url": "/documentation#structure", "title": "Documentation: Structure organisationnelle"},
+    "/structure/ufs": {"url": "/documentation#structure", "title": "Documentation: Structure organisationnelle"},
+    "/structure/uh": {"url": "/documentation#structure", "title": "Documentation: Structure organisationnelle"},
+    "/structure/chambres": {"url": "/documentation#structure", "title": "Documentation: Structure organisationnelle"},
+    "/structure/lits": {"url": "/documentation#structure", "title": "Documentation: Structure organisationnelle"},
+    "/standards": {"url": "/documentation#standards", "title": "Documentation: Standards"},
+    "/vocabularies": {"url": "/documentation#vocabularies", "title": "Documentation: Vocabulaires"},
+} %}
+
+{# Recherche de la doc correspondante #}
+{% set doc_info = None %}
+{% for path, info in doc_map.items() %}
+    {% if current_path == path or current_path.startswith(path + "/") or current_path.startswith(path + "?") %}
+        {% set doc_info = info %}
+    {% endif %}
+{% endfor %}
+
+{# Affichage du lien si une doc existe #}
+{% if doc_info %}
+<a href="{{ doc_info.url }}" 
+   target="_blank"
+   title="{{ doc_info.title }}"
+   class="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+>
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+    </svg>
+    <span>Voir la documentation</span>
+    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+    </svg>
+</a>
+{% endif %}
+{% endmacro %}
