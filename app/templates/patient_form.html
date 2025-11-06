@@ -39,9 +39,9 @@
             </label>
             <select name="prefix" class="input-field">
               <option value="">-- Choisir --</option>
-              <option value="M." {% if (patient and patient.prefix == 'M.') or (not patient and sample_data and sample_data.prefix == 'M.') %}selected{% endif %}>M. (Monsieur)</option>
-              <option value="Mme" {% if (patient and patient.prefix == 'Mme') or (not patient and sample_data and sample_data.prefix == 'Mme') %}selected{% endif %}>Mme (Madame)</option>
-              <option value="Mlle" {% if (patient and patient.prefix == 'Mlle') or (not patient and sample_data and sample_data.prefix == 'Mlle') %}selected{% endif %}>Mlle (Mademoiselle)</option>
+              <option value="M." {% if (patient and patient.prefix == 'M.') or (sample_data and sample_data.get('prefix') == 'M.') %}selected{% endif %}>M. (Monsieur)</option>
+              <option value="Mme" {% if (patient and patient.prefix == 'Mme') or (sample_data and sample_data.get('prefix') == 'Mme') %}selected{% endif %}>Mme (Madame)</option>
+              <option value="Mlle" {% if (patient and patient.prefix == 'Mlle') or (sample_data and sample_data.get('prefix') == 'Mlle') %}selected{% endif %}>Mlle (Mademoiselle)</option>
             </select>
           </div>
           <div class="col-span-2"></div>
@@ -123,10 +123,10 @@
             </label>
             <select name="gender" class="input-field">
               <option value="">-- Choisir --</option>
-              <option value="M" {% if (patient and patient.gender == 'M') or (not patient and sample_data and sample_data.gender == 'M') %}selected{% endif %}>Masculin</option>
-              <option value="F" {% if (patient and patient.gender == 'F') or (not patient and sample_data and sample_data.gender == 'F') %}selected{% endif %}>Féminin</option>
-              <option value="U" {% if (patient and patient.gender == 'U') or (not patient and sample_data and sample_data.gender == 'U') %}selected{% endif %}>Indéterminé</option>
-              <option value="O" {% if (patient and patient.gender == 'O') or (not patient and sample_data and sample_data.gender == 'O') %}selected{% endif %}>Autre</option>
+              <option value="M" {% if (patient and patient.gender == 'M') or (sample_data and sample_data.get('gender') == 'M') %}selected{% endif %}>Masculin</option>
+              <option value="F" {% if (patient and patient.gender == 'F') or (sample_data and sample_data.get('gender') == 'F') %}selected{% endif %}>Féminin</option>
+              <option value="U" {% if (patient and patient.gender == 'U') or (sample_data and sample_data.get('gender') == 'U') %}selected{% endif %}>Indéterminé</option>
+              <option value="O" {% if (patient and patient.gender == 'O') or (sample_data and sample_data.get('gender') == 'O') %}selected{% endif %}>Autre</option>
             </select>
           </div>
         </div>
@@ -168,14 +168,14 @@
           <label class="block text-sm font-medium text-slate-700 mb-1">Pays</label>
           <select name="country" class="input-field">
             <option value="">-- Choisir --</option>
-            <option value="FRA" {% if (patient and patient.country == 'FRA') or (not patient and sample_data and sample_data.country == 'FRA') %}selected{% endif %}>🇫🇷 France (FRA)</option>
-            <option value="BEL" {% if (patient and patient.country == 'BEL') or (not patient and sample_data and sample_data.country == 'BEL') %}selected{% endif %}>🇧🇪 Belgique (BEL)</option>
-            <option value="CHE" {% if (patient and patient.country == 'CHE') or (not patient and sample_data and sample_data.country == 'CHE') %}selected{% endif %}>🇨🇭 Suisse (CHE)</option>
-            <option value="LUX" {% if (patient and patient.country == 'LUX') or (not patient and sample_data and sample_data.country == 'LUX') %}selected{% endif %}>🇱🇺 Luxembourg (LUX)</option>
-            <option value="DEU" {% if (patient and patient.country == 'DEU') or (not patient and sample_data and sample_data.country == 'DEU') %}selected{% endif %}>🇩🇪 Allemagne (DEU)</option>
-            <option value="ITA" {% if (patient and patient.country == 'ITA') or (not patient and sample_data and sample_data.country == 'ITA') %}selected{% endif %}>🇮🇹 Italie (ITA)</option>
-            <option value="ESP" {% if (patient and patient.country == 'ESP') or (not patient and sample_data and sample_data.country == 'ESP') %}selected{% endif %}>🇪🇸 Espagne (ESP)</option>
-            <option value="GBR" {% if (patient and patient.country == 'GBR') or (not patient and sample_data and sample_data.country == 'GBR') %}selected{% endif %}>🇬🇧 Royaume-Uni (GBR)</option>
+            <option value="FRA" {% if (patient and patient.country == 'FRA') or (sample_data and sample_data.get('country') == 'FRA') %}selected{% endif %}>🇫🇷 France (FRA)</option>
+            <option value="BEL" {% if (patient and patient.country == 'BEL') or (sample_data and sample_data.get('country') == 'BEL') %}selected{% endif %}>🇧🇪 Belgique (BEL)</option>
+            <option value="CHE" {% if (patient and patient.country == 'CHE') or (sample_data and sample_data.get('country') == 'CHE') %}selected{% endif %}>🇨🇭 Suisse (CHE)</option>
+            <option value="LUX" {% if (patient and patient.country == 'LUX') or (sample_data and sample_data.get('country') == 'LUX') %}selected{% endif %}>🇱🇺 Luxembourg (LUX)</option>
+            <option value="DEU" {% if (patient and patient.country == 'DEU') or (sample_data and sample_data.get('country') == 'DEU') %}selected{% endif %}>🇩🇪 Allemagne (DEU)</option>
+            <option value="ITA" {% if (patient and patient.country == 'ITA') or (sample_data and sample_data.get('country') == 'ITA') %}selected{% endif %}>🇮🇹 Italie (ITA)</option>
+            <option value="ESP" {% if (patient and patient.country == 'ESP') or (sample_data and sample_data.get('country') == 'ESP') %}selected{% endif %}>🇪🇸 Espagne (ESP)</option>
+            <option value="GBR" {% if (patient and patient.country == 'GBR') or (sample_data and sample_data.get('country') == 'GBR') %}selected{% endif %}>🇬🇧 Royaume-Uni (GBR)</option>
           </select>
           <p class="text-xs text-slate-500 mt-1">Code ISO 3 lettres - PID-11.6</p>
         </div>
@@ -250,14 +250,14 @@
           <label class="block text-sm font-medium text-slate-700 mb-1">Pays de naissance</label>
           <select name="birth_country" class="input-field">
             <option value="">-- Choisir --</option>
-            <option value="FRA" {% if (patient and patient.birth_country == 'FRA') or (not patient and sample_data and sample_data.birth_country == 'FRA') %}selected{% endif %}>🇫🇷 France (FRA)</option>
-            <option value="BEL" {% if (patient and patient.birth_country == 'BEL') or (not patient and sample_data and sample_data.birth_country == 'BEL') %}selected{% endif %}>🇧🇪 Belgique (BEL)</option>
-            <option value="CHE" {% if (patient and patient.birth_country == 'CHE') or (not patient and sample_data and sample_data.birth_country == 'CHE') %}selected{% endif %}>🇨🇭 Suisse (CHE)</option>
-            <option value="LUX" {% if (patient and patient.birth_country == 'LUX') or (not patient and sample_data and sample_data.birth_country == 'LUX') %}selected{% endif %}>🇱🇺 Luxembourg (LUX)</option>
-            <option value="DEU" {% if (patient and patient.birth_country == 'DEU') or (not patient and sample_data and sample_data.birth_country == 'DEU') %}selected{% endif %}>🇩🇪 Allemagne (DEU)</option>
-            <option value="ITA" {% if (patient and patient.birth_country == 'ITA') or (not patient and sample_data and sample_data.birth_country == 'ITA') %}selected{% endif %}>🇮🇹 Italie (ITA)</option>
-            <option value="ESP" {% if (patient and patient.birth_country == 'ESP') or (not patient and sample_data and sample_data.birth_country == 'ESP') %}selected{% endif %}>🇪🇸 Espagne (ESP)</option>
-            <option value="GBR" {% if (patient and patient.birth_country == 'GBR') or (not patient and sample_data and sample_data.birth_country == 'GBR') %}selected{% endif %}>🇬🇧 Royaume-Uni (GBR)</option>
+            <option value="FRA" {% if (patient and patient.birth_country == 'FRA') or (sample_data and sample_data.get('birth_country') == 'FRA') %}selected{% endif %}>🇫🇷 France (FRA)</option>
+            <option value="BEL" {% if (patient and patient.birth_country == 'BEL') or (sample_data and sample_data.get('birth_country') == 'BEL') %}selected{% endif %}>🇧🇪 Belgique (BEL)</option>
+            <option value="CHE" {% if (patient and patient.birth_country == 'CHE') or (sample_data and sample_data.get('birth_country') == 'CHE') %}selected{% endif %}>🇨🇭 Suisse (CHE)</option>
+            <option value="LUX" {% if (patient and patient.birth_country == 'LUX') or (sample_data and sample_data.get('birth_country') == 'LUX') %}selected{% endif %}>🇱🇺 Luxembourg (LUX)</option>
+            <option value="DEU" {% if (patient and patient.birth_country == 'DEU') or (sample_data and sample_data.get('birth_country') == 'DEU') %}selected{% endif %}>🇩🇪 Allemagne (DEU)</option>
+            <option value="ITA" {% if (patient and patient.birth_country == 'ITA') or (sample_data and sample_data.get('birth_country') == 'ITA') %}selected{% endif %}>🇮🇹 Italie (ITA)</option>
+            <option value="ESP" {% if (patient and patient.birth_country == 'ESP') or (sample_data and sample_data.get('birth_country') == 'ESP') %}selected{% endif %}>🇪🇸 Espagne (ESP)</option>
+            <option value="GBR" {% if (patient and patient.birth_country == 'GBR') or (sample_data and sample_data.get('birth_country') == 'GBR') %}selected{% endif %}>🇬🇧 Royaume-Uni (GBR)</option>
           </select>
         </div>
       </div>
@@ -280,13 +280,13 @@
             <label class="block text-sm font-medium text-slate-700 mb-1">Statut marital</label>
             <select name="marital_status" class="input-field">
               <option value="">-- Choisir --</option>
-              <option value="S" {% if (patient and patient.marital_status == 'S') or (not patient and sample_data and sample_data.marital_status == 'S') %}selected{% endif %}>S - Célibataire</option>
-              <option value="M" {% if (patient and patient.marital_status == 'M') or (not patient and sample_data and sample_data.marital_status == 'M') %}selected{% endif %}>M - Marié(e)</option>
-              <option value="D" {% if (patient and patient.marital_status == 'D') or (not patient and sample_data and sample_data.marital_status == 'D') %}selected{% endif %}>D - Divorcé(e)</option>
-              <option value="W" {% if (patient and patient.marital_status == 'W') or (not patient and sample_data and sample_data.marital_status == 'W') %}selected{% endif %}>W - Veuf/Veuve</option>
-              <option value="P" {% if (patient and patient.marital_status == 'P') or (not patient and sample_data and sample_data.marital_status == 'P') %}selected{% endif %}>P - Partenariat/PACS</option>
-              <option value="A" {% if (patient and patient.marital_status == 'A') or (not patient and sample_data and sample_data.marital_status == 'A') %}selected{% endif %}>A - Séparé(e)</option>
-              <option value="U" {% if (patient and patient.marital_status == 'U') or (not patient and sample_data and sample_data.marital_status == 'U') %}selected{% endif %}>U - Non spécifié</option>
+              <option value="S" {% if (patient and patient.marital_status == 'S') or (sample_data and sample_data.get('marital_status') == 'S') %}selected{% endif %}>S - Célibataire</option>
+              <option value="M" {% if (patient and patient.marital_status == 'M') or (sample_data and sample_data.get('marital_status') == 'M') %}selected{% endif %}>M - Marié(e)</option>
+              <option value="D" {% if (patient and patient.marital_status == 'D') or (sample_data and sample_data.get('marital_status') == 'D') %}selected{% endif %}>D - Divorcé(e)</option>
+              <option value="W" {% if (patient and patient.marital_status == 'W') or (sample_data and sample_data.get('marital_status') == 'W') %}selected{% endif %}>W - Veuf/Veuve</option>
+              <option value="P" {% if (patient and patient.marital_status == 'P') or (sample_data and sample_data.get('marital_status') == 'P') %}selected{% endif %}>P - Partenariat/PACS</option>
+              <option value="A" {% if (patient and patient.marital_status == 'A') or (sample_data and sample_data.get('marital_status') == 'A') %}selected{% endif %}>A - Séparé(e)</option>
+              <option value="U" {% if (patient and patient.marital_status == 'U') or (sample_data and sample_data.get('marital_status') == 'U') %}selected{% endif %}>U - Non spécifié</option>
             </select>
           </div>
         </div>
@@ -304,11 +304,11 @@
             </label>
             <select name="identity_reliability_code" class="input-field">
               <option value="">-- Choisir --</option>
-              <option value="VIDE" {% if (patient and patient.identity_reliability_code == 'VIDE') or (not patient and sample_data and sample_data.identity_reliability_code == 'VIDE') %}selected{% endif %}>VIDE - Identité vérifiée (INS validé)</option>
-              <option value="VALI" {% if (patient and patient.identity_reliability_code == 'VALI') or (not patient and sample_data and sample_data.identity_reliability_code == 'VALI') %}selected{% endif %}>VALI - Validé par pièce d'identité</option>
-              <option value="PROV" {% if (patient and patient.identity_reliability_code == 'PROV') or (not patient and sample_data and sample_data.identity_reliability_code == 'PROV') %}selected{% endif %}>PROV - Provisoire</option>
-              <option value="DOUTE" {% if (patient and patient.identity_reliability_code == 'DOUTE') or (not patient and sample_data and sample_data.identity_reliability_code == 'DOUTE') %}selected{% endif %}>DOUTE - Identité douteuse</option>
-              <option value="FICTI" {% if (patient and patient.identity_reliability_code == 'FICTI') or (not patient and sample_data and sample_data.identity_reliability_code == 'FICTI') %}selected{% endif %}>FICTI - Fictive (test)</option>
+              <option value="VIDE" {% if (patient and patient.identity_reliability_code == 'VIDE') or (sample_data and sample_data.get('identity_reliability_code') == 'VIDE') %}selected{% endif %}>VIDE - Identité vérifiée (INS validé)</option>
+              <option value="VALI" {% if (patient and patient.identity_reliability_code == 'VALI') or (sample_data and sample_data.get('identity_reliability_code') == 'VALI') %}selected{% endif %}>VALI - Validé par pièce d'identité</option>
+              <option value="PROV" {% if (patient and patient.identity_reliability_code == 'PROV') or (sample_data and sample_data.get('identity_reliability_code') == 'PROV') %}selected{% endif %}>PROV - Provisoire</option>
+              <option value="DOUTE" {% if (patient and patient.identity_reliability_code == 'DOUTE') or (sample_data and sample_data.get('identity_reliability_code') == 'DOUTE') %}selected{% endif %}>DOUTE - Identité douteuse</option>
+              <option value="FICTI" {% if (patient and patient.identity_reliability_code == 'FICTI') or (sample_data and sample_data.get('identity_reliability_code') == 'FICTI') %}selected{% endif %}>FICTI - Fictive (test)</option>
             </select>
             <p class="text-xs text-slate-500 mt-1">HL7 Table 0445 - Obligatoire IHE PAM France</p>
           </div>
