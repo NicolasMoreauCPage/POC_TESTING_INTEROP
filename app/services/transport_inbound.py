@@ -413,6 +413,54 @@ def _has_segment(message: str, segment_name: str) -> bool:
     return any(l.startswith(segment_name) for l in lines)
 
 
+def _validate_z99_original_message(message: str, session: Session) -> Optional[str]:
+    """Validate that Z99 message references an accepted original message.
+    
+    Returns:
+        None if validation passes
+        Error message string if validation fails
+    """
+    # Extract ZBE-1 (original movement_id)
+    zbe_data = _parse_zbe(message)
+    movement_id = zbe_data.get("movement_id")
+    
+    if not movement_id:
+        return "Z99 message missing ZBE-1 (original movement identifier)"
+    
+    # Find the original message by correlation_id (MSH-10 / movement_id)
+    original_msg = session.exec(
+        select(MessageLog)
+        .where(MessageLog.correlation_id == movement_id)
+        .order_by(MessageLog.created_at.desc())
+    ).first()
+    
+    if not original_msg:
+        return f"Original message with identifier '{movement_id}' not found"
+    
+    # Check if original message has an ACK
+    if not original_msg.ack_payload:
+        return f"Original message '{movement_id}' has no acknowledgment"
+    
+    # Extract ACK status from MSA-1 segment
+    ack_lines = re.split(r"\r|\n", original_msg.ack_payload)
+    msa_line = next((l for l in ack_lines if l.startswith("MSA")), None)
+    
+    if not msa_line:
+        return f"Original message '{movement_id}' ACK missing MSA segment"
+    
+    msa_parts = msa_line.split("|")
+    if len(msa_parts) < 2:
+        return f"Original message '{movement_id}' ACK has invalid MSA segment"
+    
+    ack_code = msa_parts[1].strip()
+    
+    # Only allow Z99 if original was accepted (AA = Application Accept, CA = Commit Accept)
+    if ack_code not in ["AA", "CA"]:
+        return f"Cannot modify message '{movement_id}': original was rejected with ACK code {ack_code}"
+    
+    return None
+
+
 def _handle_z99_updates(message: str, session: Session) -> None:
     """Apply Z99 partial updates received over HL7.
 
@@ -704,6 +752,14 @@ async def on_message_inbound_async(msg: str, session, endpoint) -> str:
                     pass
 
             if trigger == "Z99":
+                # Validate that original message was accepted
+                validation_error = _validate_z99_original_message(msg, session)
+                if validation_error:
+                    log.status = "rejected"
+                    ack = build_ack(msg, ack_code="AR", text=validation_error)
+                    log.ack_payload = ack
+                    return ack
+                
                 try:
                     _handle_z99_updates(msg, session)
                     log.status = "processed"
@@ -773,7 +829,32 @@ async def on_message_inbound_async(msg: str, session, endpoint) -> str:
             # Validation des transitions IHE PAM
             # Récupérer le dernier événement du dossier/venue si applicable
             previous_event = None
-            if pv1_data.get("visit_number"):
+            
+            # Stratégie 1 : Chercher par numéro de dossier (PID-18 Account Number)
+            # C'est la méthode la plus fiable car un dossier peut avoir plusieurs venues
+            account_number = pid_data.get("account_number")
+            if account_number:
+                # Extraire le numéro de dossier du CX (partie avant ^)
+                dossier_id_str = account_number.split("^")[0] if "^" in account_number else account_number
+                try:
+                    dossier_seq = int(dossier_id_str)
+                    dossier = session.exec(select(Dossier).where(Dossier.dossier_seq == dossier_seq)).first()
+                    if dossier:
+                        # Chercher le dernier mouvement de ce dossier (toutes venues confondues)
+                        last_mouvement = session.exec(
+                            select(Mouvement)
+                            .join(Venue)
+                            .where(Venue.dossier_id == dossier.id)
+                            .order_by(Mouvement.mouvement_seq.desc())
+                        ).first()
+                        if last_mouvement and last_mouvement.trigger_event:
+                            previous_event = last_mouvement.trigger_event
+                            logger.debug(f"Found previous event '{previous_event}' from dossier {dossier_seq}")
+                except (ValueError, TypeError):
+                    pass
+            
+            # Stratégie 2 : Chercher par numéro de venue (PV1-19 Visit Number)
+            if not previous_event and pv1_data.get("visit_number"):
                 # Rechercher la venue existante pour connaître le dernier événement
                 visit_num_str = pv1_data["visit_number"]
                 # Extract ID part if CX format (ID^^^system^type)
@@ -794,9 +875,13 @@ async def on_message_inbound_async(msg: str, session, endpoint) -> str:
                         .where(Mouvement.venue_id == venue.id)
                         .order_by(Mouvement.mouvement_seq.desc())
                     ).first()
-                    if last_mouvement and hasattr(last_mouvement, 'trigger_event'):
+                    if last_mouvement and last_mouvement.trigger_event:
                         previous_event = last_mouvement.trigger_event
-            else:
+                        logger.debug(f"Found previous event '{previous_event}' from venue {visit_num_id}")
+            
+            # Stratégie 3 : Fallback - chercher le dernier événement du patient
+            # (utilisé quand ni dossier ni venue ne sont spécifiés)
+            if not previous_event:
                 # Si pas de visit_number, chercher le dernier événement du patient
                 # pour permettre des enchaînements sans numéro de venue explicite
                 if pid_data.get("identifiers"):
@@ -817,8 +902,9 @@ async def on_message_inbound_async(msg: str, session, endpoint) -> str:
                                 .where(Dossier.patient_id == patient.id)
                                 .order_by(Mouvement.mouvement_seq.desc())
                             ).first()
-                            if last_mouvement and hasattr(last_mouvement, 'trigger_event'):
+                            if last_mouvement and last_mouvement.trigger_event:
                                 previous_event = last_mouvement.trigger_event
+                                logger.debug(f"Found previous event '{previous_event}' from patient {patient_id}")
             
             # Valider la transition (lève ValueError si invalide),
             # sauf pour les messages d'identité purs (A28/A31/A40/A47) qui

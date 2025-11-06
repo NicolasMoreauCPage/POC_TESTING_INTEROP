@@ -24,6 +24,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.db import get_session
 from app.models_structure_fhir import GHTContext, EntiteJuridique
 from app.models import Patient, Dossier
+from app.models_endpoints import MessageLog
+from sqlalchemy import select, func
 import os
 
 
@@ -94,6 +96,55 @@ async def get_active_dossier_context(request: Request) -> Optional[Dossier]:
     return None
 
 
+async def get_error_message_count(request: Request) -> int:
+    """
+    Compte le nombre de messages en erreur selon le contexte actif.
+    
+    Filtrage par contexte:
+    - Si dossier actif: messages du dossier en erreur
+    - Si patient actif: messages du patient en erreur
+    - Si EJ actif: messages de l'EJ en erreur
+    - Si GHT actif: messages du GHT en erreur
+    - Sinon: tous les messages en erreur
+    """
+    try:
+        session = next(get_session())
+        try:
+            query = select(func.count(MessageLog.id)).where(MessageLog.validation_status == "error")
+            
+            # Filtrer par contexte du plus spécifique au plus général
+            dossier_id = request.session.get("dossier_id")
+            if dossier_id:
+                query = query.where(MessageLog.dossier_id == dossier_id)
+            else:
+                patient_id = request.session.get("patient_id")
+                if patient_id:
+                    # Filtrer par dossiers du patient
+                    from app.models import Dossier
+                    dossier_ids = [d.id for d in session.query(Dossier).filter_by(patient_id=patient_id).all()]
+                    if dossier_ids:
+                        query = query.where(MessageLog.dossier_id.in_(dossier_ids))
+                else:
+                    ej_id = request.session.get("ej_context_id")
+                    if ej_id:
+                        query = query.where(MessageLog.ej_emetteur_id == ej_id)
+                    else:
+                        ght_id = request.session.get("ght_context_id")
+                        if ght_id:
+                            # Filtrer par EJs du GHT
+                            from app.models_structure_fhir import EntiteJuridique
+                            ej_ids = [ej.id for ej in session.query(EntiteJuridique).filter_by(ght_context_id=ght_id).all()]
+                            if ej_ids:
+                                query = query.where(MessageLog.ej_emetteur_id.in_(ej_ids))
+            
+            result = session.execute(query).scalar_one()
+            return result or 0
+        finally:
+            session.close()
+    except Exception:
+        return 0
+
+
 class GHTContextMiddleware(BaseHTTPMiddleware):
     """
     Middleware pour injecter les contextes (GHT, Patient, Dossier) sur `request.state`.
@@ -131,6 +182,9 @@ class GHTContextMiddleware(BaseHTTPMiddleware):
         # Ajouter les contextes Patient/Dossier si présents
         request.state.patient_context = await get_active_patient_context(request)
         request.state.dossier_context = await get_active_dossier_context(request)
+        
+        # Compter les messages en erreur selon le contexte
+        request.state.error_message_count = await get_error_message_count(request)
 
         # En tests, on évite les redirections automatiques pour ne pas casser
         # les scénarios Playwright. Les pages peuvent afficher un message doux.

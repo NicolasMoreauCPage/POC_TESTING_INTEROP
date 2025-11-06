@@ -89,10 +89,12 @@
           <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 1.567-3 3.5S10.343 15 12 15s3-1.567 3-3.5S13.657 8 12 8z"/><path stroke-linecap="round" stroke-linejoin="round" d="M5 20.5a7 7 0 0114 0"/></svg>
           <span>{{ title|default('Interface opérateur') }}</span>
         </div>
-        <a href="/messages" class="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-red-600 hover:bg-red-100">
+        {% if request.state.error_message_count is defined and request.state.error_message_count > 0 %}
+        <a href="/messages?status=error" class="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-red-600 hover:bg-red-100">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <span>ACK en erreur</span>
+          <span>ACK en erreur ({{ request.state.error_message_count }})</span>
         </a>
+        {% endif %}
       </div>
       <div class="md:hidden">
         <button id="menu-btn" class="p-2 rounded hover:bg-slate-100 focus:outline-none" aria-label="Menu principal">

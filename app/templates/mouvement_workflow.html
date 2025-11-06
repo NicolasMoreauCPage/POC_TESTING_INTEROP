@@ -14,6 +14,14 @@
       </div>
     </div>
   </div>
+  <script>
+    // Recharger la page sans le paramètre success après 2 secondes
+    setTimeout(() => {
+      const url = new URL(window.location);
+      url.searchParams.delete('success');
+      window.location.href = url.toString();
+    }, 2000);
+  </script>
   {% endif %}
   
   <!-- Contexte patient compact -->

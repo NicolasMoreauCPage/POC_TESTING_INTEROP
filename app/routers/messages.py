@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, Request, Query, Form
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select, col
 from datetime import datetime
 from typing import Optional
 import logging
 import json
+import io
+import zipfile
 
 from app.db import get_session
 from app.models_endpoints import MessageLog, SystemEndpoint
@@ -299,6 +301,7 @@ def list_by_dossier(
                 "last_message_id": None,
                 "endpoint_ids": set(),
                 "message_types": set(),
+                "message_types_with_errors": set(),  # Types de messages ayant des erreurs
                 "has_pam_errors": False,
                 "has_ack_errors": False,
             }
@@ -306,14 +309,19 @@ def list_by_dossier(
         dossier_info = dossiers_map[dossier_num]
         dossier_info["message_count"] += 1
         
+        # Vérifier si ce message est en erreur
+        has_error = False
+        
         # Comptabiliser les statuts
         if msg.status in {"error", "ack_error", "rejected"}:
             dossier_info["error_count"] += 1
+            has_error = True
             if msg.status == "ack_error":
                 dossier_info["has_ack_errors"] = True
         elif msg.pam_validation_status == "fail":
             dossier_info["error_count"] += 1
             dossier_info["has_pam_errors"] = True
+            has_error = True
         elif msg.pam_validation_status == "warn":
             dossier_info["warning_count"] += 1
         else:
@@ -329,6 +337,9 @@ def list_by_dossier(
             dossier_info["endpoint_ids"].add(msg.endpoint_id)
         if msg.message_type:
             dossier_info["message_types"].add(msg.message_type)
+            # Marquer le type si ce message a une erreur
+            if has_error:
+                dossier_info["message_types_with_errors"].add(msg.message_type)
     
     # Convertir en liste et calculer le statut global
     dossiers_list = []
@@ -343,7 +354,8 @@ def list_by_dossier(
         
         info["global_status"] = global_status
         info["endpoint_ids"] = list(info["endpoint_ids"])
-        info["message_types"] = list(info["message_types"])
+        info["message_types"] = sorted(list(info["message_types"]))  # Trier pour cohérence
+        info["message_types_with_errors"] = list(info["message_types_with_errors"])
         dossiers_list.append(info)
     
     # Trier par dernière activité (plus récent en premier)
@@ -368,6 +380,159 @@ def list_by_dossier(
                 "direction": direction or "",
                 "limit": limit,
             },
+        },
+    )
+
+
+@router.get("/dossier/{dossier_number}/detail", response_class=HTMLResponse)
+def dossier_detail(
+    request: Request,
+    dossier_number: str,
+    session: Session = Depends(get_session),
+):
+    """Vue détaillée d'un dossier : tous les messages avec statuts et validations."""
+    # Récupérer tous les messages du dossier
+    stmt = (
+        select(MessageLog)
+        .where(MessageLog.kind == "MLLP")
+        .order_by(MessageLog.created_at.asc())
+    )
+    all_logs = session.exec(stmt).all()
+    
+    # Filtrer par numéro de dossier et extraire le statut ACK
+    dossier_messages = []
+    ack_statuses = {}  # Dictionnaire pour stocker les statuts ACK extraits
+    
+    for msg in all_logs:
+        if not msg.payload:
+            continue
+        _, dos_num = _extract_ipp_and_dossier(msg.payload)
+        if dos_num == dossier_number:
+            # Extraire le statut ACK depuis MSA-1
+            ack_status = None
+            if msg.ack_payload:
+                for line in msg.ack_payload.split('\r'):
+                    if line.startswith('MSA|'):
+                        parts = line.split('|')
+                        if len(parts) > 1:
+                            ack_status = parts[1]
+                        break
+            # Stocker dans le dictionnaire
+            ack_statuses[msg.id] = ack_status
+            dossier_messages.append(msg)
+    
+    # Récupérer les endpoints pour affichage
+    endpoints = session.exec(select(SystemEndpoint)).all()
+    ep_map = {e.id: e for e in endpoints}
+    
+    return templates.TemplateResponse(
+        "messages_dossier_detail.html",
+        {
+            "request": request,
+            "dossier_number": dossier_number,
+            "messages": dossier_messages,
+            "ack_statuses": ack_statuses,
+            "ep_map": ep_map,
+        },
+    )
+
+
+@router.get("/dossier/{dossier_number}/export")
+def dossier_export(
+    dossier_number: str,
+    session: Session = Depends(get_session),
+):
+    """Exporte tous les messages d'un dossier dans un fichier ZIP."""
+    # Récupérer tous les messages du dossier
+    stmt = (
+        select(MessageLog)
+        .where(MessageLog.kind == "MLLP")
+        .order_by(MessageLog.created_at.asc())
+    )
+    all_logs = session.exec(stmt).all()
+    
+    # Filtrer par numéro de dossier
+    dossier_messages = []
+    for msg in all_logs:
+        if not msg.payload:
+            continue
+        _, dos_num = _extract_ipp_and_dossier(msg.payload)
+        if dos_num == dossier_number:
+            dossier_messages.append(msg)
+    
+    if not dossier_messages:
+        return HTMLResponse(content="Aucun message trouvé pour ce dossier", status_code=404)
+    
+    # Créer le ZIP en mémoire
+    zip_buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        # Ajouter un fichier récapitulatif
+        summary_lines = [
+            f"Dossier: {dossier_number}",
+            f"Nombre de messages: {len(dossier_messages)}",
+            f"Date d'export: {datetime.now().isoformat()}",
+            "",
+            "Liste des messages:",
+            "",
+        ]
+        
+        for idx, msg in enumerate(dossier_messages, 1):
+            # Nom de fichier pour ce message
+            msg_prefix = f"message_{idx:03d}_{msg.id}"
+            
+            # Ajouter le message HL7
+            if msg.payload:
+                zip_file.writestr(f"{msg_prefix}_message.hl7", msg.payload)
+            
+            # Ajouter l'ACK si présent
+            if msg.ack_payload:
+                zip_file.writestr(f"{msg_prefix}_ack.hl7", msg.ack_payload)
+            
+            # Ajouter le rapport de validation JSON
+            validation_report = {
+                "message_id": msg.id,
+                "created_at": msg.created_at.isoformat() if msg.created_at else None,
+                "message_type": msg.message_type,
+                "status": msg.status,
+                "pam_validation_status": msg.pam_validation_status,
+                "pam_validation_issues": json.loads(msg.pam_validation_issues) if msg.pam_validation_issues else [],
+            }
+            zip_file.writestr(
+                f"{msg_prefix}_validation.json",
+                json.dumps(validation_report, indent=2, ensure_ascii=False)
+            )
+            
+            # Ajouter au récapitulatif
+            summary_lines.append(
+                f"{idx}. Message #{msg.id} - {msg.message_type or 'N/A'} - "
+                f"{msg.created_at.strftime('%Y-%m-%d %H:%M:%S') if msg.created_at else 'N/A'} - "
+                f"Statut: {msg.status}"
+            )
+            if msg.pam_validation_status == "fail":
+                summary_lines.append(f"   ⚠️ Erreurs PAM détectées")
+            if msg.status in {"error", "ack_error", "rejected"}:
+                # Extraire le texte de l'ACK si disponible
+                ack_text = "N/A"
+                if msg.ack_payload:
+                    for line in msg.ack_payload.split('\r'):
+                        if line.startswith('MSA|'):
+                            parts = line.split('|')
+                            if len(parts) > 3:
+                                ack_text = parts[3]
+                            break
+                summary_lines.append(f"   ❌ Erreur: {ack_text}")
+        
+        # Écrire le récapitulatif
+        zip_file.writestr("README.txt", "\n".join(summary_lines))
+    
+    # Préparer la réponse
+    zip_buffer.seek(0)
+    return StreamingResponse(
+        io.BytesIO(zip_buffer.read()),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f"attachment; filename=dossier_{dossier_number}_export.zip"
         },
     )
 

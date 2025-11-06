@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-900">Messages du dossier #{{ dossier_number }}</h1>
+            <p class="text-sm text-slate-600 mt-1">{{ messages|length }} message(s) trouvé(s)</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="/messages/dossier/{{ dossier_number }}/export" 
+               class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Exporter ZIP
+            </a>
+            <a href="/messages/by-dossier" 
+               class="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Retour
+            </a>
+        </div>
+    </div>
+
+    <!-- Liste des messages -->
+    <div class="space-y-4">
+        {% for msg in messages %}
+        <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+            <!-- En-tête du message -->
+            <div class="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4 border-b border-slate-200">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <span class="text-lg font-semibold text-slate-900">Message #{{ msg.id }}</span>
+                        <span class="px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-700">
+                            {{ msg.message_type or 'Type inconnu' }}
+                        </span>
+                        
+                        <!-- Statut de validation -->
+                        {% if msg.validation_status == "error" or msg.status in ["error", "ack_error"] or ack_statuses.get(msg.id) in ["AR", "AE", "CR", "CE"] %}
+                        <span class="px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                            ❌ Erreur ACK
+                        </span>
+                        {% elif msg.pam_validation_status == "fail" %}
+                        <span class="px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
+                            ⚠️ Erreur PAM
+                        </span>
+                        {% elif msg.pam_validation_status == "warn" %}
+                        <span class="px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                            ⚠️ Avertissement
+                        </span>
+                        {% else %}
+                        <span class="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                            ✓ OK
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="text-sm text-slate-600">
+                        {{ msg.created_at.strftime('%Y-%m-%d %H:%M:%S') if msg.created_at else 'N/A' }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Corps du message -->
+            <div class="px-6 py-4 space-y-4">
+                <!-- Informations générales -->
+                <div class="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                        <span class="text-slate-500 font-medium">Direction:</span>
+                        <span class="ml-2">{{ msg.direction or 'N/A' }}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 font-medium">Endpoint:</span>
+                        <span class="ml-2">{{ ep_map[msg.endpoint_id].name if msg.endpoint_id and msg.endpoint_id in ep_map else 'N/A' }}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 font-medium">Statut ACK:</span>
+                        <span class="ml-2 {% if ack_statuses.get(msg.id) in ['AR', 'AE', 'CR', 'CE'] %}text-red-600 font-semibold{% endif %}">
+                            {{ ack_statuses.get(msg.id) or 'N/A' }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Erreurs de validation PAM -->
+                {% if msg.pam_validation_errors %}
+                {% set pam_errors = msg.pam_validation_errors|from_json %}
+                {% if pam_errors %}
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h4 class="text-sm font-semibold text-red-900 mb-2">Erreurs de validation PAM:</h4>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-red-800">
+                        {% for error in pam_errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% endif %}
+
+                <!-- Erreurs de validation de segments -->
+                {% if msg.segment_validation_errors %}
+                {% set seg_errors = msg.segment_validation_errors|from_json %}
+                {% if seg_errors %}
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <h4 class="text-sm font-semibold text-orange-900 mb-2">Erreurs de validation de segments:</h4>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-orange-800">
+                        {% for error in seg_errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% endif %}
+
+                <!-- Erreur ACK -->
+                {% if msg.status in ["error", "ack_error"] and msg.ack_text %}
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h4 class="text-sm font-semibold text-red-900 mb-2">Message d'erreur ACK:</h4>
+                    <p class="text-sm text-red-800">{{ msg.ack_text }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Actions -->
+                <div class="flex gap-3 pt-2">
+                    <a href="/messages/{{ msg.id }}" 
+                       class="text-sm text-blue-600 hover:text-blue-800 underline">
+                        Voir le message complet →
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if not messages %}
+        <div class="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
+            <p class="text-slate-600">Aucun message trouvé pour ce dossier.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

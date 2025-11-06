@@ -26,6 +26,7 @@ def list_dossiers(
     request: Request,
     patient_id: int | None = Query(None),
     dossier_type: DossierType | None = Query(None),
+    dossier_seq: int | None = Query(None),
     session=Depends(get_session)
 ):
     # Construction de la requête de base
@@ -37,6 +38,9 @@ def list_dossiers(
         
     if dossier_type:
         stmt = stmt.where(Dossier.dossier_type == dossier_type)
+    
+    if dossier_seq:
+        stmt = stmt.where(Dossier.dossier_seq == dossier_seq)
 
     # Exécuter la requête
     dossiers = session.exec(stmt).all()
@@ -69,6 +73,13 @@ def list_dossiers(
 
     # Définir les filtres de recherche
     filters = [
+        {
+            "label": "Numéro de dossier",
+            "name": "dossier_seq",
+            "type": "number",
+            "placeholder": "Numéro de dossier",
+            "value": dossier_seq
+        },
         {
             "label": "UF responsabilité",
             "name": "uf",

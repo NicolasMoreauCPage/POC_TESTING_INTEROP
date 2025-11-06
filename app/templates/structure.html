@@ -29,14 +29,14 @@
         </div>
         
         <!-- Détails et actions -->
-        <div class="col-span-5 bg-white rounded-lg shadow p-4">
-            <div id="detailView">
+        <div class="col-span-5 relative min-h-[60vh]">
+            <!-- DEBUG: Style très visible pour vérifier la présence du bloc -->
+            <div id="detailView" class="fixed bottom-6 right-8 z-[99999] bg-yellow-300 rounded-xl shadow-2xl p-6 w-[420px] max-w-full border-4 border-red-600 transition-all" style="max-height:80vh; overflow-y:auto;">
                 <!-- Vue détaillée de l'élément sélectionné -->
                 <div class="text-center text-gray-500 py-8">
                     Sélectionnez un élément dans l'arborescence
                 </div>
             </div>
-            
             <!-- Formulaire d'ajout/édition -->
             <div id="editForm" class="hidden mt-4 border-t pt-4">
                 <h3 class="text-lg font-semibold mb-4">Édition</h3>
@@ -187,13 +187,35 @@ function renderNode(node, level = 0) {
 // Sélection d'un nœud
 async function selectNode(type, id) {
     selectedNode = { type, id };
-    
     // Charger les détails
-    const response = await fetch(`/api/structure/${type}/${id}`);
-    const details = await response.json();
-    
-    // Afficher les détails
-    renderDetails(details);
+    let details = null;
+    let error = null;
+    try {
+        const response = await fetch(`/api/structure/${type}/${id}`);
+        if (!response.ok) {
+            error = `Erreur API (${response.status}) : ${response.statusText}`;
+        } else {
+            details = await response.json();
+        }
+    } catch (e) {
+        error = 'Impossible de charger les détails';
+    }
+    // Afficher les détails ou l'erreur
+    if (error) {
+        const detailView = document.getElementById('detailView');
+        if (detailView) {
+            detailView.innerHTML = `<div class='text-red-700 font-bold text-lg'>${error}</div>`;
+        }
+    } else {
+        renderDetails(details);
+    }
+    // Scroll automatique vers le bloc de détail
+    setTimeout(() => {
+        const detailView = document.getElementById('detailView');
+        if (detailView) {
+            detailView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 100);
 }
 
 // Rendu des détails
@@ -237,10 +259,16 @@ function renderDetails(details) {
 // Edition
 function startEdit() {
     const form = document.getElementById('editForm');
-    form.classList.remove('hidden');
     
     // Charger les champs spécifiques au type
     loadTypeSpecificFields(selectedNode.type);
+        if (form) {
+            form.classList.remove('hidden');
+            // Charger les champs spécifiques au type
+            loadTypeSpecificFields(selectedNode.type);
+        } else {
+            console.warn('Formulaire d\'édition introuvable (editForm)');
+        }
 }
 
 function loadTypeSpecificFields(type) {
@@ -301,7 +329,11 @@ function loadTypeSpecificFields(type) {
 
 function cancelEdit() {
     const form = document.getElementById('editForm');
-    form.classList.add('hidden');
+    if (form) {
+        form.classList.add('hidden');
+    } else {
+        console.warn('Formulaire d\'édition introuvable (editForm)');
+    }
 }
 
 // Gestion des lits
