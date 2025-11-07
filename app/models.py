@@ -1,9 +1,15 @@
-from typing import Optional, List, TYPE_CHECKING, ForwardRef
-from datetime import datetime
-from enum import Enum
-from sqlmodel import SQLModel, Field, Relationship, Session
+"""Compatibility shim. Models moved to app/models/base.pyfrom typing import Optional, List, TYPE_CHECKING, ForwardRef
 
-from app.models_identifiers import Identifier, IdentifierType
+from datetime import datetime
+
+This wrapper keeps the old imports working.from enum import Enum
+
+"""from sqlmodel import SQLModel, Field, Relationship, Session
+
+
+
+from app.models.base import *  # noqa: F401,F403from app.models_identifiers import Identifier, IdentifierType
+
 
 class DossierType(str, Enum):
     """Type de dossier patient"""
@@ -106,7 +112,12 @@ class Dossier(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     dossier_seq: int = Field(index=True, unique=True)       # identifiant métier unique
     patient_id: int = Field(foreign_key="patient.id")
-    uf_responsabilite: str
+    
+    # Trois responsabilités distinctes (hébergement, médicale, soins)
+    uf_hebergement: Optional[str] = None  # UF hébergement (pour hospitalisation)
+    uf_medicale: Optional[str] = None      # UF médicale
+    uf_soins: Optional[str] = None         # UF soins
+    
     admit_time: datetime
     discharge_time: Optional[datetime] = None
     dossier_type: DossierType = Field(default=DossierType.HOSPITALISE, description="Type de dossier (hospitalisé, externe, urgence)")
@@ -157,7 +168,12 @@ class Venue(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     venue_seq: int = Field(index=True, unique=True)         # identifiant métier unique
     dossier_id: int = Field(foreign_key="dossier.id")
-    uf_responsabilite: str
+    
+    # Trois responsabilités distinctes (hébergement, médicale, soins)
+    uf_hebergement: Optional[str] = None  # UF hébergement (pour hospitalisation)
+    uf_medicale: Optional[str] = None      # UF médicale
+    uf_soins: Optional[str] = None         # UF soins
+    
     start_time: datetime
     code: Optional[str] = None
     label: Optional[str] = None
@@ -194,6 +210,15 @@ class Mouvement(SQLModel, table=True):
     type: Optional[str] = None
     when: datetime
     location: Optional[str] = None
+    
+    # Trois responsabilités distinctes avec leurs UF respectives (ZBE-9 nature)
+    # Pour A01 (hospitalisation): uf_medicale ET uf_hebergement sont renseignées
+    # Pour A04 (consultation externe): uf_medicale est renseignée (pas d'hébergement)
+    uf_hebergement: Optional[str] = None     # UF hébergement (PV1-3-1 si patient hospitalisé)
+    uf_medicale: Optional[str] = None        # UF médicale (ZBE-7-10 si M dans ZBE-9)
+    uf_soins: Optional[str] = None           # UF soins (ZBE-7-10 si S dans ZBE-9)
+    movement_nature: Optional[str] = None     # Nature du mouvement (ZBE-9: S/H/M/L/D/SM/SH/MH/LD/HMS/C)
+    
     # Extensions
     from_location: Optional[str] = None
     to_location: Optional[str] = None

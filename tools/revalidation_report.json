@@ -1,0 +1,1991 @@
+{
+  "generated_at": "2025-11-06T19:15:11.365499",
+  "groups": [
+    {
+      "group": "VISIT:4154403",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159581",
+      "count": 4,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159582",
+      "count": 4,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059475952",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159601",
+      "count": 7,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159602",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059476053",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159603",
+      "count": 7,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059476154",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159604",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059476255",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159605",
+      "count": 8,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059476356",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159606",
+      "count": 4,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059476457",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159607",
+      "count": 3,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000023667491",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159621",
+      "count": 4,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059318732",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059477972",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159622",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018117157",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900099044638",
+      "count": 3,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159623",
+      "count": 3,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900099044639",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159624",
+      "count": 3,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "DOSSIER:900000153",
+      "count": 1,
+      "is_valid": false,
+      "level": "error",
+      "workflow_issues": [
+        {
+          "code": "WORKFLOW_INVALID_INITIAL",
+          "message": "Message #1 (A44): Premier message doit être un événement initial (A01, A04, A05)",
+          "severity": "error"
+        }
+      ],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018120077",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018120196",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018120341",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018120481",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018120568",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018121053",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018121364",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018121575",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018123405",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018123734",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018124111",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018124487",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018124733",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018126496",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018126781",
+      "count": 4,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018127444",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018127998",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018128072",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018128117",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018128156",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018128204",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018128249",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018128346",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018128545",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059478073",
+      "count": 2,
+      "is_valid": false,
+      "level": "error",
+      "workflow_issues": [
+        {
+          "code": "WORKFLOW_A01_A04_START_CONSTRAINT",
+          "message": "Message #2 (A01) interdit: autorisé seulement en début de dossier, après A05 (préadmission) ou après une sortie définitive A03 (précédent: A01).",
+          "severity": "error"
+        },
+        {
+          "code": "WORKFLOW_INVALID_TRANSITION",
+          "message": "Message #2: Transition invalide A01 -> A01",
+          "severity": "error"
+        }
+      ],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059478074",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059478002",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059478004",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059478006",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018226016",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159693",
+      "count": 4,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018228062",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159694",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900099044640",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018228616",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159695",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159696",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018230665",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:002000076746",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159697",
+      "count": 4,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018231491",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059478376",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159698",
+      "count": 4,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159699",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159700",
+      "count": 3,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159701",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159702",
+      "count": 3,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018234357",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159703",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018235831",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159704",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018236598",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018236757",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159705",
+      "count": 7,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018238291",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159706",
+      "count": 7,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018239677",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159707",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018240795",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159708",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018241868",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159709",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018243167",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159710",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018244405",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159711",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018245502",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159712",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018246852",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159713",
+      "count": 3,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018248321",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159714",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018249330",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159715",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018250436",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159716",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018251655",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159717",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018252688",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159718",
+      "count": 3,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018253690",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159719",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018255498",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159720",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018256321",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159721",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018257403",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159722",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018258586",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159723",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018259519",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159724",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018260637",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159725",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018261331",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159726",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018262529",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159727",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159728",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018263935",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159729",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018264564",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159730",
+      "count": 3,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159731",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159732",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018266949",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159733",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018268320",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159734",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018269015",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159735",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018269878",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159736",
+      "count": 4,
+      "is_valid": false,
+      "level": "error",
+      "workflow_issues": [
+        {
+          "code": "WORKFLOW_A01_A04_START_CONSTRAINT",
+          "message": "Message #3 (A01) interdit: autorisé seulement en début de dossier, après A05 (préadmission) ou après une sortie définitive A03 (précédent: A01).",
+          "severity": "error"
+        },
+        {
+          "code": "WORKFLOW_INVALID_TRANSITION",
+          "message": "Message #3: Transition invalide A01 -> A01",
+          "severity": "error"
+        }
+      ],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018271293",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159737",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018272161",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159738",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059478477",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018273074",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159739",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018274049",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159741",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159740",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018274913",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159742",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018275843",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159743",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018276766",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159744",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018277790",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159745",
+      "count": 9,
+      "is_valid": false,
+      "level": "error",
+      "workflow_issues": [
+        {
+          "code": "WORKFLOW_A06_A07_INSERT_CONTEXT",
+          "message": "Message #9 (A06) avec ZBE-4=INSERT interdit: patient non admis ou venue non active (précédent: A13).",
+          "severity": "error"
+        },
+        {
+          "code": "WORKFLOW_INVALID_TRANSITION",
+          "message": "Message #9: Transition invalide A13 -> A06",
+          "severity": "error"
+        }
+      ],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018279677",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159746",
+      "count": 5,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018280732",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159747",
+      "count": 3,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018281451",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159748",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018282007",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159749",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900018282620",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159750",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159751",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059478578",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159752",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059478679",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159753",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059478780",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159754",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059478881",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159755",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059478982",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159756",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059479083",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159757",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059479184",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159758",
+      "count": 7,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059479285",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159759",
+      "count": 7,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059479386",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159760",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059479487",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159761",
+      "count": 7,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059479588",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159762",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059479689",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159763",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059479790",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159764",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059479891",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159765",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059479992",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159766",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059480093",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159767",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059480194",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159768",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059480295",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159769",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059480396",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159770",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059480400",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159771",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059480501",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159772",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059480602",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159773",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059480703",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059480804",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059480905",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059481006",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059481107",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059481208",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059269929",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059481309",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059481410",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059481511",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059481612",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059481713",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159774",
+      "count": 4,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159775",
+      "count": 4,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:002000027640",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159776",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159777",
+      "count": 4,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:900054613882",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059481814",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159778",
+      "count": 4,
+      "is_valid": false,
+      "level": "error",
+      "workflow_issues": [
+        {
+          "code": "WORKFLOW_A01_A04_START_CONSTRAINT",
+          "message": "Message #3 (A01) interdit: autorisé seulement en début de dossier, après A05 (préadmission) ou après une sortie définitive A03 (précédent: Z99).",
+          "severity": "error"
+        }
+      ],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159779",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000059274777",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159780",
+      "count": 8,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159781",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159782",
+      "count": 2,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159783",
+      "count": 6,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159784",
+      "count": 4,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "VISIT:4159801",
+      "count": 4,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    },
+    {
+      "group": "PAT:000000174180",
+      "count": 1,
+      "is_valid": true,
+      "level": "ok",
+      "workflow_issues": [],
+      "coherence_issues": []
+    }
+  ],
+  "summary": {
+    "total_groups": 242,
+    "valid": 237,
+    "invalid": 5
+  }
+}

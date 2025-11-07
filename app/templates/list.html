@@ -82,7 +82,7 @@
       </thead>
       <tbody class="bg-white divide-y divide-slate-200">
         {% for row in rows %}
-          <tr class="hover:bg-slate-50">
+          <tr class="hover:bg-slate-50 {% if row.detail_url %}cursor-pointer{% endif %}" {% if row.detail_url %}onclick="window.location='{{ row.detail_url }}'"{% endif %}>
             {% for cell in row.cells %}
               <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
                 {% if row.detail_url and loop.first %}

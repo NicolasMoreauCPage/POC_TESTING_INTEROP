@@ -27,6 +27,9 @@ def list_dossiers(
     patient_id: int | None = Query(None),
     dossier_type: DossierType | None = Query(None),
     dossier_seq: int | None = Query(None),
+    uf: str | None = Query(None),
+    admission_type: str | None = Query(None),
+    status: str | None = Query(None),
     session=Depends(get_session)
 ):
     # Construction de la requête de base
@@ -41,6 +44,19 @@ def list_dossiers(
     
     if dossier_seq:
         stmt = stmt.where(Dossier.dossier_seq == dossier_seq)
+    if uf:
+        # Filtrer si l'UF correspond à l'une des responsabilités
+        stmt = stmt.where(
+            (Dossier.uf_medicale == uf) | (Dossier.uf_hebergement == uf) | (Dossier.uf_soins == uf)
+        )
+    if admission_type:
+        stmt = stmt.where(Dossier.admission_type == admission_type)
+    if status:
+        # Interprétation simple: ACTIF = pas de date de sortie; TERMINE = avec date de sortie
+        if status.upper() == "ACTIF":
+            stmt = stmt.where(Dossier.discharge_time.is_(None))
+        elif status.upper() == "TERMINE":
+            stmt = stmt.where(Dossier.discharge_time.is_not(None))
 
     # Exécuter la requête
     dossiers = session.exec(stmt).all()
@@ -52,9 +68,11 @@ def list_dossiers(
                 d.dossier_seq, 
                 d.id, 
                 d.patient_id, 
-                d.uf_responsabilite, 
+                d.uf_medicale, 
+                d.uf_hebergement, 
+                d.uf_soins, 
                 getattr(d, 'dossier_type', DossierType.HOSPITALISE).value.capitalize(),
-                getattr(d, 'admission_type', None),
+                (getattr(d, 'admission_type', None) or "—"),
                 d.admit_time.strftime("%d/%m/%Y %H:%M") if d.admit_time else None,
                 d.discharge_time.strftime("%d/%m/%Y %H:%M") if d.discharge_time else None
             ],
@@ -81,17 +99,19 @@ def list_dossiers(
             "value": dossier_seq
         },
         {
-            "label": "UF responsabilité",
+            "label": "UF (méd./héb./soins)",
             "name": "uf",
             "type": "text",
-            "placeholder": "Filtrer par UF"
+            "placeholder": "Filtrer par UF",
+            "value": uf
         },
         {
             "label": "Type de dossier",
             "name": "dossier_type",
             "type": "select",
             "placeholder": "Tous les types",
-            "options": [{"value": t.value, "label": t.value.capitalize()} for t in DossierType]
+            "options": [{"value": t.value, "label": t.value.capitalize()} for t in DossierType],
+            "value": dossier_type.value if dossier_type else None
         },
         {
             "label": "Type d'admission",
@@ -102,7 +122,8 @@ def list_dossiers(
                 {"value": "URGENCE", "label": "Urgence"},
                 {"value": "PROGRAMME", "label": "Programmé"},
                 {"value": "MUTATION", "label": "Mutation"}
-            ]
+            ],
+            "value": admission_type
         },
         {
             "label": "Statut",
@@ -112,7 +133,8 @@ def list_dossiers(
             "options": [
                 {"value": "ACTIF", "label": "En cours"},
                 {"value": "TERMINE", "label": "Terminé"}
-            ]
+            ],
+            "value": status
         }
     ]
 
@@ -135,7 +157,7 @@ def list_dossiers(
         "request": request,
         "title": "Dossiers" if not patient_id else f"Dossiers du patient {patient.family} {patient.given}",
         "breadcrumbs": breadcrumbs,
-        "headers": ["Seq", "ID", "Patient", "UF resp.", "Adm.type", "Admission", "Sortie"],
+    "headers": ["Seq", "ID", "Patient", "UF Méd.", "UF Héb.", "UF Soins", "Type", "Adm.type", "Admission", "Sortie"],
         "rows": rows,
         "new_url": "/dossiers/new" + (f"?patient_id={patient_id}" if patient_id else ""),
         "filters": filters,
@@ -151,7 +173,9 @@ def new_dossier(request: Request, session=Depends(get_session)):
     # Construction des champs avec la configuration centralisée
     base_fields = [
         {"name": "patient_id", "label": "Patient ID", "type": "number"},
-        {"name": "uf_responsabilite", "label": "UF de responsabilité", "type": "text"},
+    {"name": "uf_medicale", "label": "UF médicale", "type": "text"},
+    {"name": "uf_hebergement", "label": "UF hébergement", "type": "text"},
+    {"name": "uf_soins", "label": "UF soins", "type": "text"},
         {"name": "admission_type", "label": "Type d'admission"},
         {"name": "admission_source", "label": "Source d'admission", "type": "text"},
         {"name": "attending_provider", "label": "Médecin responsable (attending)", "type": "text"},
@@ -182,7 +206,9 @@ def new_dossier(request: Request, session=Depends(get_session)):
 def create_dossier(
     request: Request,
     patient_id: int = Form(...),
-    uf_responsabilite: str = Form(...),
+    uf_medicale: str = Form(None),
+    uf_hebergement: str = Form(None),
+    uf_soins: str = Form(None),
     admission_type: str = Form(None),
     admission_source: str = Form(None),
     attending_provider: str = Form(None),
@@ -194,7 +220,9 @@ def create_dossier(
     seq = dossier_seq or get_next_sequence(session, "dossier")
     d = Dossier(
         patient_id=patient_id,
-        uf_responsabilite=uf_responsabilite,
+    uf_medicale=uf_medicale if uf_medicale else None,
+    uf_hebergement=uf_hebergement if uf_hebergement else None,
+    uf_soins=uf_soins if uf_soins else None,
         admission_type=admission_type,
         admission_source=admission_source,
         attending_provider=attending_provider,
@@ -258,7 +286,9 @@ def edit_dossier(dossier_id: int, request: Request, session=Depends(get_session)
         return templates.TemplateResponse(request, "not_found.html", {"request": request, "title": "Dossier introuvable"}, status_code=404)
     fields = [
         {"label": "Patient ID", "name": "patient_id", "type": "number", "value": d.patient_id},
-        {"label": "UF de responsabilité", "name": "uf_responsabilite", "type": "text", "value": d.uf_responsabilite},
+    {"label": "UF médicale", "name": "uf_medicale", "type": "text", "value": d.uf_medicale},
+    {"label": "UF hébergement", "name": "uf_hebergement", "type": "text", "value": d.uf_hebergement},
+    {"label": "UF soins", "name": "uf_soins", "type": "text", "value": d.uf_soins},
         {"label": "Type d'admission", "name": "admission_type", "type": "select", "options": ["emergency", "elective", "newborn", "urgent", "other"], "value": getattr(d,'admission_type',None)},
         {"label": "Source d'admission", "name": "admission_source", "type": "text", "value": getattr(d, "admission_source", None)},
         {"label": "Médecin responsable (attending)", "name": "attending_provider", "type": "text", "value": getattr(d,'attending_provider',None)},
@@ -276,7 +306,9 @@ def edit_dossier(dossier_id: int, request: Request, session=Depends(get_session)
 def update_dossier(
     dossier_id: int,
     patient_id: int = Form(...),
-    uf_responsabilite: str = Form(...),
+    uf_medicale: str = Form(None),
+    uf_hebergement: str = Form(None),
+    uf_soins: str = Form(None),
     admission_type: str = Form(None),
     admission_source: str = Form(None),
     attending_provider: str = Form(None),
@@ -289,7 +321,9 @@ def update_dossier(
     if not d:
         return templates.TemplateResponse(request, "not_found.html", {"request": request, "title": "Dossier introuvable"}, status_code=404)
     d.patient_id = patient_id
-    d.uf_responsabilite = uf_responsabilite
+    d.uf_medicale = uf_medicale if uf_medicale else None
+    d.uf_hebergement = uf_hebergement if uf_hebergement else None
+    d.uf_soins = uf_soins if uf_soins else None
     d.admission_type = admission_type
     d.admission_source = admission_source
     d.attending_provider = attending_provider

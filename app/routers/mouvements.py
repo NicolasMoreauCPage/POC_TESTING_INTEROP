@@ -162,8 +162,28 @@ def list_mouvements(
         badge = get_type_badge(getattr(m, 'movement_type', None))
         seq_note = ""
         if getattr(m, 'cancelled_movement_seq', None):
-            seq_note = f"<span class='ml-2 text-xs text-slate-500'>(annule #{m.cancelled_movement_seq})</span>"
+            seq_note = f"<span class='ml-2 text-xs text-slate-500'>(annule #{m.cancelled_movement_seq})</span>"
         return badge + seq_note
+    
+    def _uf_cell(uf: str | None, color: str = "emerald") -> str:
+        if not uf:
+            return "<span class='text-slate-400 text-xs'>—</span>"
+        return f"<span class='inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-{color}-50 text-{color}-700 border border-{color}-200'>{uf}</span>"
+    
+    def _uf_medicale_cell(m: Mouvement) -> str:
+        return _uf_cell(getattr(m, 'uf_medicale', None), "blue")
+    
+    def _uf_hebergement_cell(m: Mouvement) -> str:
+        return _uf_cell(getattr(m, 'uf_hebergement', None), "emerald")
+    
+    def _uf_soins_cell(m: Mouvement) -> str:
+        return _uf_cell(getattr(m, 'uf_soins', None), "purple")
+    
+    def _nature_cell(m: Mouvement) -> str:
+        nature = getattr(m, 'movement_nature', None)
+        if not nature:
+            return "<span class='text-slate-400 text-xs'>—</span>"
+        return f"<span class='inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200'>{nature}</span>"
 
     rows = [
         {
@@ -174,6 +194,10 @@ def list_mouvements(
                 _type_cell(m),
                 get_status_badge(getattr(m, 'status', 'pending')),
                 m.when.strftime("%d/%m/%Y %H:%M") if m.when else None,
+                _uf_medicale_cell(m),
+                _uf_hebergement_cell(m),
+                _uf_soins_cell(m),
+                _nature_cell(m),
                 m.location,
                 m.performer,
             ],
@@ -327,7 +351,7 @@ def list_mouvements(
         "title": title,
         "breadcrumbs": breadcrumbs,
         "tabs": tabs,
-        "headers": ["Seq", "ID", "Venue", "Type", "Status", "Date/Heure", "Localisation", "Intervenant"],
+    "headers": ["Seq", "ID", "Venue", "Type", "Status", "Date/Heure", "UF Méd.", "UF Héb.", "UF Soins", "Nature", "Localisation", "Intervenant"],
         "rows": rows,
     "context": {"venue_id": venue_id, "include_cancelled": include_cancelled, "order": order},
     "new_url": f"/mouvements/new?venue_id={venue_id}" if venue_id else (f"/mouvements/new?dossier_id={dossier_id}" if dossier_id else "/mouvements/new"),
@@ -425,6 +449,14 @@ def new_mouvement(
             if last:
                 last_event = last[-1].type.split('^')[-1] if last[-1].type else None
                 allowed_events_codes = ALLOWED_TRANSITIONS.get(last_event, set())
+                # Appliquer les contraintes métier UI:
+                # - A01/A04 uniquement si None, A05, A03 (ici: pas None, donc A01/A04 autorisés uniquement si last_event ∈ {A05, A03})
+                if last_event not in {None, "A05", "A03"}:
+                    allowed_events_codes = {e for e in allowed_events_codes if e not in {"A01", "A04"}}
+                # - A06/A07 en contexte INSERT: nécessitent une admission active
+                admitted_context = {"A01", "A02", "A21", "A22", "A44", "A54", "A55", "A06", "A07"}
+                if last_event not in admitted_context:
+                    allowed_events_codes = {e for e in allowed_events_codes if e not in {"A06", "A07"}}
                 # 1 minute après le dernier mouvement
                 from datetime import timedelta
                 default_when_str = (last[-1].when + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M")
@@ -462,7 +494,7 @@ def new_mouvement(
     except Exception:
         # En cas d'erreur de lecture, on laisse la liste vide
         uf_options = []
-    # Construire les options de type en filtrant par transitions autorisées si connues
+    # Construire les options de type avec affichage des contraintes (désactivation + info-bulle)
     from app.form_config import MovementType
     all_type_options = MovementType.choices()
     # Mapping aligné avec le workflow pour déterminer les exigences de localisation
@@ -482,30 +514,54 @@ def new_mouvement(
         "A38": ("cancel_preadmission", False),
     }
 
-    if allowed_events_codes:
-        def _opt_allowed(opt):
-            try:
-                code = str(opt.get("value"))
-                # opt like "ADT^A01" -> keep if trailing code in allowed
-                event = code.split("^")[-1]
-                return event in allowed_events_codes
-            except Exception:
-                return True
-        filtered = [opt for opt in all_type_options if _opt_allowed(opt)]
-    else:
-        filtered = all_type_options
+    # Détermination des options autorisées et désactivées avec raison
+    last_event = None
+    try:
+        if prefill_venue_id:
+            last_movs = session.exec(
+                select(Mouvement)
+                .where(Mouvement.venue_id == prefill_venue_id)
+                .order_by(Mouvement.when)
+            ).all()
+            if last_movs:
+                last_event = last_movs[-1].type.split('^')[-1] if last_movs[-1].type else None
+    except Exception:
+        last_event = None
 
-    # Ajouter un indicateur requires_location aux options (pour pilotage JS en template générique)
+    # Ensemble autorisé par le graphe
+    if last_event:
+        allowed_by_graph = ALLOWED_TRANSITIONS.get(last_event, set())
+    else:
+        allowed_by_graph = {e for e in INITIAL_EVENTS if e != "A38"}
+
+    admitted_context = {"A01", "A02", "A21", "A22", "A44", "A54", "A55", "A06", "A07"}
+
+    def disabled_reason_for(evt: str) -> str | None:
+        # Règles métier explicites
+        if evt in {"A01", "A04"} and last_event not in (None, "A05", "A03"):
+            return "Autorisé uniquement en début, après A05 (préadmission) ou après A03 (sortie)."
+        if evt in {"A06", "A07"} and last_event not in admitted_context:
+            return "Nécessite une admission active (patient admis)."
+        # Graphe de transitions
+        if evt not in allowed_by_graph:
+            return f"Transition non autorisée depuis {last_event or 'début'}."
+        return None
+
+    # Construire la liste finale en enrichissant chaque option (requires_location, disabled, title)
     type_options = []
-    for opt in filtered:
+    for opt in all_type_options:
         if isinstance(opt, dict):
             code = str(opt.get("value", ""))
             evt = code.split("^")[-1] if "^" in code else code
             requires = bool(event_mapping.get(evt, (None, False))[1])
+            reason = disabled_reason_for(evt) if evt else None
             enriched = {**opt, "requires_location": requires}
+            if reason:
+                enriched["disabled"] = True
+                enriched["title"] = reason
             type_options.append(enriched)
         else:
-            # fallback, should not happen with MovementType.choices
+            # fallback, should not happen avec MovementType.choices
             type_options.append(opt)
 
     fields = [
@@ -524,7 +580,11 @@ def new_mouvement(
             "type": "select",
             "options": type_options,
             "required": True,
-            "help": "Options filtrées selon l'état actuel de la venue"
+            "help": "Options autorisées selon l'état actuel. Certaines options sont grisées avec une explication (info-bulle).",
+            "legend": [
+                "A01/A04: autorisé uniquement en début, après A05 (préadmission) ou après A03 (sortie).",
+                "A06/A07: nécessite une admission active (patient admis)."
+            ]
         },
         {
             "label": "Date et heure *",
@@ -685,6 +745,15 @@ def create_mouvement(
         allowed = (ALLOWED_TRANSITIONS.get(last_event, set()) if last_event else {e for e in INITIAL_EVENTS if e != "A38"})
         if trigger_event not in allowed:
             raise HTTPException(status_code=400, detail=f"L'événement {trigger_event} n'est pas autorisé dans l'état actuel")
+        # Business constraints:
+        # - A01/A04 only if initial, after A05 or after A03
+        if trigger_event in {"A01", "A04"} and last_event not in (None, "A05", "A03"):
+            raise HTTPException(status_code=400, detail=f"ADT^{trigger_event} interdit: autorisé uniquement en début de dossier, après A05 (préadmission) ou après une sortie définitive A03 (dernier événement: {last_event}).")
+        # - A06/A07 in INSERT context (UI create) only if admission is active
+        if trigger_event in {"A06", "A07"}:
+            admitted_context = {"A01", "A02", "A21", "A22", "A44", "A54", "A55", "A06", "A07"}
+            if last_event not in admitted_context:
+                raise HTTPException(status_code=400, detail=f"ADT^{trigger_event} (INSERT) interdit: patient non admis ou venue non active (dernier événement: {last_event or 'aucun'}).")
 
     # Map movement_type for downstream systems (align with workflow router)
     event_mapping = {

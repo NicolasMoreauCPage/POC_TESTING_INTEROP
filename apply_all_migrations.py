@@ -1,55 +1,10 @@
 #!/usr/bin/env python3
-"""Apply migrations 006 and 007"""
+"""Compatibility shim. Script moved to tools/apply_all_migrations.py
 
-import sqlite3
-import sys
+This wrapper keeps the old entry point working.
+"""
 
-def main():
-    db_path = "poc.db"
-    
-    try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # Check migration 006
-        cursor.execute("PRAGMA table_info(systemendpoint)")
-        columns = [row[1] for row in cursor.fetchall()]
-        
-        if "entite_juridique_id" not in columns:
-            print("Applying migration 006...")
-            cursor.execute("""
-                ALTER TABLE systemendpoint 
-                ADD COLUMN entite_juridique_id INTEGER REFERENCES entitejuridique(id)
-            """)
-            cursor.execute("""
-                CREATE INDEX idx_systemendpoint_entite_juridique_id 
-                ON systemendpoint(entite_juridique_id)
-            """)
-            print("✓ Migration 006 applied")
-        else:
-            print("✓ Migration 006 already applied")
-        
-        # Check migration 007
-        if "inbox_path" not in columns:
-            print("Applying migration 007...")
-            cursor.execute("ALTER TABLE systemendpoint ADD COLUMN inbox_path TEXT")
-            cursor.execute("ALTER TABLE systemendpoint ADD COLUMN outbox_path TEXT")
-            cursor.execute("ALTER TABLE systemendpoint ADD COLUMN archive_path TEXT")
-            cursor.execute("ALTER TABLE systemendpoint ADD COLUMN error_path TEXT")
-            cursor.execute("ALTER TABLE systemendpoint ADD COLUMN file_extensions TEXT")
-            print("✓ Migration 007 applied")
-        else:
-            print("✓ Migration 007 already applied")
-        
-        conn.commit()
-        conn.close()
-        
-        print("\n✓ All migrations applied successfully")
-        return 0
-        
-    except sqlite3.Error as e:
-        print(f"✗ Error: {e}", file=sys.stderr)
-        return 1
+import runpy
 
 if __name__ == "__main__":
-    sys.exit(main())
+    runpy.run_module("tools.apply_all_migrations", run_name="__main__")

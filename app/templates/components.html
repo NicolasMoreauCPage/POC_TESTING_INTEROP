@@ -84,6 +84,14 @@
             placeholder="{{ filter.placeholder }}"
             class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           >
+        {% elif filter.type == 'number' %}
+          <input
+            type="number"
+            name="{{ filter.name }}"
+            value="{{ filter.value }}"
+            placeholder="{{ filter.placeholder }}"
+            class="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          >
         {% elif filter.type == 'select' %}
           <select
             name="{{ filter.name }}"

@@ -169,7 +169,7 @@ def build_pv1_segment(
                     break
     
     # PV1-10: UF responsable (format: ^^^^^UF_CODE)
-    uf = dossier.uf_responsabilite or ""
+    uf = dossier.uf_medicale or ""
     
     # PV1-44: Date/heure admission
     admit_time = format_datetime(dossier.admit_time)
@@ -306,9 +306,9 @@ def generate_adt_message(
         if namespaces and "MOUVEMENT" in namespaces:
             movement_namespace = namespaces["MOUVEMENT"]
         
-        uf = dossier.uf_responsabilite or (venue.uf_responsabilite if venue else None)
+        uf = dossier.uf_medicale or (venue.uf_medicale if venue else None)
         segments.append(
-            build_zbe_segment(movement, namespace=movement_namespace, uf_responsabilite=uf)
+            build_zbe_segment(movement, namespace=movement_namespace, uf_medicale=uf)
         )
     
     return "\r".join(segments)

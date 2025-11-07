@@ -20,6 +20,7 @@ def _create_test_message(trigger: str, identifiers: list, name: str = "TEST^TEST
         f"EVN|{trigger}|{now}|||APPLI^IHE^\r"
         f"PID|||{pid_3}||{name}||19800101|M|||123 RUE^^VILLE^^12345||0123456789\r"
         f"PV1||I|{location}|||||||||||||||||1|||||||||||||||||||||||||{now}\r"
+        f"ZBE|1|{now}||CREATE|N|{trigger}|^^^^^^001||001^001|||M\r"
     )
 
 

@@ -32,7 +32,9 @@ def test_venues_with_dossier_context(client: TestClient, session: Session):
     dossier = Dossier(
         dossier_seq=1,
         patient_id=patient.id,
-        uf_responsabilite="UF001",
+        uf_medicale="UF001",
+
+        uf_hebergement="UF001",
         admit_time=datetime.now()
     )
     session.add(dossier)
@@ -43,7 +45,9 @@ def test_venues_with_dossier_context(client: TestClient, session: Session):
     venue = Venue(
         venue_seq=1,
         dossier_id=dossier.id,
-        uf_responsabilite="UF001",
+        uf_medicale="UF001",
+
+        uf_hebergement="UF001",
         start_time=datetime.now()
     )
     session.add(venue)
@@ -80,7 +84,9 @@ def test_mouvements_with_venue_context(client: TestClient, session: Session):
     dossier = Dossier(
         dossier_seq=1,
         patient_id=patient.id,
-        uf_responsabilite="UF001",
+        uf_medicale="UF001",
+
+        uf_hebergement="UF001",
         admit_time=datetime.now()
     )
     session.add(dossier)
@@ -91,7 +97,9 @@ def test_mouvements_with_venue_context(client: TestClient, session: Session):
     venue = Venue(
         venue_seq=1,
         dossier_id=dossier.id,
-        uf_responsabilite="UF001",
+        uf_medicale="UF001",
+
+        uf_hebergement="UF001",
         start_time=datetime.now()
     )
     session.add(venue)
@@ -139,7 +147,9 @@ def test_new_venue_with_dossier(client: TestClient, session: Session):
     dossier = Dossier(
         dossier_seq=1,
         patient_id=patient.id,
-        uf_responsabilite="UF001",
+        uf_medicale="UF001",
+
+        uf_hebergement="UF001",
         admit_time=datetime.now()
     )
     session.add(dossier)
@@ -176,7 +186,9 @@ def test_new_mouvement_with_venue(client: TestClient, session: Session):
     dossier = Dossier(
         dossier_seq=1,
         patient_id=patient.id,
-        uf_responsabilite="UF001",
+        uf_medicale="UF001",
+
+        uf_hebergement="UF001",
         admit_time=datetime.now()
     )
     session.add(dossier)
@@ -186,7 +198,9 @@ def test_new_mouvement_with_venue(client: TestClient, session: Session):
     venue = Venue(
         venue_seq=1,
         dossier_id=dossier.id,
-        uf_responsabilite="UF001",
+        uf_medicale="UF001",
+
+        uf_hebergement="UF001",
         start_time=datetime.now()
     )
     session.add(venue)
@@ -216,7 +230,9 @@ def test_venue_breadcrumbs(client: TestClient, session: Session):
     dossier = Dossier(
         dossier_seq=1,
         patient_id=patient.id,
-        uf_responsabilite="UF001",
+        uf_medicale="UF001",
+
+        uf_hebergement="UF001",
         admit_time=datetime.now()
     )
     session.add(dossier)
@@ -247,7 +263,9 @@ def test_mouvement_breadcrumbs(client: TestClient, session: Session):
     dossier = Dossier(
         dossier_seq=1,
         patient_id=patient.id,
-        uf_responsabilite="UF001",
+        uf_medicale="UF001",
+
+        uf_hebergement="UF001",
         admit_time=datetime.now()
     )
     session.add(dossier)
@@ -257,7 +275,9 @@ def test_mouvement_breadcrumbs(client: TestClient, session: Session):
     venue = Venue(
         venue_seq=1,
         dossier_id=dossier.id,
-        uf_responsabilite="UF001",
+        uf_medicale="UF001",
+
+        uf_hebergement="UF001",
         start_time=datetime.now()
     )
     session.add(venue)

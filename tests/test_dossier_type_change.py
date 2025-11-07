@@ -10,7 +10,9 @@ def dossier(session: Session):
     dossier = Dossier(
         dossier_seq=get_next_seq(session, "dossier"),
         patient_id=1,
-        uf_responsabilite="TEST",
+        uf_medicale="TEST",
+
+        uf_hebergement="TEST",
         admit_time=datetime.now(),
         dossier_type=DossierType.HOSPITALISE
     )
@@ -24,7 +26,9 @@ def venue(session: Session, dossier: Dossier):
     venue = Venue(
         venue_seq=get_next_seq(session, "venue"),
         dossier_id=dossier.id,
-        uf_responsabilite="TEST",
+        uf_medicale="TEST",
+
+        uf_hebergement="TEST",
         start_time=datetime.now()
     )
     session.add(venue)

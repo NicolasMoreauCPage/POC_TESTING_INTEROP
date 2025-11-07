@@ -1,10 +1,6 @@
-from dataclasses import dataclass
-from typing import Dict, List, Literal, Optional
+"""Compatibility shim. Models moved to app/models/transport.py
 
-from sqlmodel import Field, Relationship, SQLModel
+This wrapper keeps the old imports working.
+"""
 
-from .models_endpoints import SystemEndpoint
-
-# Use MLLPConfig from models_endpoints to avoid duplicate class definition
-
-# Use FHIRConfig from models_endpoints to avoid duplicate class definition
+from app.models.transport import *  # noqa: F401,F403

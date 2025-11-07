@@ -77,7 +77,9 @@
                 {% for option in field.options or [] %}
                   {% set opt_value = option.value if option is mapping else option %}
                   {% set opt_label = option.label if option is mapping else option %}
-                  <option value="{{ opt_value }}"{% if option is mapping and option.requires_location %} data-requires-location="1"{% endif %} {% if field.value == opt_value %}selected{% endif %}>{{ opt_label }}</option>
+                  {% set opt_disabled = option.disabled if option is mapping and option.disabled is defined else false %}
+                  {% set opt_title = option.title if option is mapping and option.title is defined else '' %}
+                  <option value="{{ opt_value }}"{% if option is mapping and option.requires_location %} data-requires-location="1"{% endif %}{% if opt_disabled %} disabled{% endif %}{% if opt_title %} title="{{ opt_title }}"{% endif %} {% if field.value == opt_value %}selected{% endif %}>{{ opt_label }}</option>
                 {% endfor %}
               </select>
               <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-700" aria-hidden="true">
@@ -115,6 +117,22 @@
               </svg>
               {{ field.error }}
             </p>
+          {% endif %}
+
+          {# Légende explicative optionnelle (HTML autorisé) sous le champ #}
+          {% if field.legend and field.legend | length > 0 %}
+            <div class="mt-2 text-xs text-slate-600 dark:text-slate-300 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2">
+              <div class="flex items-start gap-2">
+                <svg class="w-4 h-4 text-slate-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
+                </svg>
+                <ul class="space-y-1">
+                  {% for item in field.legend %}
+                    <li>{{ item }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
           {% endif %}
 
           {# Pré-rendre une erreur par défaut pour les champs family/given vides afin de stabiliser le test_required_fields #}

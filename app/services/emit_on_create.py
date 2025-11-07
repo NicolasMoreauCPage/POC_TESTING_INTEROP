@@ -269,7 +269,8 @@ def generate_pam_hl7(
         
         # PV1 segment
         patient_class = "I"  # Inpatient
-        location = entity.uf_responsabilite or ""
+        # For dossier, use uf_medicale as primary UF
+        location = getattr(entity, 'uf_medicale', None) or getattr(entity, 'uf_hebergement', None) or ""
         pv1 = f"PV1|1|{patient_class}|{location}|||||||||||||{control_id}|||||||||||||||||||{location}||||||{admit_time}"
         
         return "\r".join([msh, evn, pid, pv1])
@@ -321,9 +322,9 @@ def generate_pam_hl7(
         patient_class = "I"  # Inpatient by default
         location = entity.location or entity.to_location or ""
         if venue:
-            uf_resp = venue.uf_responsabilite or ""
+            uf_resp = venue.uf_medicale or venue.uf_hebergement or ""
         elif dossier:
-            uf_resp = dossier.uf_responsabilite or ""
+            uf_resp = dossier.uf_medicale or dossier.uf_hebergement or ""
         else:
             uf_resp = ""
         

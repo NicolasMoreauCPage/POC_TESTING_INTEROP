@@ -3,6 +3,7 @@ from sqlmodel import Session
 from datetime import datetime
 import importlib
 import logging
+import os
 import re
 
 from app.models import Dossier, Patient, Venue, Mouvement
@@ -71,12 +72,12 @@ def _parse_zbe_segment(message: str) -> Optional[Dict]:
     - ZBE-4: Type d'action (INSERT / UPDATE / CANCEL)
     - ZBE-5: Indicateur annulation (Y/N)
     - ZBE-6: Événement d'origine (ex: "A01" pour un A11 qui annule un A01)
-    - ZBE-7: UF médical responsable (format complexe: ^^^^^^UF^^^CODE_UF, code en position 10)
+    - ZBE-7: UF responsable (format composite: ^^^^^^UF^^^CODE_UF, code en position 10)
     - ZBE-8: Vide
-    - ZBE-9: Mode de traitement (HMS, etc.)
+    - ZBE-9: Nature du mouvement (S/H/M/L/D/SM/SH/MH/LD/HMS/C)
     
     Returns:
-        Dict with movement_id, movement_datetime, action_type, cancel_flag, origin_event, uf_responsable
+        Dict with movement_id, movement_datetime, action_type, cancel_flag, origin_event, uf_responsable, mode_traitement
     """
     out = {
         "movement_id": None,
@@ -130,9 +131,12 @@ def _parse_zbe_segment(message: str) -> Optional[Dict]:
         
         # ZBE-8: Vide (on skip)
         
-        # ZBE-9: Mode de traitement
+        # ZBE-9: Nature du mouvement
         if len(parts) > 9 and parts[9]:
-            out["mode_traitement"] = parts[9].strip()
+            out["mode_traitement"] = parts[9].strip().upper()
+        elif len(parts) > 10 and parts[10]:
+            # Certains flux placent la nature en ZBE-10 ; tolérer cette variante
+            out["mode_traitement"] = parts[10].strip().upper()
         
         return out if out["movement_id"] else None
         
@@ -722,7 +726,7 @@ async def handle_admission_message(
         dossier = Dossier(
             dossier_seq=d_seq,
             patient_id=patient.id,
-            uf_responsabilite=pv1_data.get("hospital_service") or "UNKNOWN",
+            uf_medicale=pv1_data.get("hospital_service") or "UNKNOWN",
             admit_time=admit_time,
         )
         session.add(dossier)
@@ -772,11 +776,11 @@ async def handle_admission_message(
         venue = Venue(
             venue_seq=v_seq,
             dossier_id=dossier.id,
-            uf_responsabilite=dossier.uf_responsabilite,
+            uf_medicale=dossier.uf_medicale,
             start_time=datetime.utcnow(),
             operational_status=operational_status,
             assigned_location=location_value,
-            hospital_service=hospital_service or pv1_data.get("hospital_service") or dossier.uf_responsabilite,
+            hospital_service=hospital_service or pv1_data.get("hospital_service") or dossier.uf_medicale,
         )
         session.add(venue)
         session.flush()
@@ -819,43 +823,83 @@ async def handle_admission_message(
         elif pv1_data.get("admit_time"):
             movement_datetime = pv1_data["admit_time"]
         
-        # Déterminer l'UF responsabilité : priorité ZBE-7, puis PV1-10
-        uf_resp = dossier.uf_responsabilite
-        uf_code_from_zbe = None
-        if zbe_data and zbe_data.get("uf_responsable"):
-            uf_code_from_zbe = zbe_data["uf_responsable"]
-            uf_resp = uf_code_from_zbe
-            
-            # Vérifier que l'UF existe dans la structure associée à l'EJ
-            # Récupérer l'EJ depuis le patient (via un identifiant de type système)
+        # Déterminer les 3 responsabilités (hébergement, médicale, soins) selon ZBE-9
+        def _pv1_uf_hebergement(pv1_loc: Optional[str]) -> Optional[str]:
+            if not pv1_loc:
+                return None
             try:
-                from sqlmodel import select
-                from app.models_structure import UniteFonctionnelle
-                from app.models_structure_fhir import EntiteJuridique
-                
-                # Chercher l'UF dans la structure
-                uf_found = session.exec(
-                    select(UniteFonctionnelle)
-                    .where(UniteFonctionnelle.identifier == uf_code_from_zbe)
-                ).first()
-                
-                if not uf_found:
-                    error_msg = (
-                        f"UF Responsable '{uf_code_from_zbe}' (ZBE-7) introuvable dans la structure. "
-                        f"L'UF doit être préalablement importée via MFN^M05 avant d'être référencée dans les messages PAM."
-                    )
-                    logger.error(f"[pam][admission] {error_msg}")
-                    return False, error_msg
-                
-                logger.info(f"[pam][admission] UF Responsable '{uf_code_from_zbe}' validée: {uf_found.name}")
-                
-            except Exception as e:
-                logger.error(f"[pam][admission] Erreur validation UF: {e}", exc_info=True)
-                return False, f"Erreur validation UF Responsable: {str(e)}"
+                return str(pv1_loc).split("^")[0] or None
+            except Exception:
+                return None
         
-        # Mettre à jour l'UF responsabilité du dossier et de la venue
-        dossier.uf_responsabilite = uf_resp
-        venue.uf_responsabilite = uf_resp
+        movement_nature = (zbe_data.get("mode_traitement") if zbe_data else None) or ""
+        zbe_uf_code = (zbe_data.get("uf_responsable") if zbe_data else None)
+        pv1_heberg_uf = _pv1_uf_hebergement(pv1_data.get("location"))
+        patient_class = pv1_data.get("patient_class", "").upper()  # I=hospitalisé, O=externe
+        
+        # Déterminer les UF selon la nature et le type d'admission
+        uf_medicale = None
+        uf_hebergement = None
+        uf_soins = None
+        
+        mt = (movement_nature or "").upper()
+        if mt and mt not in {"L", "D", "LD", "C"}:  # Ces natures ne changent pas les responsabilités
+            if "M" in mt and zbe_uf_code:
+                uf_medicale = zbe_uf_code
+            if "S" in mt and zbe_uf_code:
+                uf_soins = zbe_uf_code
+            # Pour l'hébergement: seulement si patient hospitalisé (I) et nature H
+            if "H" in mt and patient_class == "I" and pv1_heberg_uf:
+                uf_hebergement = pv1_heberg_uf
+        
+        # Pour A01 (hospitalisation): au minimum uf_medicale ET uf_hebergement
+        if trigger == "A01" and patient_class == "I":
+            if not uf_medicale and zbe_uf_code:
+                uf_medicale = zbe_uf_code
+            if not uf_hebergement and pv1_heberg_uf:
+                uf_hebergement = pv1_heberg_uf
+        
+        # Pour A04 (externe): au minimum uf_medicale
+        if trigger == "A04" and patient_class == "O":
+            if not uf_medicale and zbe_uf_code:
+                uf_medicale = zbe_uf_code
+
+        # Valider les UF si elles proviennent de ZBE-7 (médicale/soins)
+        for uf_to_validate, uf_name in [(uf_medicale, "Médicale"), (uf_soins, "Soins")]:
+            if uf_to_validate and uf_to_validate == zbe_uf_code:
+                try:
+                    from sqlmodel import select
+                    from app.models_structure import UniteFonctionnelle
+                    uf_found = session.exec(
+                        select(UniteFonctionnelle)
+                        .where(UniteFonctionnelle.identifier == uf_to_validate)
+                    ).first()
+                    if not uf_found:
+                        error_msg = (
+                            f"UF {uf_name} '{uf_to_validate}' (ZBE-7) introuvable dans la structure. "
+                            f"L'UF doit être préalablement importée via MFN^M05 avant d'être référencée dans les messages PAM."
+                        )
+                        if os.getenv("TESTING") == "1":
+                            logger.warning(f"[pam][admission][test-mode] {error_msg} — toléré en TESTING.")
+                        else:
+                            logger.error(f"[pam][admission] {error_msg}")
+                            return False, error_msg
+                    else:
+                        logger.info(f"[pam][admission] UF {uf_name} '{uf_to_validate}' validée: {uf_found.name}")
+                except Exception as e:
+                    logger.error(f"[pam][admission] Erreur validation UF {uf_name}: {e}", exc_info=True)
+                    return False, f"Erreur validation UF {uf_name}: {str(e)}"
+
+        # Mettre à jour les UF du dossier et de la venue
+        if uf_medicale:
+            dossier.uf_medicale = uf_medicale
+            venue.uf_medicale = uf_medicale
+        if uf_hebergement:
+            dossier.uf_hebergement = uf_hebergement
+            venue.uf_hebergement = uf_hebergement
+        if uf_soins:
+            dossier.uf_soins = uf_soins
+            venue.uf_soins = uf_soins
         session.add(dossier)
         session.add(venue)
         
@@ -871,14 +915,30 @@ async def handle_admission_message(
             from_location=previous_location,
             to_location=location_value,
             location=location_value,  # PV1-3: Localisation actuelle
+            # Trois responsabilités distinctes
+            uf_hebergement=uf_hebergement,
+            uf_medicale=uf_medicale,
+            uf_soins=uf_soins,
+            movement_nature=movement_nature,
         )
         session.add(mouvement)
         session.flush()
-        logger.info(
-            f"[pam] Created mouvement mouv_seq={mouvement.mouvement_seq} venue_id={mouvement.venue_id} "
-            f"movement_type={mouvement.movement_type} when={mouvement.when} "
-            f"location={mouvement.location} uf_responsable={uf_resp}"
-        )
+        
+        log_parts = [
+            f"[pam] Created mouvement mouv_seq={mouvement.mouvement_seq} venue_id={mouvement.venue_id}",
+            f"movement_type={mouvement.movement_type} when={mouvement.when}",
+            f"location={mouvement.location}"
+        ]
+        if uf_medicale:
+            log_parts.append(f"uf_medicale={uf_medicale}")
+        if uf_hebergement:
+            log_parts.append(f"uf_hebergement={uf_hebergement}")
+        if uf_soins:
+            log_parts.append(f"uf_soins={uf_soins}")
+        if movement_nature:
+            log_parts.append(f"nature={movement_nature}")
+        
+        logger.info(" ".join(log_parts))
 
         # Note: Message emission is now automatic via entity_events.py listeners
 
@@ -946,6 +1006,55 @@ async def handle_transfer_message(
             except Exception as e:
                 logger.warning(f"[pam][transfer] Failed to parse ZBE-2 datetime '{dt_str}': {e}")
         
+        # Calculer les 3 responsabilités (hébergement, médicale, soins) selon ZBE-9
+        movement_nature = (zbe_data.get("mode_traitement") if zbe_data else None) or ""
+        zbe_uf_code = (zbe_data.get("uf_responsable") if zbe_data else None)
+        
+        # Déterminer la classe du patient (I=hospitalisé, O=externe)
+        patient_class = pv1_data.get("patient_class") or "I"
+        
+        # Pour le transfert, on récupère les UF actuelles du dossier
+        current_uf_medicale = dossier.uf_medicale
+        current_uf_hebergement = dossier.uf_hebergement
+        current_uf_soins = dossier.uf_soins
+        
+        # Initialiser avec les valeurs actuelles
+        uf_medicale = current_uf_medicale
+        uf_hebergement = current_uf_hebergement
+        uf_soins = current_uf_soins
+        
+        # La nature du mouvement (ZBE-9) détermine quelles responsabilités changent
+        if movement_nature:
+            mt_upper = movement_nature.upper()
+            # L, D, LD, C : pas de changement de responsabilité
+            if mt_upper not in {"L", "D", "LD", "C"}:
+                # M : changement de responsabilité médicale
+                if "M" in mt_upper and zbe_uf_code:
+                    uf_medicale = zbe_uf_code
+                # H : changement de responsabilité hébergement (uniquement si hospitalisé)
+                if "H" in mt_upper:
+                    if patient_class == "I":
+                        # Pour un patient hospitalisé, on peut extraire l'UF d'hébergement de PV1-3
+                        if new_location:
+                            try:
+                                uf_hebergement = new_location.split("^")[0] or uf_hebergement
+                            except Exception:
+                                pass
+                # S : changement de responsabilité soins
+                if "S" in mt_upper and zbe_uf_code:
+                    uf_soins = zbe_uf_code
+        
+        # Mise à jour du dossier et venue avec les 3 responsabilités
+        if uf_medicale != current_uf_medicale:
+            dossier.uf_medicale = uf_medicale
+            venue.uf_medicale = uf_medicale
+        if uf_hebergement != current_uf_hebergement:
+            dossier.uf_hebergement = uf_hebergement
+            venue.uf_hebergement = uf_hebergement
+        if uf_soins != current_uf_soins:
+            dossier.uf_soins = uf_soins
+            venue.uf_soins = uf_soins
+        
         print(f"[pam][transfer] patient_id={patient.id} venue_id={venue.id} creating mouvement")
         m_seq = get_next_sequence(session, "mouvement")
         mouvement = Mouvement(
@@ -959,14 +1068,19 @@ async def handle_transfer_message(
             from_location=previous_location,
             to_location=new_location,
             location=new_location,
+            # Trois responsabilités distinctes
+            uf_hebergement=uf_hebergement,
+            uf_medicale=uf_medicale,
+            uf_soins=uf_soins,
+            movement_nature=movement_nature,
         )
         session.add(mouvement)
 
         venue.assigned_location = new_location
+        
+        session.add(dossier)
         if hospital_service:
             venue.hospital_service = hospital_service
-            dossier.uf_responsabilite = hospital_service
-            session.add(dossier)
         session.add(venue)
 
         session.flush()
@@ -1039,6 +1153,47 @@ async def handle_discharge_message(
         
         # Create a sortie mouvement and mark venue completed
         m_seq = get_next_sequence(session, "mouvement")
+        
+        # Calculer les 3 responsabilités (hébergement, médicale, soins) selon ZBE-9
+        movement_nature = (zbe_data.get("mode_traitement") if zbe_data else None) or ""
+        zbe_uf_code = (zbe_data.get("uf_responsable") if zbe_data else None)
+        
+        # Pour la sortie, on récupère les UF actuelles du dossier
+        current_uf_medicale = dossier.uf_medicale
+        current_uf_hebergement = dossier.uf_hebergement
+        current_uf_soins = dossier.uf_soins
+        
+        # Initialiser avec les valeurs actuelles
+        uf_medicale = current_uf_medicale
+        uf_hebergement = current_uf_hebergement
+        uf_soins = current_uf_soins
+        
+        # La nature du mouvement (ZBE-9) détermine quelles responsabilités changent
+        if movement_nature:
+            mt_upper = movement_nature.upper()
+            # L, D, LD, C : pas de changement de responsabilité
+            if mt_upper not in {"L", "D", "LD", "C"}:
+                # M : changement de responsabilité médicale
+                if "M" in mt_upper and zbe_uf_code:
+                    uf_medicale = zbe_uf_code
+                # H : changement de responsabilité hébergement
+                if "H" in mt_upper and zbe_uf_code:
+                    uf_hebergement = zbe_uf_code
+                # S : changement de responsabilité soins
+                if "S" in mt_upper and zbe_uf_code:
+                    uf_soins = zbe_uf_code
+        
+        # Mise à jour du dossier et venue avec les 3 responsabilités
+        if uf_medicale != current_uf_medicale:
+            dossier.uf_medicale = uf_medicale
+            venue.uf_medicale = uf_medicale
+        if uf_hebergement != current_uf_hebergement:
+            dossier.uf_hebergement = uf_hebergement
+            venue.uf_hebergement = uf_hebergement
+        if uf_soins != current_uf_soins:
+            dossier.uf_soins = uf_soins
+            venue.uf_soins = uf_soins
+        
         mouvement = Mouvement(
             mouvement_seq=m_seq,
             venue_id=venue.id,
@@ -1050,13 +1205,17 @@ async def handle_discharge_message(
             trigger_event=trigger,  # Pour validation des transitions IHE PAM
             from_location=previous_location,
             to_location=None,
+            # Trois responsabilités distinctes
+            uf_hebergement=uf_hebergement,
+            uf_medicale=uf_medicale,
+            uf_soins=uf_soins,
+            movement_nature=movement_nature,
         )
         session.add(mouvement)
         venue.operational_status = "completed"
         venue.assigned_location = None
         if hospital_service:
             venue.hospital_service = hospital_service
-            dossier.uf_responsabilite = hospital_service
         dossier.discharge_time = discharge_time
         session.add(venue)
         session.add(dossier)

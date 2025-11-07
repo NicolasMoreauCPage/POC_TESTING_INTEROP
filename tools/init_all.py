@@ -49,7 +49,9 @@ def _create_patient_and_dossier(session: Session, family: str, given: str, uf: s
     dossier = Dossier(
         dossier_seq=get_next_sequence(session, "dossier"),
         patient_id=patient.id,
-        uf_responsabilite=uf,
+        # Pour un dossier créé dans le cadre HDJ/consultation, on ne définit que l'UF médicale
+        uf_medicale=uf,
+        admission_type="PROGRAMME",
         admit_time=datetime.now(),
     )
     session.add(dossier)
@@ -66,7 +68,7 @@ def _seed_multi_venue_chemo(session: Session) -> None:
         v = Venue(
             venue_seq=get_next_sequence(session, "venue"),
             dossier_id=dossier.id,
-            uf_responsabilite="HDJ-ONCO",
+            uf_medicale="HDJ-ONCO",
             start_time=base_time + timedelta(minutes=i * 60),
             code="HDJ-ONCO",
             label=f"Chimiothérapie - Séance {i}",
@@ -87,6 +89,8 @@ def _seed_multi_venue_chemo(session: Session) -> None:
             location=f"HDJ-ONCO-{idx+1:02d}",
             movement_type="admission",
             trigger_event="A01",
+            uf_medicale="HDJ-ONCO",
+            movement_nature="M",
         )
         m2 = Mouvement(
             mouvement_seq=get_next_sequence(session, "mouvement"),
@@ -96,6 +100,8 @@ def _seed_multi_venue_chemo(session: Session) -> None:
             location=f"HDJ-ONCO-{idx+1:02d}",
             movement_type="discharge",
             trigger_event="A03",
+            uf_medicale="HDJ-ONCO",
+            movement_nature="D",
         )
         session.add(m1)
         session.add(m2)
@@ -116,7 +122,8 @@ def _seed_patient_multiple_dossiers(session: Session) -> None:
     dossier1 = Dossier(
         dossier_seq=get_next_sequence(session, "dossier"),
         patient_id=patient.id,
-        uf_responsabilite="HDJ-ONCO",
+        uf_medicale="HDJ-ONCO",
+        admission_type="PROGRAMME",
         admit_time=datetime.now(),
     )
     session.add(dossier1)
@@ -126,7 +133,8 @@ def _seed_patient_multiple_dossiers(session: Session) -> None:
     dossier2 = Dossier(
         dossier_seq=get_next_sequence(session, "dossier"),
         patient_id=patient.id,
-        uf_responsabilite="HDJ-PSY",
+        uf_medicale="HDJ-PSY",
+        admission_type="PROGRAMME",
         admit_time=datetime.now(),
     )
     session.add(dossier2)
@@ -136,7 +144,10 @@ def _seed_patient_multiple_dossiers(session: Session) -> None:
     dossier3 = Dossier(
         dossier_seq=get_next_sequence(session, "dossier"),
         patient_id=patient.id,
-        uf_responsabilite="HOSP-MED",
+        uf_medicale="HOSP-MED",
+
+        uf_hebergement="HOSP-MED",
+        admission_type="URGENCE",
         admit_time=datetime.now(),
     )
     session.add(dossier3)
@@ -150,7 +161,7 @@ def _seed_patient_multiple_dossiers(session: Session) -> None:
         v = Venue(
             venue_seq=get_next_sequence(session, "venue"),
             dossier_id=dossier1.id,
-            uf_responsabilite="HDJ-ONCO",
+            uf_medicale="HDJ-ONCO",
             start_time=base_time + timedelta(minutes=i * 30),
             code="HDJ-ONCO",
             label=f"Chimiothérapie - Séance {i}",
@@ -170,6 +181,8 @@ def _seed_patient_multiple_dossiers(session: Session) -> None:
             location=f"HDJ-ONCO-{idx+1:02d}",
             movement_type="admission",
             trigger_event="A01",
+            uf_medicale="HDJ-ONCO",
+            movement_nature="M",
         ))
         session.add(Mouvement(
             mouvement_seq=get_next_sequence(session, "mouvement"),
@@ -179,13 +192,15 @@ def _seed_patient_multiple_dossiers(session: Session) -> None:
             location=f"HDJ-ONCO-{idx+1:02d}",
             movement_type="discharge",
             trigger_event="A03",
+            uf_medicale="HDJ-ONCO",
+            movement_nature="D",
         ))
 
-    # Dossier 2: une venue HDJ-PSY
+    # Dossier 2: HDJ-PSY (récurrent)
     vpsy = Venue(
         venue_seq=get_next_sequence(session, "venue"),
         dossier_id=dossier2.id,
-        uf_responsabilite="HDJ-PSY",
+        uf_medicale="HDJ-PSY",
         start_time=base_time + timedelta(hours=2),
         code="HDJ-PSY",
         label="HDJ Psychiatrie - Suivi",
@@ -200,6 +215,8 @@ def _seed_patient_multiple_dossiers(session: Session) -> None:
         location="HDJ-PSY-01",
         movement_type="admission",
         trigger_event="A01",
+        uf_medicale="HDJ-PSY",
+        movement_nature="M",
     ))
     session.add(Mouvement(
         mouvement_seq=get_next_sequence(session, "mouvement"),
@@ -209,13 +226,17 @@ def _seed_patient_multiple_dossiers(session: Session) -> None:
         location="HDJ-PSY-01",
         movement_type="discharge",
         trigger_event="A03",
+        uf_medicale="HDJ-PSY",
+        movement_nature="D",
     ))
 
     # Dossier 3: une venue HOSP-MED (I)
     vhosp = Venue(
         venue_seq=get_next_sequence(session, "venue"),
         dossier_id=dossier3.id,
-        uf_responsabilite="HOSP-MED",
+        uf_medicale="HOSP-MED",
+
+        uf_hebergement="HOSP-MED",
         start_time=base_time + timedelta(hours=6),
         code="HOSP-MED",
         label="Hospitalisation Médecine",
@@ -230,6 +251,9 @@ def _seed_patient_multiple_dossiers(session: Session) -> None:
         location="MED-101",
         movement_type="admission",
         trigger_event="A01",
+        uf_medicale="HOSP-MED",
+        uf_hebergement="HOSP-MED",
+        movement_nature="M",
     ))
     session.add(Mouvement(
         mouvement_seq=get_next_sequence(session, "mouvement"),
@@ -239,9 +263,13 @@ def _seed_patient_multiple_dossiers(session: Session) -> None:
         location="MED-101",
         movement_type="discharge",
         trigger_event="A03",
+        uf_medicale="HOSP-MED",
+        uf_hebergement="HOSP-MED",
+        movement_nature="D",
     ))
 
     session.commit()
+
 def _seed_multi_venue_psy(session: Session) -> None:
     """Crée un dossier HDJ Psy avec 3 venues, et pour chacune A01 puis A03."""
     _, dossier = _create_patient_and_dossier(session, family="PSY", given="HDJ", uf="HDJ-PSY")
@@ -256,7 +284,7 @@ def _seed_multi_venue_psy(session: Session) -> None:
         v = Venue(
             venue_seq=get_next_sequence(session, "venue"),
             dossier_id=dossier.id,
-            uf_responsabilite="HDJ-PSY",
+            uf_medicale="HDJ-PSY",
             start_time=base_time + timedelta(minutes=i * 60),
             code="HDJ-PSY",
             label=label,
@@ -276,6 +304,8 @@ def _seed_multi_venue_psy(session: Session) -> None:
             location=f"HDJ-PSY-{idx+1:02d}",
             movement_type="admission",
             trigger_event="A01",
+            uf_medicale="HDJ-PSY",
+            movement_nature="M",
         )
         m2 = Mouvement(
             mouvement_seq=get_next_sequence(session, "mouvement"),
@@ -285,10 +315,14 @@ def _seed_multi_venue_psy(session: Session) -> None:
             location=f"HDJ-PSY-{idx+1:02d}",
             movement_type="discharge",
             trigger_event="A03",
+            uf_medicale="HDJ-PSY",
+            movement_nature="D",
         )
         session.add(m1)
         session.add(m2)
     session.commit()
+
+
 def init_ght_and_namespaces(session: Session, reset: bool = False) -> GHTContext:
     # Initialise le GHT unique avec tous ses namespaces
     # Chercher le GHT existant
