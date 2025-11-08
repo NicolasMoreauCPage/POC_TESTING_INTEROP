@@ -130,21 +130,10 @@ def main():
         # Dossiers et venues
         for idx, patient in enumerate(patients):
             dseq = get_next_sequence(session, "dossier")
-            # Distribution d'exemples: pair=URGENCE, impair=PROGRAMME, et un MUTATION pour idx==2
-            if idx == 2:
-                adm_type = "MUTATION"
-            elif idx % 2 == 0:
-                adm_type = "URGENCE"
-            else:
-                adm_type = "PROGRAMME"
-
             dossier = Dossier(
                 dossier_seq=dseq,
                 patient_id=patient.id,
-                # Pour simplifier le jeu de démo, on met la même UF en médicale et hébergement
-                uf_medicale="UF-CHIR",
-                uf_hebergement="UF-CHIR",
-                admission_type=adm_type,
+                uf_responsabilite="UF-CHIR",
                 admit_time=base_date + timedelta(hours=idx),
             )
             session.add(dossier)
@@ -158,8 +147,7 @@ def main():
             venue = Venue(
                 venue_seq=vseq,
                 dossier_id=dossier.id,
-                uf_medicale="UF-CHIR",
-                uf_hebergement="UF-CHIR",
+                uf_responsabilite="UF-CHIR",
                 start_time=base_date + timedelta(hours=idx),
                 code="HOSP",
                 label="Chirurgie",

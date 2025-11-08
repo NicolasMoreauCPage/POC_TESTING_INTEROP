@@ -1,10 +1,6 @@
-"""Compatibility shim. Script moved to app/forms/helpers.py
-
-This wrapper keeps the old imports working.
 """
-
-from app.forms.helpers import *  # noqa: F401,F403
-
+Helpers pour les formulaires avec vocabulaires
+"""
 from typing import List, Optional, Dict, Any
 from sqlmodel import Session, select
 from app.models_vocabulary import VocabularySystem, VocabularyValue

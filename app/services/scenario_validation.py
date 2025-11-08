@@ -22,7 +22,6 @@ from typing import List, Optional, Tuple
 from datetime import datetime
 
 from app.services.pam_validation import validate_pam, ValidationResult, ValidationIssue
-from app.services.transport_inbound import _parse_zbe  # reuse tolerant ZBE parser
 from app.services.mllp import parse_msh_fields
 from app.state_transitions import is_valid_transition, INITIAL_EVENTS
 
@@ -215,10 +214,6 @@ def validate_scenario(
     patient_ids = set()
     visit_ids = set()
     timestamps = []
-    identity_only_events = {"A28", "A31", "A40", "A47"}
-    disallowed_events = {"A52", "A53", "Z80", "Z81", "Z82", "Z83", "Z84", "Z85"}
-    seen_identity = False
-    seen_movement = False
     
     for idx, message in enumerate(raw_messages, start=1):
         # Validation structurelle
@@ -250,89 +245,34 @@ def validate_scenario(
         if timestamp:
             timestamps.append((idx, timestamp))
         
-        # Classifier événement (identité vs mouvement) et interdire événements proscrits
+        # Vérifier le workflow de transitions
         if event_code:
-            if event_code in disallowed_events:
-                result.workflow_issues.append(
-                    ValidationIssue(
-                        code="WORKFLOW_EVENT_FORBIDDEN",
-                        message=f"Message #{idx} ({event_code}): Événement non autorisé dans PAM FR (>2.8)",
-                        severity="error",
-                    )
-                )
-                result.is_valid = False
-                result.level = "error"
-
-            if event_code in identity_only_events:
-                seen_identity = True
-            else:
-                seen_movement = True
-
-            # Règle métier: A01/A04 uniquement si None, A05 ou A03
-            if event_code in {"A01", "A04"}:
-                if previous_event not in (None, "A05", "A03"):
+            # Premier message : doit être un événement initial
+            if idx == 1:
+                if event_code not in INITIAL_EVENTS:
                     result.workflow_issues.append(
                         ValidationIssue(
-                            code="WORKFLOW_A01_A04_START_CONSTRAINT",
-                            message=(
-                                f"Message #{idx} ({event_code}) interdit: autorisé seulement en début de dossier, "
-                                f"après A05 (préadmission) ou après une sortie définitive A03 (précédent: {previous_event})."
-                            ),
-                            severity="error",
+                            code="WORKFLOW_INVALID_INITIAL",
+                            message=f"Message #{idx} ({event_code}): Premier message doit être un événement initial ({', '.join(sorted(INITIAL_EVENTS))})",
+                            severity="error"
                         )
                     )
                     result.is_valid = False
                     result.level = "error"
-
-            # Règle métier: A06/A07 avec ZBE-4=INSERT => patient doit être admis (contexte actif)
-            if event_code in {"A06", "A07"}:
-                try:
-                    zbe = _parse_zbe(message)
-                except Exception:
-                    zbe = {}
-                if (zbe.get("action_type") or "").upper() == "INSERT":
-                    admitted_context = {"A01", "A02", "A21", "A22", "A44", "A54", "A55", "A06", "A07"}
-                    if (previous_event is None) or (previous_event not in admitted_context):
-                        result.workflow_issues.append(
-                            ValidationIssue(
-                                code="WORKFLOW_A06_A07_INSERT_CONTEXT",
-                                message=(
-                                    f"Message #{idx} ({event_code}) avec ZBE-4=INSERT interdit: patient non admis "
-                                    f"ou venue non active (précédent: {previous_event or 'aucun'})."
-                                ),
-                                severity="error",
-                            )
+            # Messages suivants : vérifier la transition
+            else:
+                if not is_valid_transition(previous_event, event_code):
+                    result.workflow_issues.append(
+                        ValidationIssue(
+                            code="WORKFLOW_INVALID_TRANSITION",
+                            message=f"Message #{idx}: Transition invalide {previous_event} -> {event_code}",
+                            severity="error"
                         )
-                        result.is_valid = False
-                        result.level = "error"
-
-            # Vérifier le workflow uniquement si scénario purement "mouvement"
-            # (les messages d'identité purs n'entrent pas dans le workflow de venue)
-            if seen_movement and not seen_identity:
-                # Premier message : doit être un événement initial
-                if idx == 1:
-                    if event_code not in INITIAL_EVENTS:
-                        result.workflow_issues.append(
-                            ValidationIssue(
-                                code="WORKFLOW_INVALID_INITIAL",
-                                message=f"Message #{idx} ({event_code}): Premier message doit être un événement initial ({', '.join(sorted(INITIAL_EVENTS))})",
-                                severity="error"
-                            )
-                        )
-                        result.is_valid = False
-                        result.level = "error"
-                else:
-                    if not is_valid_transition(previous_event, event_code):
-                        result.workflow_issues.append(
-                            ValidationIssue(
-                                code="WORKFLOW_INVALID_TRANSITION",
-                                message=f"Message #{idx}: Transition invalide {previous_event} -> {event_code}",
-                                severity="error"
-                            )
-                        )
-                        result.is_valid = False
-                        result.level = "error"
-                previous_event = event_code
+                    )
+                    result.is_valid = False
+                    result.level = "error"
+            
+            previous_event = event_code
         
         # Agréger le niveau de validation
         if not validation.is_valid:
@@ -343,17 +283,6 @@ def validate_scenario(
                 result.level = "warn"
     
     # Vérifications de cohérence globale
-    # Interdire les scénarios mixtes identité/mouvements
-    if seen_identity and seen_movement:
-        result.workflow_issues.append(
-            ValidationIssue(
-                code="SCENARIO_MIXED_WORKFLOWS",
-                message="Le scénario mélange des messages d'identité (A28/A31/A40/A47) et des messages de mouvement. Séparer en deux scénarios distincts.",
-                severity="error",
-            )
-        )
-        result.is_valid = False
-        result.level = "error"
     
     # 1. Identifiant patient unique
     if len(patient_ids) > 1:

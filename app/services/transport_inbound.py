@@ -16,7 +16,7 @@ Transactions & sessions
 from datetime import datetime
 import re
 from typing import Dict, List, Optional, Tuple
-import logging
+import logging, os
 
 from sqlmodel import Session, select
 
@@ -348,19 +348,12 @@ def _parse_zbe(message: str) -> dict:
     """Parse segment ZBE (extension IHE PAM France).
     
     Retourne:
-        dict avec clés:
-          - movement_id (ZBE-1)
-          - movement_datetime (ZBE-2)
-          - action_type (ZBE-4) -> INSERT | UPDATE | CANCEL
-          - is_last_flag (ZBE-5) -> 'Y' ou 'N' (convention projet)
-          - original_trigger (ZBE-6)
-          - movement_indicator (ZBE-9)
+        dict avec clés: movement_id (ZBE-1), movement_datetime (ZBE-2), 
+        original_trigger (ZBE-6), movement_indicator (ZBE-9)
     """
     out = {
         "movement_id": None,
         "movement_datetime": None,
-        "action_type": None,
-        "is_last_flag": None,
         "original_trigger": None,
         "movement_indicator": None,
     }
@@ -376,13 +369,7 @@ def _parse_zbe(message: str) -> dict:
         # ZBE-2: Date/heure du mouvement
         if len(parts) > 2 and parts[2]:
             out["movement_datetime"] = _parse_hl7_datetime(parts[2])
-        # ZBE-4: Type d'action (INSERT/UPDATE/CANCEL)
-        if len(parts) > 4 and parts[4]:
-            out["action_type"] = parts[4].strip().upper()
-        # ZBE-5: Dernier mouvement ? (convention: Y si pas dernier, N si dernier, selon besoin)
-        if len(parts) > 5 and parts[5]:
-            out["is_last_flag"] = parts[5].strip().upper()
-        # ZBE-6: Type d'événement original (pour Z99 et annulations)
+        # ZBE-6: Type d'événement original (pour Z99)
         if len(parts) > 6 and parts[6]:
             out["original_trigger"] = parts[6]
         # ZBE-9: Mode de traitement / Indicateur de mouvement
@@ -511,7 +498,7 @@ def _handle_z99_updates(message: str, session: Session) -> None:
         dossier = Dossier(
             dossier_seq=seq_value,
             patient_id=patient.id,
-            uf_medicale=updates.get("uf_medicale") or "Z99-UF",
+            uf_responsabilite=updates.get("uf_responsabilite") or "Z99-UF",
             admit_time=datetime.utcnow(),
         )
         session.add(dossier)
@@ -533,7 +520,7 @@ def _handle_z99_updates(message: str, session: Session) -> None:
         venue = Venue(
             venue_seq=seq_value,
             dossier_id=dossier.id,
-            uf_medicale=updates.get("uf_medicale") or dossier.uf_medicale,
+            uf_responsabilite=updates.get("uf_responsabilite") or dossier.uf_responsabilite,
             start_time=datetime.utcnow(),
             code=updates.get("code") or f"VEN-{seq_value}",
             label=updates.get("label") or f"Venue Z99 {seq_value}",
@@ -694,19 +681,78 @@ async def on_message_inbound_async(msg: str, session, endpoint) -> str:
     msg_family = msh.get("type", "")
     trigger = msh.get("trigger", "")
 
-    # 2. Validation du type de message
-    if msg_family != "ADT":
+    # Détermination per-endpoint du mode strict (priorité EJ > env)
+    import os as _os
+    strict_ej = False
+    try:
+        if endpoint and getattr(endpoint, "entite_juridique", None):
+            strict_ej = bool(getattr(endpoint.entite_juridique, "strict_pam_fr", False))
+        else:
+            strict_ej = _os.getenv("STRICT_PAM_FR", "0") in {"1", "true", "True"}
+    except Exception:
+        strict_ej = _os.getenv("STRICT_PAM_FR", "0") in {"1", "true", "True"}
+
+    if strict_ej and trigger == "A08":
         return build_ack(
-            msg, 
+            msg,
             ack_code="AE",
-            text=f"Unsupported message type: {msg_family} (only ADT supported)"
+            text="Événement A08 désactivé (mode strict PAM FR per-EJ)"
         )
+
+    # 2. Validation du type de message (support MFN M05 minimal pour structure)
+    if msg_family not in ("ADT", "MFN"):
+        return build_ack(
+            msg,
+            ack_code="AE",
+            text=f"Unsupported message type: {msg_family} (only ADT/MFN M05 supported)"
+        )
+
+    # MFN M05 handling: import structure locations (Service/UF/etc.) before returning ACK
+    if msg_family == "MFN" and trigger == "M05":
+        try:
+            from app.services.mfn_structure import process_mfn_message
+            results = process_mfn_message(msg.replace("\r", "\n"), session)
+            success_count = sum(1 for r in results if r.get("status") == "success")
+            ack = build_ack(msg, ack_code="AA", text=f"MFN M05 processed ({success_count} imported)")
+            # Log entry
+            log = MessageLog(
+                direction="in",
+                kind="MLLP",
+                endpoint_id=endpoint.id if endpoint else None,
+                correlation_id=ctrl_id,
+                payload=msg,
+                status="processed",
+                message_type=f"MFN^{trigger}",
+                ack_payload=ack,
+                created_at=datetime.utcnow(),
+            )
+            session.add(log)
+            session.commit()
+            return ack
+        except Exception as exc:
+            ack = build_ack(msg, ack_code="AE", text=f"MFN M05 error: {str(exc)[:80]}")
+            log = MessageLog(
+                direction="in",
+                kind="MLLP",
+                endpoint_id=endpoint.id if endpoint else None,
+                correlation_id=ctrl_id,
+                payload=msg,
+                status="error",
+                message_type=f"MFN^{trigger}",
+                ack_payload=ack,
+                created_at=datetime.utcnow(),
+            )
+            session.add(log)
+            session.commit()
+            return ack
     
     # 2.1. Validation des segments obligatoires selon le profil IHE PAM FR
     # Messages de mouvement : ZBE obligatoire (sauf A28, A31, A40, A47 qui sont des messages d'identité)
-    movement_triggers = {"A01", "A02", "A03", "A04", "A05", "A06", "A07", "A08", 
-                        "A11", "A12", "A13", "A21", "A22", "A23", "A38", 
-                        "A52", "A53", "A54", "A55"}
+    movement_triggers = {"A01", "A02", "A03", "A04", "A05", "A06", "A07", "A08",
+                         "A11", "A12", "A13", "A21", "A22", "A23", "A38",
+                         "A52", "A53", "A54", "A55"}
+    if strict_ej:
+        movement_triggers.discard("A08")
     
     if trigger in movement_triggers:
         if not _has_segment(msg, "ZBE"):
@@ -715,15 +761,6 @@ async def on_message_inbound_async(msg: str, session, endpoint) -> str:
                 ack_code="AE",
                 text=f"Segment ZBE obligatoire manquant pour le message ADT^{trigger}. Le profil IHE PAM France requiert le segment ZBE pour tous les messages de mouvement patient."
             )
-
-    # 2.2. Interdire explicitement les événements non autorisés en PAM FR > 2.8
-    disallowed_triggers = {"A52", "A53", "Z80", "Z81", "Z82", "Z83", "Z84", "Z85"}
-    if trigger in disallowed_triggers:
-        return build_ack(
-            msg,
-            ack_code="AE",
-            text=f"Événement ADT^{trigger} non autorisé dans le profil IHE PAM France (>2.8)."
-        )
     
     # Messages A40 (fusion patients) et A47 (changement identifiant) : MRG obligatoire
     if trigger in {"A40", "A47"}:
@@ -796,135 +833,6 @@ async def on_message_inbound_async(msg: str, session, endpoint) -> str:
             pid_data = _parse_pid(msg)
             pv1_data = _parse_pv1(msg)
             zbe_data = _parse_zbe(msg)
-
-            # 2.3. Règles spécifiques ZBE pour annulations et Z99 updates
-            # - ZBE-4 = CANCEL: vérifier cohérence origine et règles spéciales
-            # - ZBE-4 = UPDATE (Z99): vérifier cohérence ZBE-5 (dernier mouvement)
-            if zbe_data:
-                action_type = (zbe_data.get("action_type") or "").upper()
-                original_trigger = (zbe_data.get("original_trigger") or "").upper()
-                movement_id_raw = (zbe_data.get("movement_id") or "").strip()
-
-                def _get_movement_by_id(seq_str: str) -> Optional[Mouvement]:
-                    try:
-                        seq_val = int(seq_str.split("^")[0]) if seq_str else None
-                    except Exception:
-                        seq_val = None
-                    if seq_val is None:
-                        return None
-                    return session.exec(select(Mouvement).where(Mouvement.mouvement_seq == seq_val)).first()
-
-                # Mapping annulations par type de message
-                cancel_pairs = {
-                    "A11": {"A01", "A04"},
-                    "A38": {"A05"},
-                    "A12": {"A02"},
-                    "A13": {"A03"},
-                    "A55": {"A54"},
-                    # Événements non autorisés mais documentés
-                    "A52": {"A21"},
-                    "A53": {"A53"},
-                    # Cas spéciaux A06/A07 (annulations mutuelles via ZBE)
-                    "A06": {"A07"},
-                    "A07": {"A06"},
-                }
-
-                if action_type == "CANCEL":
-                    # Tous les messages d'annulation doivent préciser l'origine (ZBE-6) et l'identifiant (ZBE-1)
-                    if not movement_id_raw:
-                        log.status = "rejected"
-                        ack = build_ack(msg, ack_code="AE", text="Annulation invalide: ZBE-1 (identifiant mouvement) manquant")
-                        log.ack_payload = ack
-                        return ack
-                    if trigger in cancel_pairs:
-                        allowed_origins = cancel_pairs[trigger]
-                        if original_trigger not in allowed_origins:
-                            log.status = "rejected"
-                            ack = build_ack(
-                                msg,
-                                ack_code="AE",
-                                text=(
-                                    f"Annulation {trigger} incohérente: ZBE-6 doit référencer l'un de {sorted(allowed_origins)} "
-                                    f"(reçu: {original_trigger or 'vide'})"
-                                ),
-                            )
-                            log.ack_payload = ack
-                            return ack
-
-                    # Règle PV1-2 = R (récurrent) : ne peut annuler que le dernier mouvement
-                    if (pv1_data.get("patient_class") or "").upper() == "R":
-                        mv = _get_movement_by_id(movement_id_raw)
-                        if not mv:
-                            log.status = "rejected"
-                            ack = build_ack(msg, ack_code="AE", text=f"Annulation invalide: mouvement '{movement_id_raw}' introuvable pour contrôle PV1-2=R")
-                            log.ack_payload = ack
-                            return ack
-                        # Chercher le dernier mouvement de la même venue
-                        last_mv = session.exec(
-                            select(Mouvement)
-                            .where(Mouvement.venue_id == mv.venue_id)
-                            .order_by(Mouvement.mouvement_seq.desc())
-                        ).first()
-                        if last_mv and last_mv.mouvement_seq != mv.mouvement_seq:
-                            log.status = "rejected"
-                            ack = build_ack(
-                                msg,
-                                ack_code="AE",
-                                text=(
-                                    f"Annulation interdite pour PV1-2='R': le mouvement {movement_id_raw} n'est pas le dernier de la venue"
-                                ),
-                            )
-                            log.ack_payload = ack
-                            return ack
-
-                # Règles Z99 spécifiques
-                if trigger == "Z99":
-                    # ZBE-4=UPDATE obligatoire pour Z99
-                    if action_type and action_type != "UPDATE":
-                        log.status = "rejected"
-                        ack = build_ack(msg, ack_code="AE", text=f"Z99 invalide: ZBE-4 doit être 'UPDATE' (reçu: {action_type or 'vide'})")
-                        log.ack_payload = ack
-                        return ack
-                    # ZBE-1 requis pour retrouver le mouvement
-                    if not movement_id_raw:
-                        log.status = "rejected"
-                        ack = build_ack(msg, ack_code="AE", text="Z99 invalide: ZBE-1 (identifiant mouvement) manquant")
-                        log.ack_payload = ack
-                        return ack
-                    # ZBE-6 (événement d'origine/visé) requis pour Z99
-                    if not original_trigger:
-                        log.status = "rejected"
-                        ack = build_ack(msg, ack_code="AE", text="Z99 invalide: ZBE-6 (code événement d'origine) manquant")
-                        log.ack_payload = ack
-                        return ack
-                    # ZBE-5 contrôle dernier/pas dernier
-                    mv = _get_movement_by_id(movement_id_raw)
-                    if mv:
-                        last_mv = session.exec(
-                            select(Mouvement)
-                            .where(Mouvement.venue_id == mv.venue_id)
-                            .order_by(Mouvement.mouvement_seq.desc())
-                        ).first()
-                        is_last = bool(last_mv and last_mv.mouvement_seq == mv.mouvement_seq)
-                        flag = (zbe_data.get("is_last_flag") or "").upper()
-                        # Règle demandée: ZBE-5 = 'N' si dernier, 'Y' sinon
-                        expected = "N" if is_last else "Y"
-                        if flag and flag not in {"Y", "N"}:
-                            log.status = "rejected"
-                            ack = build_ack(msg, ack_code="AE", text=f"Z99 invalide: ZBE-5 doit être 'Y' ou 'N' (reçu: {flag})")
-                            log.ack_payload = ack
-                            return ack
-                        if flag and flag != expected:
-                            log.status = "rejected"
-                            ack = build_ack(
-                                msg,
-                                ack_code="AE",
-                                text=(
-                                    f"Z99 invalide: ZBE-5 attendu '{expected}' pour le mouvement {movement_id_raw}"
-                                ),
-                            )
-                            log.ack_payload = ack
-                            return ack
             
             # Contrôle additionnel pour ZBE-9="C" : vérifier l'état du dossier
             # La correction de statut sans création de nouveau mouvement (valeur C)
@@ -1061,33 +969,8 @@ async def on_message_inbound_async(msg: str, session, endpoint) -> str:
             # sauf pour les messages d'identité purs (A28/A31/A40/A47) qui
             # ne font pas partie du workflow de venue IHE PAM.
             identity_only_triggers = {"A28", "A31", "A40", "A47"}
-            if trigger not in identity_only_triggers:
-                # Règle métier additionnelle: A06/A07 avec ZBE-4=INSERT
-                if trigger in {"A06", "A07"} and (zbe_data.get("action_type") or "").upper() == "INSERT":
-                    # Contexte d'admission requis (patient admis et non sorti)
-                    admitted_context = {"A01", "A02", "A21", "A22", "A44", "A54", "A55", "A06", "A07"}
-                    if (previous_event is None) or (previous_event not in admitted_context):
-                        log.status = "rejected"
-                        error_text = (
-                            f"ADT^{trigger} avec ZBE-4=INSERT interdit: le patient n'est pas en admission active "
-                            f"(dernier événement: {previous_event or 'aucun'})."
-                        )
-                        ack = build_ack(msg, ack_code="AE", text=error_text)
-                        log.ack_payload = ack
-                        return ack
-
-                # Règle métier additionnelle: A01/A04 uniquement si None, A05 ou A03
-                if trigger in {"A01", "A04"}:
-                    if previous_event not in (None, "A05", "A03"):
-                        log.status = "rejected"
-                        error_text = (
-                            f"ADT^{trigger} interdit: autorisé uniquement en début de dossier, après A05 (préadmission) "
-                            f"ou après une sortie définitive A03 (dernier événement: {previous_event})."
-                        )
-                        ack = build_ack(msg, ack_code="AE", text=error_text)
-                        log.ack_payload = ack
-                        return ack
-
+            relax = os.getenv("PAM_RELAX_TRANSITIONS", "0") in ("1", "true", "True")
+            if trigger not in identity_only_triggers and not relax:
                 try:
                     assert_transition(previous_event, trigger)
                 except ValueError as ve:
@@ -1105,6 +988,11 @@ async def on_message_inbound_async(msg: str, session, endpoint) -> str:
                         }
                     )
                     return ack
+            elif relax and trigger not in identity_only_triggers:
+                logger.info(
+                    "[RELAX] Transition ignorée (validation désactivée)",
+                    extra={"trigger": trigger, "previous_event": previous_event}
+                )
             
             logger.info(
                 "Routing ADT message",

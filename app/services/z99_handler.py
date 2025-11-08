@@ -35,14 +35,14 @@ class Z99EntitySpec:
             "type_venue": Z99Field("type_venue"),
             "uf_medicale": Z99Field("uf_medicale"),
             "uf_soins": Z99Field("uf_soins"),
-            "uf_medicale": Z99Field("uf_medicale"),
+            "uf_responsabilite": Z99Field("uf_responsabilite"),
         },
         Z99EntityType.MOUVEMENT: {
             "date_mouvement": Z99Field("date_mouvement", True),
             "type": Z99Field("type"),
             "uf_medicale": Z99Field("uf_medicale"),
             "uf_soins": Z99Field("uf_soins"),
-            "uf_medicale": Z99Field("uf_medicale"),
+            "uf_responsabilite": Z99Field("uf_responsabilite"),
         },
         Z99EntityType.DOSSIER: {
             "motif": Z99Field("motif"),

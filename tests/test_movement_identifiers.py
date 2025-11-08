@@ -28,9 +28,7 @@ def test_mouvement_has_identifier_relationship(session: Session):
     dossier = Dossier(
         dossier_seq=1,
         patient_id=patient.id,
-        uf_medicale="3620",
-
-        uf_hebergement="3620",
+        uf_responsabilite="3620",
         admit_time=datetime.now()
     )
     session.add(dossier)
@@ -40,9 +38,7 @@ def test_mouvement_has_identifier_relationship(session: Session):
     venue = Venue(
         venue_seq=1,
         dossier_id=dossier.id,
-        uf_medicale="3620",
-
-        uf_hebergement="3620",
+        uf_responsabilite="3620",
         start_time=datetime.now(),
         code="V001"
     )

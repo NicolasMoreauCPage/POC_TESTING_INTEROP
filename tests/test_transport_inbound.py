@@ -199,8 +199,7 @@ async def test_integration_create_entities(session):
 
 def test_z99_updates(session):
     # create a dossier and commit
-    d = Dossier(dossier_seq=12345, patient_id=1, uf_medicale="OLD",
- uf_hebergement="OLD", admit_time="2025-05-13T08:16:08")
+    d = Dossier(dossier_seq=12345, patient_id=1, uf_responsabilite="OLD", admit_time="2025-05-13T08:16:08")
     session.add(d)
     session.commit()
     session.refresh(d)
@@ -208,92 +207,49 @@ def test_z99_updates(session):
     msg = "Z99|Dossier|12345|uf_responsabilite|NEW_UF\r"
     _handle_z99_updates(msg, session)
     d2 = session.exec(select(Dossier).where(Dossier.dossier_seq == 12345)).first()
-    assert d2.uf_medicale == "NEW_UF"
+    assert d2.uf_responsabilite == "NEW_UF"
 
 
-def test_z99_creates_missing_entities(session):
-
-    dossier_seq = 98765
-
-    _handle_z99_updates(f"Z99|Dossier|{dossier_seq}|uf_responsabilite|UF-Z99\r", session)
-
-    dossier = session.exec(select(Dossier).where(Dossier.dossier_seq == dossier_seq)).first()
-
-    assert dossier is not None
-
-    assert dossier.uf_medicale == "UF-Z99"
-
-    patient = session.get(Patient, dossier.patient_id)
-
-    assert patient is not None
-
-
-
-    venue_seq = 54321
-
-    _handle_z99_updates(
-
-        f"Z99|Venue|{venue_seq}|uf_responsabilite|UF-VENUE|code|VEN-CODE|label|Test Venue|dossier_seq|{dossier_seq}\r",
-
-        session,
-
-    )
-
-    venue = session.exec(select(Venue).where(Venue.venue_seq == venue_seq)).first()
-
-    assert venue is not None
-
-    assert venue.code == "VEN-CODE"
-
-    assert venue.dossier_id == dossier.id
-
-
-
-    mouvement_seq = 11223
-
-    _handle_z99_updates(
-
-        f"Z99|Mouvement|{mouvement_seq}|type|update|venue_seq|{venue_seq}|location|LOC-Z99\r",
-
-        session,
-
-    )
-
-    mouvement = session.exec(select(Mouvement).where(Mouvement.mouvement_seq == mouvement_seq)).first()
-
-    assert mouvement is not None
-
-    assert mouvement.venue_id == venue.id
-
-    assert mouvement.location == "LOC-Z99"
-
-
-
-
-
-def test_on_message_inbound_z99_ack(session):
-
-    now = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-
-    dossier_seq = 77777
-
-    msg = (
-
-        f"MSH|^~\\&|TEST|TEST|DST|DST|{now}||ADT^Z99^ADT_A01|MSGZ99|P|2.5\r"
-
-        f"Z99|Dossier|{dossier_seq}|uf_responsabilite|UF-Z99\r"
-
-    )
-
-    result = on_message_inbound(msg, session)
-
-    assert result["status"] == "success"
-
-
-
-    dossier = session.exec(select(Dossier).where(Dossier.dossier_seq == dossier_seq)).first()
-
-    assert dossier is not None
-
-    assert dossier.uf_medicale == "UF-Z99"
-
+def test_z99_creates_missing_entities(session):
+    dossier_seq = 98765
+    _handle_z99_updates(f"Z99|Dossier|{dossier_seq}|uf_responsabilite|UF-Z99\r", session)
+    dossier = session.exec(select(Dossier).where(Dossier.dossier_seq == dossier_seq)).first()
+    assert dossier is not None
+    assert dossier.uf_responsabilite == "UF-Z99"
+    patient = session.get(Patient, dossier.patient_id)
+    assert patient is not None
+
+    venue_seq = 54321
+    _handle_z99_updates(
+        f"Z99|Venue|{venue_seq}|uf_responsabilite|UF-VENUE|code|VEN-CODE|label|Test Venue|dossier_seq|{dossier_seq}\r",
+        session,
+    )
+    venue = session.exec(select(Venue).where(Venue.venue_seq == venue_seq)).first()
+    assert venue is not None
+    assert venue.code == "VEN-CODE"
+    assert venue.dossier_id == dossier.id
+
+    mouvement_seq = 11223
+    _handle_z99_updates(
+        f"Z99|Mouvement|{mouvement_seq}|type|update|venue_seq|{venue_seq}|location|LOC-Z99\r",
+        session,
+    )
+    mouvement = session.exec(select(Mouvement).where(Mouvement.mouvement_seq == mouvement_seq)).first()
+    assert mouvement is not None
+    assert mouvement.venue_id == venue.id
+    assert mouvement.location == "LOC-Z99"
+
+
+def test_on_message_inbound_z99_ack(session):
+    now = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    dossier_seq = 77777
+    msg = (
+        f"MSH|^~\\&|TEST|TEST|DST|DST|{now}||ADT^Z99^ADT_A01|MSGZ99|P|2.5\r"
+        f"Z99|Dossier|{dossier_seq}|uf_responsabilite|UF-Z99\r"
+    )
+    result = on_message_inbound(msg, session)
+    assert result["status"] == "success"
+
+    dossier = session.exec(select(Dossier).where(Dossier.dossier_seq == dossier_seq)).first()
+    assert dossier is not None
+    assert dossier.uf_responsabilite == "UF-Z99"

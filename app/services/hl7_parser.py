@@ -185,7 +185,7 @@ def parse_pv1_segment(fields: List[str]) -> Dict[str, Any]:
     return {
         "patient_class": patient_class,
         "location": location,
-        "uf_medicale": uf,
+        "uf_responsabilite": uf,
         "visit_number": visit_number,
         "admit_datetime": admit_datetime
     }
@@ -212,7 +212,7 @@ def parse_zbe_segment(fields: List[str]) -> Dict[str, Any]:
         "movement_id": movement_id_parsed.get("id", ""),
         "movement_datetime": movement_datetime,
         "action_type": action_type,
-        "uf_medicale": uf
+        "uf_responsabilite": uf
     }
 
 

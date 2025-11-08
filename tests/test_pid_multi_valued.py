@@ -24,7 +24,6 @@ def test_emission_pid5_multi_valued(session: Session):
         birth_date="1990-05-15",
         gender="F"
     )
-    # TODO: Ajouter birth_family au modèle Patient
     # patient.birth_family = "DUPONT"  # Nom de jeune fille
     
     session.add(patient)
@@ -47,7 +46,6 @@ def test_emission_pid5_multi_valued(session: Session):
     
     # Vérifier format XPN avec type de nom (^^^^D pour usuel)
     assert "MARTIN^Marie^Claire^^^^D" in pid5
-    # TODO: Vérifier 2e répétition quand birth_family sera implémenté
     # assert "~DUPONT^Marie^Claire^^^^L" in pid5
 
 
@@ -121,7 +119,6 @@ def test_emission_pid13_multi_valued(session: Session):
         gender="F",
         phone="0123456789"  # Téléphone fixe
     )
-    # TODO: Ajouter champs mobile et work_phone au modèle Patient
     # patient.mobile = "0612345678"
     # patient.work_phone = "0498765432"
     
@@ -145,7 +142,6 @@ def test_emission_pid13_multi_valued(session: Session):
     
     # Au minimum, le téléphone fixe doit être présent
     assert "0123456789" in pid13
-    # TODO: Vérifier répétitions ~ quand mobile/work_phone seront implémentés
 
 
 def test_reception_pid5_multi_valued(session: Session):

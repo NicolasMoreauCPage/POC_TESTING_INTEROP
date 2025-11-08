@@ -157,7 +157,6 @@ def generate_pam_hl7(
         if birth_family and birth_family != family:
             name_naissance = f"{birth_family}^{given}^{middle}^^^^L" if middle else f"{birth_family}^{given}^^^^L"
             names.append(name_naissance)
-        # TODO: Ajouter d'autres alias si besoin
         name = "~".join(names)
         
         # PID-7: Date de naissance
@@ -195,7 +194,6 @@ def generate_pam_hl7(
                 "BIR",  # custom type for birth address
             ]
             addresses.append("^".join(addr2))
-        # TODO: Ajouter d'autres adresses si besoin
         patient_address = "~".join(addresses)
         
         # PID-13: Téléphones (XTN, multi-valué)
@@ -208,7 +206,6 @@ def generate_pam_hl7(
             phones.append(getattr(entity, "mobile"))
         if hasattr(entity, "work_phone") and getattr(entity, "work_phone"):
             phones.append(getattr(entity, "work_phone"))
-        # TODO: Ajouter d'autres XTN si besoin
         phone_field = "~".join(phones)
         
         # PID-23: Lieu de naissance (ville)
@@ -269,8 +266,7 @@ def generate_pam_hl7(
         
         # PV1 segment
         patient_class = "I"  # Inpatient
-        # For dossier, use uf_medicale as primary UF
-        location = getattr(entity, 'uf_medicale', None) or getattr(entity, 'uf_hebergement', None) or ""
+        location = entity.uf_responsabilite or ""
         pv1 = f"PV1|1|{patient_class}|{location}|||||||||||||{control_id}|||||||||||||||||||{location}||||||{admit_time}"
         
         return "\r".join([msh, evn, pid, pv1])
@@ -322,9 +318,9 @@ def generate_pam_hl7(
         patient_class = "I"  # Inpatient by default
         location = entity.location or entity.to_location or ""
         if venue:
-            uf_resp = venue.uf_medicale or venue.uf_hebergement or ""
+            uf_resp = venue.uf_responsabilite or ""
         elif dossier:
-            uf_resp = dossier.uf_medicale or dossier.uf_hebergement or ""
+            uf_resp = dossier.uf_responsabilite or ""
         else:
             uf_resp = ""
         

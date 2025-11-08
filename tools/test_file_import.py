@@ -9,6 +9,7 @@ Demonstrates:
 import sys
 from pathlib import Path
 import shutil
+import asyncio
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -16,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from app.db_session_factory import session_factory
 from app.models_shared import SystemEndpoint
 from app.models_structure_fhir import GHTContext
-from app.services.file_poller import scan_file_endpoints
+from app.services.file_poller import FilePollerService
 from sqlmodel import select
 
 
@@ -91,38 +92,66 @@ def setup_file_endpoint():
 
 
 def copy_example_file(inbox_path: Path):
-    """Copy the example MFN file to the inbox"""
+    """Copy the example MFN file to the inbox.
+
+    Preference order for source file:
+      1. tests/exemples/ExempleExtractionStructure.txt (user referenced)
+      2. Doc/SpecStructureMFN/ExempleExtractionStructure.txt (legacy location)
+    """
     project_root = Path(__file__).parent.parent
-    source_file = project_root / "Doc" / "SpecStructureMFN" / "ExempleExtractionStructure.txt"
-    
+    source_tests = project_root / "tests" / "exemples" / "ExempleExtractionStructure.txt"
+    source_legacy = project_root / "Doc" / "SpecStructureMFN" / "ExempleExtractionStructure.txt"
+    source_file = source_tests if source_tests.exists() else source_legacy
+
     if not source_file.exists():
         print(f"ERROR: Source file not found: {source_file}")
         return False
-    
+
     dest_file = inbox_path / "exemple_structure.txt"
     shutil.copy(source_file, dest_file)
     print(f"Copied {source_file.name} to {dest_file}")
     return True
 
 
+async def _scan_async(session):
+    poller = FilePollerService(session)
+    return await poller.scan_all_file_endpoints()
+
 def scan_and_process():
-    """Scan file endpoints and process messages"""
+    """Scan file endpoints and process messages (sync wrapper)."""
     with session_factory() as session:
-        print("\nScanning file endpoints...")
-        stats = scan_file_endpoints(session)
-        
+        print("\nScanning file endpoints (async)...")
+        stats = asyncio.run(_scan_async(session))
+
         print("\n=== Processing Statistics ===")
         print(f"Endpoints scanned: {stats['endpoints_scanned']}")
         print(f"Files processed: {stats['files_processed']}")
         print(f"MFN messages: {stats['mfn_messages']}")
         print(f"ADT messages: {stats['adt_messages']}")
         print(f"Unknown messages: {stats['unknown_messages']}")
-        
+
         if stats['errors']:
             print(f"\nErrors ({len(stats['errors'])}):")
             for error in stats['errors']:
                 print(f"  - {error}")
-        
+
+        # Additional: count imported structure entities for diagnostics
+        from app.models_structure import (
+            EntiteGeographique, Pole, Service, UniteFonctionnelle,
+            UniteHebergement, Chambre, Lit
+        )
+        counts = {}
+        counts['eg'] = len(session.exec(select(EntiteGeographique)).all())
+        counts['poles'] = len(session.exec(select(Pole)).all())
+        counts['services'] = len(session.exec(select(Service)).all())
+        counts['uf'] = len(session.exec(select(UniteFonctionnelle)).all())
+        counts['uh'] = len(session.exec(select(UniteHebergement)).all())
+        counts['ch'] = len(session.exec(select(Chambre)).all())
+        counts['lits'] = len(session.exec(select(Lit)).all())
+        print("\n=== Imported Structure Counts ===")
+        for k, v in counts.items():
+            print(f"  {k}: {v}")
+        stats['structure_counts'] = counts
         return stats
 
 

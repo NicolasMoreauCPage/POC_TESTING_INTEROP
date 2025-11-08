@@ -147,9 +147,12 @@ IDENTITY_ONLY = {"A28", "A31", "A40", "A47"}
 
 # Events which normally require a PV1 (visit context)
 REQUIRE_PV1 = {
-    "A01", "A03", "A04", "A05", "A06", "A07", "A08", "A11",
+    "A01", "A03", "A04", "A05", "A06", "A07", "A11",
     "A12", "A13", "A21", "A22", "A23", "A52", "A53"
 }
+import os as _os
+if _os.getenv("STRICT_PAM_FR", "0") in {"1", "true", "True"}:
+    REQUIRE_PV1 = {e for e in REQUIRE_PV1 if e != "A08"}
 
 # Ordre attendu des segments principaux selon HAPI structures
 # Format: liste ordonnée des segments (requis et optionnels)
@@ -669,17 +672,7 @@ def validate_pam(msg: str, direction: str = "in", profile: str = "IHE_PAM_FR") -
         zbe_parts = zbe.split("|")
         zbe_9 = _field(zbe_parts, 9)  # ZBE-9: Mode de traitement
         zbe_6 = _field(zbe_parts, 6)  # ZBE-6: Type d'événement original (pour Z99)
-
-        # Contrôle des valeurs permises
-        if zbe_9:
-            allowed_values = {"S", "H", "M", "L", "D", "SM", "SH", "MH", "LD", "HMS", "C"}
-            if zbe_9.upper() not in allowed_values:
-                issues.append(ValidationIssue(
-                    "ZBE9_INVALID",
-                    f"ZBE-9 valeur '{zbe_9}' non conforme (valeurs permises: {', '.join(sorted(allowed_values))})",
-                    severity="error"
-                ))
-
+        
         # Règle IHE PAM CPage: La valeur "C" (Correction) ne peut être utilisée
         # que dans les messages Z99 (modification de mouvement) pour corriger
         # un changement de statut sur des mouvements d'admission/préadmission (A01, A04, A05).

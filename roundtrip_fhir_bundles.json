@@ -1,0 +1,299 @@
+[
+  {
+    "resourceType": "Bundle",
+    "id": "bundle-1-20251107-210111",
+    "type": "collection",
+    "timestamp": "2025-11-07T21:01:11.293447",
+    "entry": [
+      {
+        "resource": {
+          "resourceType": "Patient",
+          "id": "pat-1",
+          "identifier": [],
+          "name": [
+            {
+              "family": "MARTIN",
+              "given": [
+                "Alice"
+              ],
+              "prefix": [],
+              "suffix": []
+            }
+          ],
+          "telecom": [],
+          "address": [
+            {
+              "line": [],
+              "city": "Paris",
+              "state": null,
+              "postalCode": "75001"
+            }
+          ],
+          "gender": "female",
+          "birthDate": "1980-05-12",
+          "maritalStatus": null,
+          "extension": []
+        },
+        "fullUrl": "urn:uuid:pat-1"
+      },
+      {
+        "resource": {
+          "resourceType": "Encounter",
+          "id": "enc-1",
+          "meta": {
+            "profile": [
+              "http://interop-sante.fr/fhir/StructureDefinition/fr-encounter"
+            ]
+          },
+          "identifier": [
+            {
+              "system": "urn:oid:1.2.250.1.71.4.2.2",
+              "value": "1"
+            }
+          ],
+          "status": "in-progress",
+          "class": {
+            "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+            "code": "IMP",
+            "display": "inpatient encounter"
+          },
+          "subject": {
+            "reference": "Patient/pat-1"
+          },
+          "period": {
+            "start": "2025-11-07T21:01:10.272821",
+            "end": null
+          },
+          "location": [
+            {
+              "location": {
+                "reference": "Location/UH-CARDIO-1-CH1-LIT1"
+              },
+              "status": "active",
+              "period": {
+                "start": "2025-11-07T22:01:10.272821"
+              }
+            },
+            {
+              "location": {
+                "reference": "Location/UH-CARDIO-1-CH2-LIT1"
+              },
+              "status": "active",
+              "period": {
+                "start": "2025-11-07T23:01:10.272821"
+              }
+            },
+            {
+              "location": {
+                "reference": "Location/UH-CARDIO-1-CH2-LIT1"
+              },
+              "status": "active",
+              "period": {
+                "start": "2025-11-08T00:01:10.272821"
+              }
+            }
+          ]
+        },
+        "fullUrl": "urn:uuid:enc-1"
+      }
+    ]
+  },
+  {
+    "resourceType": "Bundle",
+    "id": "bundle-2-20251107-210111",
+    "type": "collection",
+    "timestamp": "2025-11-07T21:01:11.294785",
+    "entry": [
+      {
+        "resource": {
+          "resourceType": "Patient",
+          "id": "pat-2",
+          "identifier": [],
+          "name": [
+            {
+              "family": "DUPONT",
+              "given": [
+                "Bernard"
+              ],
+              "prefix": [],
+              "suffix": []
+            }
+          ],
+          "telecom": [],
+          "address": [
+            {
+              "line": [],
+              "city": "Lyon",
+              "state": null,
+              "postalCode": "69001"
+            }
+          ],
+          "gender": "male",
+          "birthDate": "1975-08-22",
+          "maritalStatus": null,
+          "extension": []
+        },
+        "fullUrl": "urn:uuid:pat-2"
+      },
+      {
+        "resource": {
+          "resourceType": "Encounter",
+          "id": "enc-2",
+          "meta": {
+            "profile": [
+              "http://interop-sante.fr/fhir/StructureDefinition/fr-encounter"
+            ]
+          },
+          "identifier": [
+            {
+              "system": "urn:oid:1.2.250.1.71.4.2.2",
+              "value": "2"
+            }
+          ],
+          "status": "in-progress",
+          "class": {
+            "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+            "code": "IMP",
+            "display": "inpatient encounter"
+          },
+          "subject": {
+            "reference": "Patient/pat-2"
+          },
+          "period": {
+            "start": "2025-11-07T21:01:10.272821",
+            "end": null
+          },
+          "location": [
+            {
+              "location": {
+                "reference": "Location/UH-CARDIO-1-CH1-LIT1"
+              },
+              "status": "active",
+              "period": {
+                "start": "2025-11-07T22:01:10.272821"
+              }
+            },
+            {
+              "location": {
+                "reference": "Location/UH-CARDIO-1-CH2-LIT1"
+              },
+              "status": "active",
+              "period": {
+                "start": "2025-11-07T23:01:10.272821"
+              }
+            },
+            {
+              "location": {
+                "reference": "Location/UH-CARDIO-1-CH2-LIT1"
+              },
+              "status": "active",
+              "period": {
+                "start": "2025-11-08T00:01:10.272821"
+              }
+            }
+          ]
+        },
+        "fullUrl": "urn:uuid:enc-2"
+      }
+    ]
+  },
+  {
+    "resourceType": "Bundle",
+    "id": "bundle-3-20251107-210111",
+    "type": "collection",
+    "timestamp": "2025-11-07T21:01:11.296077",
+    "entry": [
+      {
+        "resource": {
+          "resourceType": "Patient",
+          "id": "pat-3",
+          "identifier": [],
+          "name": [
+            {
+              "family": "BERNARD",
+              "given": [
+                "Claire"
+              ],
+              "prefix": [],
+              "suffix": []
+            }
+          ],
+          "telecom": [],
+          "address": [
+            {
+              "line": [],
+              "city": "Marseille",
+              "state": null,
+              "postalCode": "13001"
+            }
+          ],
+          "gender": "female",
+          "birthDate": "1990-02-15",
+          "maritalStatus": null,
+          "extension": []
+        },
+        "fullUrl": "urn:uuid:pat-3"
+      },
+      {
+        "resource": {
+          "resourceType": "Encounter",
+          "id": "enc-3",
+          "meta": {
+            "profile": [
+              "http://interop-sante.fr/fhir/StructureDefinition/fr-encounter"
+            ]
+          },
+          "identifier": [
+            {
+              "system": "urn:oid:1.2.250.1.71.4.2.2",
+              "value": "3"
+            }
+          ],
+          "status": "in-progress",
+          "class": {
+            "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+            "code": "IMP",
+            "display": "inpatient encounter"
+          },
+          "subject": {
+            "reference": "Patient/pat-3"
+          },
+          "period": {
+            "start": "2025-11-07T21:01:10.272821",
+            "end": null
+          },
+          "location": [
+            {
+              "location": {
+                "reference": "Location/UH-CARDIO-1-CH1-LIT1"
+              },
+              "status": "active",
+              "period": {
+                "start": "2025-11-07T22:01:10.272821"
+              }
+            },
+            {
+              "location": {
+                "reference": "Location/UH-CARDIO-1-CH2-LIT1"
+              },
+              "status": "active",
+              "period": {
+                "start": "2025-11-07T23:01:10.272821"
+              }
+            },
+            {
+              "location": {
+                "reference": "Location/UH-CARDIO-1-CH2-LIT1"
+              },
+              "status": "active",
+              "period": {
+                "start": "2025-11-08T00:01:10.272821"
+              }
+            }
+          ]
+        },
+        "fullUrl": "urn:uuid:enc-3"
+      }
+    ]
+  }
+]

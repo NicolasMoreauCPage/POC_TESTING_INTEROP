@@ -70,9 +70,7 @@ def list_venues(
                 v.venue_seq,
                 v.id,
                 v.dossier_id,
-                v.uf_medicale,
-                v.uf_hebergement,
-                v.uf_soins,
+                v.uf_responsabilite,
                 getattr(v, 'hospital_service', None),
                 v.start_time.strftime("%d/%m/%Y %H:%M") if v.start_time else None,
                 v.code,
@@ -146,7 +144,7 @@ def list_venues(
         "request": request,
         "title": "Venues" if not dossier_id else f"Venues du dossier #{dossier.dossier_seq}",
         "breadcrumbs": breadcrumbs,
-        "headers": ["Seq", "ID", "Dossier", "UF Méd.", "UF Héb.", "UF Soins", "Service", "Début", "Code", "Libellé"],
+        "headers": ["Seq", "ID", "Dossier", "UF Resp", "Service", "Début", "Code", "Libellé"],
         "rows": rows,
         "context": {"dossier_id": dossier_id},
         "new_url": f"/venues/new?dossier_id={dossier_id}",
@@ -181,12 +179,8 @@ def new_venue(
         {"label": "Dossier ID", "name": "dossier_id", "type": "number", "required": True,
          "value": prefill_dossier_id or '',
          "help": "ID du dossier existant dans la base"},
-        {"label": "UF médicale", "name": "uf_medicale", "type": "text", "required": False,
-         "help": "Unité fonctionnelle de responsabilité médicale"},
-        {"label": "UF hébergement", "name": "uf_hebergement", "type": "text", "required": False,
-         "help": "Unité fonctionnelle de responsabilité d'hébergement"},
-        {"label": "UF soins", "name": "uf_soins", "type": "text", "required": False,
-         "help": "Unité fonctionnelle de responsabilité de soins"},
+        {"label": "UF de responsabilité", "name": "uf_responsabilite", "type": "text", "required": True,
+         "help": "Unité fonctionnelle responsable de la venue"},
         {"label": "Début de venue", "name": "start_time", "type": "datetime-local", 
          "value": now_str, "required": True,
          "help": "Date et heure de début de la venue"},
@@ -222,9 +216,7 @@ def new_venue(
 @router.post("/new")
 def create_venue(
     dossier_id: int = Form(...),
-    uf_medicale: str = Form(None),
-    uf_hebergement: str = Form(None),
-    uf_soins: str = Form(None),
+    uf_responsabilite: str = Form(...),
     start_time: str = Form(...),
     hospital_service: str = Form(None),
     assigned_location: str = Form(None),
@@ -243,9 +235,7 @@ def create_venue(
     seq = venue_seq or get_next_sequence(session, "venue")
     v = Venue(
         dossier_id=dossier_id,
-        uf_medicale=uf_medicale if uf_medicale else None,
-        uf_hebergement=uf_hebergement if uf_hebergement else None,
-        uf_soins=uf_soins if uf_soins else None,
+        uf_responsabilite=uf_responsabilite,
         start_time=start_dt,
         hospital_service=hospital_service,
         assigned_location=assigned_location,
@@ -264,46 +254,18 @@ def create_venue(
     return RedirectResponse(url="/venues", status_code=303)
 
 @router.get("/{venue_id}", response_class=HTMLResponse)
-def get_venue(venue_id: int, request: Request, session=Depends(get_session)):
-    from app.models import Mouvement, Patient
-    from sqlmodel import select
-    
+def venue_detail(venue_id: int, request: Request, session=Depends(get_session)):
     v = session.get(Venue, venue_id)
     if not v:
         return templates.TemplateResponse(request, "not_found.html", {"request": request, "title": "Venue introuvable"}, status_code=404)
-    
     # Charger le dossier et le patient pour le contexte
     dossier = session.get(Dossier, v.dossier_id) if v.dossier_id else None
-    patient = session.get(Patient, dossier.patient_id) if dossier and dossier.patient_id else None
-    
-    # Récupérer tous les mouvements de cette venue triés par date
-    mouvements = session.exec(
-        select(Mouvement)
-        .where(Mouvement.venue_id == venue_id)
-        .order_by(Mouvement.when)
-    ).all()
-    
-    # Construire la timeline des responsabilités
-    timeline = []
-    for m in mouvements:
-        timeline_item = {
-            "when": m.when,
-            "trigger": m.trigger_event or "?",
-            "movement_type": m.movement_type,
-            "nature": m.movement_nature or "",
-            "uf_medicale": m.uf_medicale,
-            "uf_hebergement": m.uf_hebergement,
-            "uf_soins": m.uf_soins,
-            "location": m.location,
-        }
-        timeline.append(timeline_item)
-    
+    patient = session.get(type(dossier.patient), dossier.patient_id) if dossier and dossier.patient_id else None
     return templates.TemplateResponse(request, "venue_detail.html", {
         "request": request,
         "venue": v,
         "dossier": dossier,
-        "patient": patient,
-        "timeline": timeline,
+        "patient": patient
     })
 
 
@@ -313,17 +275,13 @@ def edit_venue(venue_id: int, request: Request, session=Depends(get_session)):
     if not v:
             return templates.TemplateResponse(request, "not_found.html", {"request": request, "title": "Venue introuvable"}, status_code=404)
     fields = [
-    {"label": "Dossier ID", "name": "dossier_id", "type": "number", "value": v.dossier_id, "required": True,
-     "help": "ID du dossier existant dans la base"},
-    {"label": "UF médicale", "name": "uf_medicale", "type": "text", "value": v.uf_medicale, "required": False,
-     "help": "Unité fonctionnelle de responsabilité médicale"},
-    {"label": "UF hébergement", "name": "uf_hebergement", "type": "text", "value": v.uf_hebergement, "required": False,
-     "help": "Unité fonctionnelle de responsabilité d'hébergement"},
-    {"label": "UF soins", "name": "uf_soins", "type": "text", "value": v.uf_soins, "required": False,
-     "help": "Unité fonctionnelle de responsabilité de soins"},
-    {"label": "Début de venue", "name": "start_time", "type": "datetime-local", 
-     "value": v.start_time.strftime('%Y-%m-%dT%H:%M') if v.start_time else '', "required": True,
-     "help": "Date et heure de début de la venue"},
+        {"label": "Dossier ID", "name": "dossier_id", "type": "number", "value": v.dossier_id, "required": True,
+         "help": "ID du dossier existant dans la base"},
+        {"label": "UF de responsabilité", "name": "uf_responsabilite", "type": "text", "value": v.uf_responsabilite, "required": True,
+         "help": "Unité fonctionnelle responsable de la venue"},
+        {"label": "Début de venue", "name": "start_time", "type": "datetime-local", 
+         "value": v.start_time.strftime('%Y-%m-%dT%H:%M') if v.start_time else '', "required": True,
+         "help": "Date et heure de début de la venue"},
         {"label": "Service hospitalier", "name": "hospital_service", "type": "select", 
          "options": ["cardiology", "neurology", "oncology", "pediatrics", "other"], 
          "value": getattr(v,'hospital_service',None),
@@ -360,9 +318,7 @@ def edit_venue(venue_id: int, request: Request, session=Depends(get_session)):
 def update_venue(
     venue_id: int,
     dossier_id: int = Form(...),
-    uf_medicale: str = Form(None),
-    uf_hebergement: str = Form(None),
-    uf_soins: str = Form(None),
+    uf_responsabilite: str = Form(...),
     start_time: str = Form(...),
     hospital_service: str = Form(None),
     assigned_location: str = Form(None),
@@ -382,9 +338,7 @@ def update_venue(
     if not v:
         return templates.TemplateResponse(request, "not_found.html", {"request": request, "title": "Venue introuvable"}, status_code=404)
     v.dossier_id = dossier_id
-    v.uf_medicale = uf_medicale if uf_medicale else None
-    v.uf_hebergement = uf_hebergement if uf_hebergement else None
-    v.uf_soins = uf_soins if uf_soins else None
+    v.uf_responsabilite = uf_responsabilite
     v.start_time = datetime.fromisoformat(start_time)
     v.hospital_service = hospital_service
     v.assigned_location = assigned_location

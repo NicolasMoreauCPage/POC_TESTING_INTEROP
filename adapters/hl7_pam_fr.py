@@ -56,9 +56,18 @@ def build_message_for_movement(
         "MSH|^~\\&|POC|POC|DST|DST|"
         f"{when}||ADT^{movement.type or 'A02'}|{control_id}|P|2.5"
     )
+    # Stable primary patient identifier fallback chain
+    primary_id = (
+        getattr(patient, 'identifier', None)
+        or getattr(patient, 'external_id', None)
+        or (f"PSEQ{getattr(patient, 'patient_seq')}" if getattr(patient, 'patient_seq', None) is not None else None)
+        or f"PID{getattr(patient, 'id', '')}"
+    )
+    # Emit PID-3 as CX with source system (SRC-PAM) and identifier type PI
+    pid_cx = f"{primary_id}^^^SRC-PAM&1.2.250.1.211.99.1&ISO^PI"
     pid = (
         "PID|||"
-        f"{getattr(patient, 'external_id', '')}||"
+        f"{pid_cx}||"
         f"{getattr(patient, 'family', '')}^{getattr(patient, 'given', '')}"
         f"||{getattr(patient, 'birth_date', '')}|{getattr(patient, 'gender', '')}"
     )

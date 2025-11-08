@@ -16,14 +16,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-# Import models so SQLModel.metadata includes all tables
-import app.models as _
-import app.models_identifiers as _
-import app.models_transport as _
-import app.models_structure as _
-import app.models_structure_fhir as _
-import app.models_endpoints as _
-import app.models_context as _
 
 # Import the FastAPI app utilities
 from app.db import engine, get_session
@@ -125,77 +117,6 @@ def setup_database():
             # If the model/table isn't present or the query fails, continue.
             pass
 
-        # Seed a minimal hospital structure with one UF used by PAM tests (identifier '001')
-        try:
-            from sqlmodel import select as _select
-            from app.models_structure import (
-                EntiteGeographique,
-                Pole,
-                Service,
-                UniteFonctionnelle,
-                LocationStatus,
-                LocationMode,
-                LocationPhysicalType,
-                LocationServiceType,
-            )
-
-            eg = session.exec(_select(EntiteGeographique).where(EntiteGeographique.identifier == "EG-TEST")).first()
-            if not eg:
-                eg = EntiteGeographique(
-                    identifier="EG-TEST",
-                    name="Etablissement Test",
-                    status=LocationStatus.ACTIVE,
-                    mode=LocationMode.INSTANCE,
-                    physical_type=LocationPhysicalType.SI,
-                )
-                session.add(eg)
-                session.flush()
-
-            pole = session.exec(_select(Pole).where(Pole.identifier == "POLE-TEST")).first()
-            if not pole:
-                pole = Pole(
-                    identifier="POLE-TEST",
-                    name="Pôle Test",
-                    status=LocationStatus.ACTIVE,
-                    mode=LocationMode.INSTANCE,
-                    physical_type=LocationPhysicalType.AREA,
-                    entite_geo_id=eg.id,
-                )
-                session.add(pole)
-                session.flush()
-
-            srv = session.exec(_select(Service).where(Service.identifier == "SRV-TEST")).first()
-            if not srv:
-                srv = Service(
-                    identifier="SRV-TEST",
-                    name="Service Test",
-                    status=LocationStatus.ACTIVE,
-                    mode=LocationMode.INSTANCE,
-                    physical_type=LocationPhysicalType.AREA,
-                    service_type=LocationServiceType.MCO,
-                    pole_id=pole.id,
-                )
-                session.add(srv)
-                session.flush()
-
-            uf = session.exec(_select(UniteFonctionnelle).where(UniteFonctionnelle.identifier == "001")).first()
-            if not uf:
-                uf = UniteFonctionnelle(
-                    identifier="001",
-                    name="UF 001",
-                    status=LocationStatus.ACTIVE,
-                    mode=LocationMode.INSTANCE,
-                    physical_type=LocationPhysicalType.FL,
-                    service_id=srv.id,
-                )
-                session.add(uf)
-                session.flush()
-
-            session.commit()
-        except Exception:
-            # If structure models are absent or something goes wrong, don't block tests.
-            pass
-
     yield
 
     # Drop tables after each test to keep isolation
@@ -272,7 +193,7 @@ def dossier_chemo_with_sessions_fixture(session: Session):
     dossier = Dossier(
         dossier_seq=get_next_sequence(session, "dossier"),
         patient_id=patient.id,
-        uf_medicale="HDJ-ONCO",
+        uf_responsabilite="HDJ-ONCO",
         admit_time=datetime.now(),
     )
     session.add(dossier)
@@ -284,7 +205,7 @@ def dossier_chemo_with_sessions_fixture(session: Session):
         v = Venue(
             venue_seq=get_next_sequence(session, "venue"),
             dossier_id=dossier.id,
-            uf_medicale="HDJ-ONCO",
+            uf_responsabilite="HDJ-ONCO",
             start_time=datetime.now(),
             code="HDJ-ONCO",
             label=f"Chimiothérapie - Séance {i}",
@@ -324,7 +245,7 @@ def dossier_psy_day_hospital_multi_fixture(session: Session):
     dossier = Dossier(
         dossier_seq=get_next_sequence(session, "dossier"),
         patient_id=patient.id,
-        uf_medicale="HDJ-PSY",
+        uf_responsabilite="HDJ-PSY",
         admit_time=datetime.now(),
     )
     session.add(dossier)
@@ -340,7 +261,7 @@ def dossier_psy_day_hospital_multi_fixture(session: Session):
         v = Venue(
             venue_seq=get_next_sequence(session, "venue"),
             dossier_id=dossier.id,
-            uf_medicale="HDJ-PSY",
+            uf_responsabilite="HDJ-PSY",
             start_time=datetime.now(),
             code="HDJ-PSY",
             label=label,

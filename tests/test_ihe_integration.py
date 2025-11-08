@@ -14,20 +14,91 @@ def _create_test_message(trigger: str, identifiers: list, name: str = "TEST^TEST
     """Helper pour créer un message ADT de test."""
     now = datetime.utcnow().strftime("%Y%m%d%H%M%S")
     pid_3 = "~".join(identifiers)
-    
+    # location: e.g. "CARDIO^001" → code_service, code_uf
+    loc_parts = location.split("^")
+    code_service = loc_parts[0] if len(loc_parts) > 0 else "CARDIO"
+    code_uf = loc_parts[1] if len(loc_parts) > 1 else "001"
+    # ZBE-7: ^^^^^^UF^^^CODE_UF (10e composant)
+    zbe_7 = "^^^^^^UF^^^" + code_uf
+    zbe = f"ZBE|1|{now}||UPDATE|N|{trigger}|{zbe_7}| |HMS"
     return (
         f"MSH|^~\\&|CPAGE|CPAGE|LOGICIEL|LOGICIEL|{now}||ADT^{trigger}^ADT_{trigger}|MSG{trigger}|P|2.5^FRA^2.1\r"
         f"EVN|{trigger}|{now}|||APPLI^IHE^\r"
         f"PID|||{pid_3}||{name}||19800101|M|||123 RUE^^VILLE^^12345||0123456789\r"
         f"PV1||I|{location}|||||||||||||||||1|||||||||||||||||||||||||{now}\r"
-        f"ZBE|1|{now}||CREATE|N|{trigger}|^^^^^^001||001^001|||M\r"
+        f"{zbe}\r"
     )
 
 
 @pytest.mark.asyncio
 async def test_ihe_pam_end_to_end(session: Session):
+    # Créer la hiérarchie EG/Pôle/Service avec les bons identifiants
+    from app.models_structure_fhir import EntiteGeographique
+    from app.models_structure import Pole, Service, LocationStatus, LocationMode, LocationPhysicalType, LocationServiceType
+
+    from sqlmodel import select
+    EG_ID = "EG_TESTIHE"
+    POLE_ID = "POLE_TESTIHE"
+    SRV_ID = "SRV_TESTIHE"
+    UF_CODE = "001"
+
+    eg = session.exec(select(EntiteGeographique).where(EntiteGeographique.identifier == EG_ID)).first()
+    if not eg:
+        eg = EntiteGeographique(identifier=EG_ID, name="EG Test", finess="123456789")
+        session.add(eg)
+        session.commit()
+        session.refresh(eg)
+
+    pole = session.exec(select(Pole).where(Pole.identifier == POLE_ID)).first()
+    if not pole:
+        pole = Pole(identifier=POLE_ID, name="Pôle Test", entite_geo_id=eg.id, status=LocationStatus.ACTIVE, mode=LocationMode.INSTANCE, physical_type=LocationPhysicalType.SI)
+        session.add(pole)
+        session.commit()
+        session.refresh(pole)
+
+    service = session.exec(select(Service).where(Service.identifier == SRV_ID)).first()
+    if not service:
+        service = Service(identifier=SRV_ID, name="Service Test", pole_id=pole.id, service_type=LocationServiceType.MCO, status=LocationStatus.ACTIVE, mode=LocationMode.INSTANCE, physical_type=LocationPhysicalType.SI)
+        session.add(service)
+        session.commit()
+        session.refresh(service)
+
+    # Importer l’UF 001 via un message MFN^M05 (structure HL7)
+    mfn_msg = (
+        f"MSH|^~\\&|CPAGE|CPAGE|LOGICIEL|LOGICIEL|20251107173000||MFN^M05|MSG0001|P|2.5^FRA^2.1\r"
+        f"MFI|UF|UPD|20251107173000|20251107173000|NE\r"
+        f"MFE|MAD|001|20251107173000|A\r"
+        f"ZFU|001|UF Test|{SRV_ID}|Service Test|{POLE_ID}|Pôle Test|{EG_ID}|EG Test|active|MCO|SI|FR\r"
+    )
+    from app.services.transport_inbound import on_message_inbound
+    await on_message_inbound(mfn_msg, session, None)
     """Test le flux complet : admission → mouvements → sortie avec génération FHIR."""
     
+
+    # 0. Injecter la hiérarchie structurelle minimale attendue (EG > Pôle > Service > UF)
+    from app.models_structure_fhir import EntiteGeographique
+    from app.models_structure import Pole, Service, UniteFonctionnelle, LocationStatus, LocationMode, LocationPhysicalType, LocationServiceType
+
+    eg = EntiteGeographique(identifier="EG001", name="EG Test", finess="123456789")
+    session.add(eg)
+    session.commit()
+    session.refresh(eg)
+
+    pole = Pole(identifier="POLE001", name="Pôle Test", entite_geo_id=eg.id, status=LocationStatus.ACTIVE, mode=LocationMode.INSTANCE, physical_type=LocationPhysicalType.SI)
+    session.add(pole)
+    session.commit()
+    session.refresh(pole)
+
+    service = Service(identifier="SRV001", name="Service Test", pole_id=pole.id, service_type=LocationServiceType.MCO, status=LocationStatus.ACTIVE, mode=LocationMode.INSTANCE, physical_type=LocationPhysicalType.SI)
+    session.add(service)
+    session.commit()
+    session.refresh(service)
+
+    uf = UniteFonctionnelle(identifier="UF001", name="UF Test", service_id=service.id, status=LocationStatus.ACTIVE, mode=LocationMode.INSTANCE, physical_type=LocationPhysicalType.SI)
+    session.add(uf)
+    session.commit()
+    session.refresh(uf)
+
     # 1. Créer un endpoint de test
     ep = SystemEndpoint(name="TEST", kind="MLLP", role="receiver")
     session.add(ep)

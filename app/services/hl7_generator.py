@@ -13,9 +13,12 @@ Avantages:
 
 from datetime import datetime
 from typing import Optional, Dict, Any, List
+import os
 
 from app.models import Patient, Dossier, Venue, Mouvement
-from app.models_identifiers import Identifier, IdentifierNamespace
+from app.models_shared import SystemEndpoint
+from app.models_identifiers import Identifier
+from app.models_structure_fhir import IdentifierNamespace
 from sqlmodel import Session, select
 
 
@@ -29,6 +32,23 @@ def format_datetime(dt: Optional[datetime] = None) -> str:
 def format_date(dt: Optional[datetime] = None) -> str:
     """Format datetime en HL7 date (YYYYMMDD)."""
     if dt is None:
+        return ""
+    # Accepter aussi des chaînes ISO ("YYYY-MM-DD") ou déjà format HL7
+    if isinstance(dt, str):
+        s = dt.strip()
+        if len(s) == 8 and s.isdigit():  # déjà au format YYYYMMDD
+            return s
+        # Essayer quelques formats courants
+        from datetime import datetime as _dt
+        for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y"):
+            try:
+                return _dt.strptime(s, fmt).strftime("%Y%m%d")
+            except Exception:
+                continue
+        # fallback: retirer non chiffres
+        digits = ''.join(c for c in s if c.isdigit())
+        if len(digits) >= 8:
+            return digits[:8]
         return ""
     return dt.strftime("%Y%m%d")
 
@@ -94,14 +114,22 @@ def build_pid_segment(
     pid_3_parts = []
     if identifiers:
         for ident in identifiers:
-            # Charger le namespace si besoin
-            if session and ident.namespace_id:
-                namespace = session.get(IdentifierNamespace, ident.namespace_id)
-                if namespace:
-                    # Format: ID^^^AUTHORITY&OID&ISO^PI
-                    pid_3_parts.append(
-                        f"{ident.value}^^^{namespace.name}&{namespace.oid}&ISO^PI"
-                    )
+            # Charger le namespace via system match si session disponible
+            namespace = None
+            if session and ident.system:
+                namespace = session.exec(
+                    select(IdentifierNamespace).where(IdentifierNamespace.system == ident.system)
+                ).first()
+            
+            if namespace:
+                # Format: ID^^^AUTHORITY&OID&ISO^PI
+                pid_3_parts.append(
+                    f"{ident.value}^^^{namespace.name}&{namespace.system.split(':')[-1]}&ISO^PI"
+                )
+            else:
+                # Fallback: utiliser OID directement de l'identifier
+                oid = ident.oid or ident.system.split(":")[-1] if ident.system else "UNKNOWN"
+                pid_3_parts.append(f"{ident.value}^^^{oid}^PI")
     
     # Si pas d'identifiants, utiliser l'external_id si présent
     if not pid_3_parts and patient.external_id:
@@ -162,14 +190,23 @@ def build_pv1_segment(
     
     if identifiers:
         for ident in identifiers:
-            if session and ident.namespace_id:
-                namespace = session.get(IdentifierNamespace, ident.namespace_id)
-                if namespace and namespace.name == "NDA":
-                    visit_number = f"{ident.value}^^^{namespace.name}&{namespace.oid}&ISO^VN"
-                    break
+            namespace = None
+            if session and ident.system:
+                namespace = session.exec(
+                    select(IdentifierNamespace).where(IdentifierNamespace.system == ident.system)
+                ).first()
+            
+            if namespace and namespace.type == "NDA":
+                visit_number = f"{ident.value}^^^{namespace.name}&{namespace.system.split(':')[-1]}&ISO^VN"
+                break
+            elif ident.type == "NDA":
+                # Fallback sans namespace
+                oid = ident.oid or ident.system.split(":")[-1] if ident.system else "UNKNOWN"
+                visit_number = f"{ident.value}^^^{oid}^VN"
+                break
     
     # PV1-10: UF responsable (format: ^^^^^UF_CODE)
-    uf = dossier.uf_medicale or ""
+    uf = dossier.uf_responsabilite or ""
     
     # PV1-44: Date/heure admission
     admit_time = format_datetime(dossier.admit_time)
@@ -228,6 +265,23 @@ def build_zbe_segment(
     return f"ZBE|{zbe_1}|{zbe_2}|{zbe_3}|{zbe_4}|{zbe_5}|{zbe_6}|{zbe_7}|{zbe_8}|{zbe_9}"
 
 
+def _is_strict_pam(endpoint: Optional[SystemEndpoint]) -> bool:
+    """Détermine si le mode strict PAM FR est actif.
+
+    Priorité:
+    1. EntiteJuridique liée à l'endpoint (champ strict_pam_fr)
+    2. Variable d'environnement STRICT_PAM_FR
+    """
+    if endpoint and getattr(endpoint, "entite_juridique", None):
+        try:
+            if getattr(endpoint.entite_juridique, "strict_pam_fr", False):
+                return True
+        except Exception:
+            pass
+    import os as _os
+    return _os.getenv("STRICT_PAM_FR", "0") in {"1", "true", "True"}
+
+
 def generate_adt_message(
     *,
     patient: Patient,
@@ -239,7 +293,8 @@ def generate_adt_message(
     session: Optional[Session] = None,
     namespaces: Optional[Dict[str, IdentifierNamespace]] = None,
     control_id: Optional[str] = None,
-    timestamp: Optional[datetime] = None
+    timestamp: Optional[datetime] = None,
+    endpoint: Optional[SystemEndpoint] = None,
 ) -> str:
     """
     Génère un message ADT complet.
@@ -269,9 +324,15 @@ def generate_adt_message(
         control_id = f"MSG{timestamp.strftime('%Y%m%d%H%M%S')}"
     
     # Validation des segments obligatoires selon le profil IHE PAM FR
-    movement_triggers = {"A01", "A02", "A03", "A04", "A05", "A06", "A07", "A08", 
-                        "A11", "A12", "A13", "A21", "A22", "A23", "A38", 
-                        "A52", "A53", "A54", "A55"}
+    movement_triggers = {"A01", "A02", "A03", "A04", "A05", "A06", "A07", "A08",
+                         "A11", "A12", "A13", "A21", "A22", "A23", "A38",
+                         "A52", "A53", "A54", "A55"}
+
+    # Mode strict PAM FR : exclure A08 si strict (per-EJ ou env)
+    if _is_strict_pam(endpoint):
+        if trigger_event == "A08":
+            raise ValueError("L'événement A08 (mise à jour) est désactivé en mode strict PAM FR (EJ ou environnement)")
+        movement_triggers.discard("A08")
     
     # Les messages de mouvement requièrent le segment ZBE (sauf A28, A31, A40, A47 qui sont des messages d'identité)
     if trigger_event in movement_triggers and movement is None:
@@ -306,9 +367,9 @@ def generate_adt_message(
         if namespaces and "MOUVEMENT" in namespaces:
             movement_namespace = namespaces["MOUVEMENT"]
         
-        uf = dossier.uf_medicale or (venue.uf_medicale if venue else None)
+        uf = dossier.uf_responsabilite or (venue.uf_responsabilite if venue else None)
         segments.append(
-            build_zbe_segment(movement, namespace=movement_namespace, uf_medicale=uf)
+            build_zbe_segment(movement, namespace=movement_namespace, uf_responsabilite=uf)
         )
     
     return "\r".join(segments)
@@ -318,6 +379,7 @@ def generate_admission_message(
     patient: Patient,
     dossier: Dossier,
     venue: Venue,
+    movement: Optional[Mouvement] = None,
     session: Optional[Session] = None,
     namespaces: Optional[Dict[str, IdentifierNamespace]] = None
 ) -> str:
@@ -326,6 +388,7 @@ def generate_admission_message(
         patient=patient,
         dossier=dossier,
         venue=venue,
+        movement=movement,
         trigger_event="A01",
         session=session,
         namespaces=namespaces
@@ -356,36 +419,35 @@ def generate_discharge_message(
     patient: Patient,
     dossier: Dossier,
     venue: Venue,
+    movement: Optional[Mouvement] = None,
     session: Optional[Session] = None,
     namespaces: Optional[Dict[str, IdentifierNamespace]] = None
 ) -> str:
-    """Génère un message ADT^A03 (Sortie)."""
+    """Génère un message ADT^A03 (Sortie).
+
+    Fournir un mouvement si l'on veut inclure le segment ZBE (recommandé pour conformité IHE PAM FR).
+    """
     return generate_adt_message(
         patient=patient,
         dossier=dossier,
         venue=venue,
+        movement=movement,
         trigger_event="A03",
         session=session,
         namespaces=namespaces
     )
 
 
-def generate_update_message(
-    patient: Patient,
-    dossier: Dossier,
-    venue: Optional[Venue] = None,
-    session: Optional[Session] = None,
-    namespaces: Optional[Dict[str, IdentifierNamespace]] = None
-) -> str:
-    """Génère un message ADT^A08 (Mise à jour)."""
-    return generate_adt_message(
-        patient=patient,
-        dossier=dossier,
-        venue=venue,
-        trigger_event="A08",
-        session=session,
-        namespaces=namespaces
-    )
+def generate_update_message(*, endpoint: Optional[SystemEndpoint] = None, **kwargs) -> str:
+    """Génère un message ADT^A08 si autorisé.
+
+    Blocage si:
+    - EntiteJuridique liée strict_pam_fr=True
+    - OU variable d'environnement STRICT_PAM_FR activée
+    """
+    if _is_strict_pam(endpoint):
+        raise NotImplementedError("generate_update_message (A08) désactivé (mode strict PAM FR per-EJ ou env)")
+    return generate_adt_message(trigger_event="A08", endpoint=endpoint, **kwargs)
 
 
 def generate_cancel_admission_message(

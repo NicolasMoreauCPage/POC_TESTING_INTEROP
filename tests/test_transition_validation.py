@@ -37,9 +37,7 @@ async def test_reject_invalid_transition_absence_from_external(session: Session)
     dossier = Dossier(
         dossier_seq=get_next_sequence(session, "dossier"),
         patient_id=patient.id,
-        uf_medicale="TEST",
-
-        uf_hebergement="TEST",
+        uf_responsabilite="TEST",
         admit_time=datetime.now()
     )
     session.add(dossier)
@@ -48,9 +46,7 @@ async def test_reject_invalid_transition_absence_from_external(session: Session)
     venue = Venue(
         venue_seq=get_next_sequence(session, "venue"),
         dossier_id=dossier.id,
-        uf_medicale="TEST",
-
-        uf_hebergement="TEST",
+        uf_responsabilite="TEST",
         start_time=datetime.now(),
         code="CONS",
         label="Consultation externe"
@@ -112,9 +108,7 @@ async def test_accept_valid_transition_absence_from_hospitalization(session: Ses
     dossier = Dossier(
         dossier_seq=get_next_sequence(session, "dossier"),
         patient_id=patient.id,
-        uf_medicale="TEST",
-
-        uf_hebergement="TEST",
+        uf_responsabilite="TEST",
         admit_time=datetime.now()
     )
     session.add(dossier)
@@ -123,9 +117,7 @@ async def test_accept_valid_transition_absence_from_hospitalization(session: Ses
     venue = Venue(
         venue_seq=get_next_sequence(session, "venue"),
         dossier_id=dossier.id,
-        uf_medicale="TEST",
-
-        uf_hebergement="TEST",
+        uf_responsabilite="TEST",
         start_time=datetime.now(),
         code="HOSP",
         label="Hospitalisation"
@@ -191,9 +183,7 @@ async def test_reject_invalid_a22_without_a21(session: Session):
     dossier = Dossier(
         dossier_seq=get_next_sequence(session, "dossier"),
         patient_id=patient.id,
-        uf_medicale="TEST",
-
-        uf_hebergement="TEST",
+        uf_responsabilite="TEST",
         admit_time=datetime.now()
     )
     session.add(dossier)
@@ -202,9 +192,7 @@ async def test_reject_invalid_a22_without_a21(session: Session):
     venue = Venue(
         venue_seq=get_next_sequence(session, "venue"),
         dossier_id=dossier.id,
-        uf_medicale="TEST",
-
-        uf_hebergement="TEST",
+        uf_responsabilite="TEST",
         start_time=datetime.now(),
         code="HOSP",
         label="Hospitalisation"

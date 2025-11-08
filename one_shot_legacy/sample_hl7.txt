@@ -1,0 +1,4 @@
+MSH|^~\&|SND|HOSP|RCV|HOSP|20251030||ADT^A04|123456|P|2.5
+PID|1||EXT123^^^HOSP^MR||Doe^John^Paul^III^Dr||19800101|M|||123 Main St^^Paris^IDF^75000||+33123456789|||SSN123||M||White
+PD1||^DrHouse||Christian||FR
+PV1|1|I|ER^^^HOSP|||||||CARD|||||||||||20251030|||||||||||||

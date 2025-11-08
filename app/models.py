@@ -1,15 +1,9 @@
-"""Compatibility shim. Models moved to app/models/base.pyfrom typing import Optional, List, TYPE_CHECKING, ForwardRef
-
+from typing import Optional, List, TYPE_CHECKING, ForwardRef
 from datetime import datetime
+from enum import Enum
+from sqlmodel import SQLModel, Field, Relationship, Session
 
-This wrapper keeps the old imports working.from enum import Enum
-
-"""from sqlmodel import SQLModel, Field, Relationship, Session
-
-
-
-from app.models.base import *  # noqa: F401,F403from app.models_identifiers import Identifier, IdentifierType
-
+from app.models_identifiers import Identifier, IdentifierType
 
 class DossierType(str, Enum):
     """Type de dossier patient"""
@@ -74,17 +68,11 @@ class Patient(SQLModel, table=True):
     
     # Informations administratives
     nir: Optional[str] = None  # Numéro d'Inscription au Répertoire (NIR) - Numéro de sécurité sociale français (PID-3 NH)
-    ssn: Optional[str] = None  # DEPRECATED: Utiliser 'nir' pour la France
     marital_status: Optional[str] = None  # Statut marital (codes HL7: S/M/D/W/P/A/U)
     mothers_maiden_name: Optional[str] = None  # Nom de jeune fille de la mère (vérification identité)
     nationality: Optional[str] = None  # Nationalité (code pays ISO, ex: FR)
     place_of_birth: Optional[str] = None  # Lieu de naissance
     primary_care_provider: Optional[str] = None  # Médecin traitant déclaré
-    
-    # DEPRECATED - RGPD France (conservés pour compatibilité legacy uniquement)
-    race: Optional[str] = None  # ⚠️ INTERDIT EN FRANCE - Ne pas collecter (Article 9 RGPD)
-    religion: Optional[str] = None  # ⚠️ INTERDIT EN FRANCE - Ne pas collecter (Article 9 RGPD)
-    administrative_gender: Optional[str] = None  # ⚠️ DOUBLON - Utiliser 'gender' uniquement
 
     dossiers: List["Dossier"] = Relationship(back_populates="patient")
     identifiers: List["Identifier"] = Relationship(back_populates="patient")
@@ -112,12 +100,7 @@ class Dossier(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     dossier_seq: int = Field(index=True, unique=True)       # identifiant métier unique
     patient_id: int = Field(foreign_key="patient.id")
-    
-    # Trois responsabilités distinctes (hébergement, médicale, soins)
-    uf_hebergement: Optional[str] = None  # UF hébergement (pour hospitalisation)
-    uf_medicale: Optional[str] = None      # UF médicale
-    uf_soins: Optional[str] = None         # UF soins
-    
+    uf_responsabilite: str
     admit_time: datetime
     discharge_time: Optional[datetime] = None
     dossier_type: DossierType = Field(default=DossierType.HOSPITALISE, description="Type de dossier (hospitalisé, externe, urgence)")
@@ -168,12 +151,7 @@ class Venue(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     venue_seq: int = Field(index=True, unique=True)         # identifiant métier unique
     dossier_id: int = Field(foreign_key="dossier.id")
-    
-    # Trois responsabilités distinctes (hébergement, médicale, soins)
-    uf_hebergement: Optional[str] = None  # UF hébergement (pour hospitalisation)
-    uf_medicale: Optional[str] = None      # UF médicale
-    uf_soins: Optional[str] = None         # UF soins
-    
+    uf_responsabilite: str
     start_time: datetime
     code: Optional[str] = None
     label: Optional[str] = None
@@ -210,15 +188,6 @@ class Mouvement(SQLModel, table=True):
     type: Optional[str] = None
     when: datetime
     location: Optional[str] = None
-    
-    # Trois responsabilités distinctes avec leurs UF respectives (ZBE-9 nature)
-    # Pour A01 (hospitalisation): uf_medicale ET uf_hebergement sont renseignées
-    # Pour A04 (consultation externe): uf_medicale est renseignée (pas d'hébergement)
-    uf_hebergement: Optional[str] = None     # UF hébergement (PV1-3-1 si patient hospitalisé)
-    uf_medicale: Optional[str] = None        # UF médicale (ZBE-7-10 si M dans ZBE-9)
-    uf_soins: Optional[str] = None           # UF soins (ZBE-7-10 si S dans ZBE-9)
-    movement_nature: Optional[str] = None     # Nature du mouvement (ZBE-9: S/H/M/L/D/SM/SH/MH/LD/HMS/C)
-    
     # Extensions
     from_location: Optional[str] = None
     to_location: Optional[str] = None

@@ -108,7 +108,6 @@ def update_patient_from_pid_data(
     # PID-32: Identity Reliability Code
     if pid_data.get("identity_reliability_code"):
         patient.identity_reliability_code = pid_data["identity_reliability_code"]
-        # TODO: Ajouter date et source si présentes dans le message (extensions)
     
     # SSN / NIR
     if pid_data.get("ssn"):

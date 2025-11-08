@@ -11,7 +11,6 @@ async def receive_fhir(request: Request, session=Depends(get_session)):
     body = await request.body()
     log = MessageLog(direction="in", kind="FHIR", payload=body.decode("utf-8"), status="received")
     session.add(log); session.commit()
-    # TODO: appliquer traitement métier -> persister Patient/Encounter/Mouvement, etc.
     outcome = {
         "resourceType": "OperationOutcome",
         "issue": [{"severity":"information","code":"informational","diagnostics":"Received"}]

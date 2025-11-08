@@ -95,15 +95,13 @@ async def test_dossier_venue_mouvement_emissions_on_insert_update():
         s.commit()
         # wait for patient logs
         await _wait_bg()
-        d = Dossier(dossier_seq=0, patient_id=p.id, uf_medicale="UF1",
- uf_hebergement="UF1", admit_time=datetime.utcnow())
+        d = Dossier(dossier_seq=0, patient_id=p.id, uf_responsabilite="UF1", admit_time=datetime.utcnow())
         s.add(d)
         s.commit()
         await _wait_bg()
 
         # Create a Venue (admission)
-        v = Venue(venue_seq=0, code="VENUE-TST-1", label="Test Venue", uf_medicale="UF1",
- uf_hebergement="UF1", start_time=datetime.utcnow())
+        v = Venue(venue_seq=0, code="VENUE-TST-1", label="Test Venue", uf_responsabilite="UF1", start_time=datetime.utcnow())
         v.dossier_id = d.id
         s.add(v)
         s.commit()

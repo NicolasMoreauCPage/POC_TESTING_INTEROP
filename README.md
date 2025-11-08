@@ -1,3 +1,4 @@
+
 # MedData Bridge
 
 Application FastAPI pour l'interopérabilité HL7v2 (MLLP) et FHIR dans le contexte français.
@@ -52,6 +53,122 @@ En production, utilisez gunicorn avec des workers uvicorn :
 
 ```bash
 PYTHONPATH=. .venv/bin/python -m gunicorn app.app:app -k uvicorn.workers.UvicornWorker -w 4
+
+### Initialisation complète (base + seed)
+
+Pour accélérer un onboarding local, un script d'initialisation idempotent est disponible :
+
+```bash
+# (Re)crée la base, applique les migrations legacy et insère un jeu minimal (Patient+Dossier+Venue+Mouvement)
+PYTHONPATH=. .venv/bin/python scripts_manual/init_full.py
+
+# Réinitialiser complètement (supprime poc.db avant)
+PYTHONPATH=. .venv/bin/python scripts_manual/init_full.py --force-reset
+```
+
+Ensuite démarrez l'application :
+
+```bash
+PYTHONPATH=. .venv/bin/python -m uvicorn app.app:app --reload
+```
+
+Flags supplémentaires disponibles :
+
+```text
+--with-vocab   Initialise les vocabulaires (équivalent tools/init_vocabularies.py)
+--rich-seed    Insère un jeu multi-patients (5 patients, 5 dossiers, 10 venues, 30 mouvements)
+--force-reset  Supprime poc.db avant recréation
+```
+
+Exemples :
+
+```bash
+# Init + vocabulaires
+PYTHONPATH=. .venv/bin/python scripts_manual/init_full.py --with-vocab
+
+# Init complète + seed riche + vocabulaires
+PYTHONPATH=. .venv/bin/python scripts_manual/init_full.py --force-reset --rich-seed --with-vocab
+```
+
+Le seed est ignoré si des patients existent déjà (idempotent).
+
+### Mode strict IHE PAM France (global & par Entité Juridique)
+
+Le mode strict supprime totalement l'événement A08 (mise à jour patient) pour se conformer au périmètre IHE PAM France (pas de message de mise à jour identité hors flux admissions/mouvements/annulations).
+
+Deux niveaux de contrôle complémentaires :
+
+1. Flag modèle `EntiteJuridique.strict_pam_fr` (par défaut `True`) : chaque Entité Juridique peut activer/désactiver individuellement le mode strict. Si `True`, A08 est bloqué en émission et en réception pour les endpoints liés à cette EJ.
+2. Variable d'environnement `STRICT_PAM_FR=1` : active le mode strict global pour tous les endpoints (utilisée comme fallback si un endpoint n'a pas d'EJ ou pour homogénéiser en local).
+
+
+Effets quand strict actif (per-EJ ou global) :
+
+1. Générateur (`hl7_generator`) : `generate_update_message` lève `NotImplementedError`.
+2. Génération générique (`generate_adt_message`) : A08 retiré de la liste des triggers de mouvement et rejeté si demandé.
+3. Inbound (`transport_inbound`) : message ADT^A08 rejeté avec ACK AE.
+4. Scénarios de démo (`--demo-scenarios`) : aucun A08 créé.
+5. Migration `0002_add_strict_pam_fr_entitejuridique.py` : ajoute la colonne avec valeur par défaut `True` (toutes les EJ héritent du mode strict initialement).
+
+
+Pour activer strict global :
+
+```bash
+export STRICT_PAM_FR=1
+```
+
+Pour désactiver strict global (les EJ individuelles continuent d'appliquer leur propre flag) :
+
+```bash
+unset STRICT_PAM_FR
+```
+
+Pour assouplir une seule EJ (autoriser A08 uniquement pour celle-ci) dans un script Python :
+
+```python
+from sqlmodel import Session, select
+from app.db import engine
+from app.models_structure_fhir import EntiteJuridique
+
+with Session(engine) as session:
+   ej = session.exec(select(EntiteJuridique).where(EntiteJuridique.finess_ej=="123456789")).first()
+   ej.strict_pam_fr = False
+   session.add(ej)
+   session.commit()
+```
+
+Bonnes pratiques :
+
+1. Laisser strict activé par défaut pour vérifier les workflows de base.
+2. Désactiver ponctuellement côté EJ pour tester les cas legacy A08.
+3. Ne pas mélanger A08 avec Z99 pour les corrections partielles en mode strict.
+
+### Migrations structurées (Alembic)
+
+Alembic est configuré (fichier `alembic.ini`, dossier `alembic/`). Pour générer la migration réelle initiale :
+
+```bash
+# Installer (si pas déjà installé)
+pip install -r requirements.txt
+
+# Créer une révision à partir des modèles SQLModel
+alembic revision --autogenerate -m "initial schema"
+
+# Appliquer la migration
+alembic upgrade head
+```
+
+Bonnes pratiques :
+1. Toujours valider le diff autogénéré (ajout/suppression de colonnes inattendues).
+2. Nommer clairement les messages de révision (ex: "add systemendpoint file columns").
+3. Commiter les fichiers sous `alembic/versions/`.
+4. Utiliser `alembic downgrade -1` pour revenir d'une migration récente si besoin.
+
+Lorsqu'un champ est ajouté dans un modèle SQLModel :
+```bash
+alembic revision --autogenerate -m "add <champ> to <table>"
+alembic upgrade head
+```
 ```
 
 ## Outils et Scripts

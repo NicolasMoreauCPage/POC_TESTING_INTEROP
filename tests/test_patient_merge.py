@@ -128,17 +128,13 @@ async def test_merge_patient_basic(session: Session):
     dossier1 = Dossier(
         dossier_seq=get_next_sequence(session, "dossier"),
         patient_id=source_patient.id,
-        uf_medicale="UF-TEST",
-
-        uf_hebergement="UF-TEST",
+        uf_responsabilite="UF-TEST",
         admit_time=datetime.utcnow()
     )
     dossier2 = Dossier(
         dossier_seq=get_next_sequence(session, "dossier"),
         patient_id=source_patient.id,
-        uf_medicale="UF-TEST2",
-
-        uf_hebergement="UF-TEST2",
+        uf_responsabilite="UF-TEST2",
         admit_time=datetime.utcnow()
     )
     session.add_all([dossier1, dossier2])
@@ -228,9 +224,7 @@ async def test_merge_patient_with_venues_and_mouvements(session: Session):
     dossier = Dossier(
         dossier_seq=get_next_sequence(session, "dossier"),
         patient_id=source.id,
-        uf_medicale="UF-CARDIO",
-
-        uf_hebergement="UF-CARDIO",
+        uf_responsabilite="UF-CARDIO",
         admit_time=datetime.utcnow()
     )
     session.add(dossier)
@@ -239,9 +233,7 @@ async def test_merge_patient_with_venues_and_mouvements(session: Session):
     venue = Venue(
         venue_seq=get_next_sequence(session, "venue"),
         dossier_id=dossier.id,
-        uf_medicale="UF-CARDIO",
-
-        uf_hebergement="UF-CARDIO",
+        uf_responsabilite="UF-CARDIO",
         start_time=datetime.utcnow(),
         code="CARD-01",
         label="Hospitalisation Cardiologie"

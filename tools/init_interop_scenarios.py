@@ -18,10 +18,6 @@ from datetime import datetime
 from sqlmodel import Session, SQLModel, select
 
 from app.db import engine
-import app.models  # noqa: F401
-import app.models_identifiers  # noqa: F401
-import app.models_structure  # noqa: F401
-import app.models_structure_fhir  # noqa: F401
 from app.models import Dossier, Patient, Venue
 from app.models_scenarios import InteropScenario, ScenarioBinding
 from app.models_structure_fhir import GHTContext
