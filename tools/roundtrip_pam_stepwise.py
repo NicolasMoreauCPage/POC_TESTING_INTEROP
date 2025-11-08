@@ -87,29 +87,38 @@ def ensure_destination_context(session) -> SystemEndpoint:
     return endpoint
 
 def rewrite_pid_identifiers(message: str) -> str:
-    lines = message.splitlines()
+    """Rewrite PID-3 to append -DST suffix to primary identifier value, preserving original as second repetition."""
+    # Handle both \r\n and \r line endings
+    lines = message.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     new_lines: List[str] = []
     for line in lines:
         if PID_REGEX.match(line):
             parts = line.split("|")
-            if len(parts) > 3:
-                original_field = parts[3] or "UNDEF"
-                repetitions = original_field.split("~") if original_field else [original_field]
-                original = repetitions[0]
-                value = original.split("^")[0] if original else "UNDEF"
-                if value in ("None", "", "UNDEF"):
-                    # Synthesize a value based on control id (MSH-10) or file fallback
-                    control_id = None
+            if len(parts) > 3 and parts[3]:
+                original_field = parts[3]
+                repetitions = original_field.split("~")
+                original_first = repetitions[0] if repetitions else ""
+                # Extract value (first component of CX)
+                value = original_first.split("^")[0] if original_first else ""
+                if not value or value in ("None", "", "UNDEF"):
+                    # Fallback: use MSH-10 control ID if PID-3 empty
                     msh_line = next((l for l in lines if l.startswith("MSH")), None)
                     if msh_line:
                         msh_parts = msh_line.split("|")
-                        if len(msh_parts) > 9:
-                            control_id = msh_parts[9]
-                    base = control_id or f"GEN{os.urandom(3).hex()}"
-                    value = base
+                        if len(msh_parts) > 9 and msh_parts[9]:
+                            value = msh_parts[9]
+                    if not value:
+                        value = f"GEN{os.urandom(3).hex()}"
+                # Append -DST to value, keep rest of CX structure from original
                 new_value = f"{value}-DST"
-                new_cx = f"{new_value}^^^ROUNDTRIP-DST&1.2.250.999.1&ISO^PI"
-                parts[3] = "~".join([new_cx, original] + repetitions[1:])
+                # Rebuild CX: new_value + rest of original_first components
+                orig_comps = original_first.split("^")
+                if len(orig_comps) > 1:
+                    new_cx = "^".join([new_value] + orig_comps[1:])
+                else:
+                    new_cx = f"{new_value}^^^ROUNDTRIP-DST&1.2.250.999.1&ISO^PI"
+                # First repetition = new CX, subsequent repetitions = original unchanged
+                parts[3] = "~".join([new_cx] + repetitions)
                 line = "|".join(parts)
         new_lines.append(line)
     return "\r".join(new_lines)
@@ -129,6 +138,10 @@ def process_messages(limit: int | None, all_mode: bool):
     total_injected = 0
     mapping = []  # (original, new)
 
+    # Enable relax transitions for reinjection (historical data may have invalid sequences)
+    import os as _os_env
+    _os_env.environ["PAM_RELAX_TRANSITIONS"] = "1"
+
     for f in files:
         content = f.read_text(encoding="utf-8", errors="ignore")
         rewritten = rewrite_pid_identifiers(content)
@@ -147,22 +160,29 @@ def process_messages(limit: int | None, all_mode: bool):
             # Retrieve newest patient (assumes scan only destination endpoint)
             patient = session.exec(select(Patient).order_by(Patient.id.desc())).first()
             if patient:
-                # Extract original value (value without -DST) from first repetition
-                # Extract original identifier from PID repetitions; handle cases where base was 'None'
-                pid_line = next((l for l in rewritten.split("\r") if l.startswith("PID")), None)
+                # Extract original value from PID-3 before -DST rewrite (second repetition in rewritten message)
+                rewritten_lines = rewritten.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+                pid_line = next((l for l in rewritten_lines if l.startswith("PID")), None)
                 orig_value = "?"
                 if pid_line:
                     pid_parts = pid_line.split("|")
                     if len(pid_parts) > 3 and pid_parts[3]:
                         reps = pid_parts[3].split("~")
-                        if len(reps) > 1:
+                        # Second repetition = original pre-rewrite identifier
+                        if len(reps) > 1 and reps[1]:
                             orig_value = reps[1].split("^")[0]
-                        else:
-                            orig_value = reps[0].split("^")[0]
-                mapping.append((orig_value, patient.identifier))
+                        elif reps[0]:
+                            # Fallback if only one rep (strip -DST suffix)
+                            first_val = reps[0].split("^")[0]
+                            orig_value = first_val[:-4] if first_val.endswith("-DST") else first_val
+                mapping.append((orig_value, patient.identifier if patient.identifier else f"PID{patient.id}"))
+            else:
+                # No patient created (possible rejection or error)
+                mapping.append(("?", "NO_PATIENT"))
 
         total_injected += 1
-        print(f"✓ Reinjection {f.name} -> patient identifier={mapping[-1][1]}")
+        patient_info = mapping[-1][1] if mapping else "UNKNOWN"
+        print(f"✓ Reinjection {f.name} -> patient identifier={patient_info}")
 
     print("\n=== Roundtrip Résumé ===")
     print(f"Messages réinjectés: {total_injected}")

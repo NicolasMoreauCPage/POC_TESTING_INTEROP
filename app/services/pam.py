@@ -649,12 +649,14 @@ async def handle_admission_message(
 
         # Créer ou mettre à jour le patient
         print(f"[pam] identifiers={pid_data.get('identifiers')} family={family} given={given} trigger={trigger}")
+        print(f"[pam] DEBUG: extracted identifier='{identifier}'")
 
         reused_patient = None
         if identifier:
             from sqlmodel import select
             from app.services.patient_update_helper import update_patient_from_pid_data
             existing = session.exec(select(Patient).where(Patient.identifier == identifier)).first()
+            print(f"[pam] DEBUG: lookup result: {'FOUND' if existing else 'NOT FOUND'} (searching for identifier='{identifier}')")
             if existing:
                 update_patient_from_pid_data(existing, pid_data, session, create_mode=False)
                 session.add(existing)
